@@ -18,8 +18,9 @@ ds-bundle/
 .design-sync/learnings/
 .design-sync/node_modules
 
-# Unrelated external repo present in this workspace
-App/
+# Unrelated external repo present in this workspace (root-anchored:
+# 안 그러면 Windows 대소문자 무시로 backend/app/ 까지 잡힘)
+/App/
 
 # OS / editor
 .DS_Store

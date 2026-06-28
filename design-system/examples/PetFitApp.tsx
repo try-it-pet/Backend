@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { apiBase, fetchProducts, runTryOn, type TryOnResult } from "./api";
 
 /**
  * PetFit 앱 — Claude Design 핸드오프("PetFit App.dc.html")의 충실한 React 구현.
@@ -93,12 +94,38 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     liked: { 0: false, 1: true, 2: false, 3: true, 4: false, 5: false },
   });
 
+  // 백엔드 연동: 상품은 API 에서 로드(실패 시 로컬 폴백), AI 피팅은 /tryon 잡으로 처리
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
+  const [fit, setFit] = useState<{ loading: boolean; result: TryOnResult | null; error: boolean }>({
+    loading: false, result: null, error: false,
+  });
+  const fitReq = useRef(0);
+
+  useEffect(() => {
+    fetchProducts().then(setProducts).catch(() => {/* 백엔드 미연결 시 로컬 더미 유지 */});
+  }, []);
+
+  useEffect(() => {
+    if (st.screen !== "fit") return;
+    const product = products[st.fitG];
+    if (!product) return;
+    const reqId = ++fitReq.current;
+    setFit({ loading: true, result: null, error: false });
+    runTryOn({ productId: product.id, size: st.size })
+      .then((job) => {
+        if (fitReq.current !== reqId) return; // 최신 요청만 반영(가먼트 빠른 전환 대비)
+        if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false });
+        else setFit({ loading: false, result: null, error: true });
+      })
+      .catch(() => { if (fitReq.current === reqId) setFit({ loading: false, result: null, error: true }); });
+  }, [st.screen, st.fitG, st.size, products]);
+
   const set = (patch: Partial<typeof st>) => setSt((s) => ({ ...s, ...patch }));
   const go = (screen: Screen) => setSt((s) => ({ ...s, screen, prev: s.screen }));
   const toggle = (i: number) => setSt((s) => ({ ...s, liked: { ...s.liked, [i]: !s.liked[i] } }));
 
   const card = (i: number) => {
-    const p = PRODUCTS[i];
+    const p = products[i];
     const on = st.liked[i];
     return {
       i, brand: p.brand, name: p.name, priceText: won(p.price), showBadge: p.fit >= 93,
@@ -136,7 +163,9 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
 
   const sectionTitle = `${petName}한테 어울려요`;
   const aiSubcopy = `AI가 ${petName}의 체형을 분석했어요`;
-  const fitP = PRODUCTS[st.fitG];
+  const fitP = products[st.fitG];
+  const fitScore = fit.result?.fit_score ?? fitP.fit;
+  const fitRecSize = fit.result?.recommended_size ?? st.size;
   const fitOn = st.liked[st.fitG];
   const d = card(st.selProd);
   const likedIdx = Object.keys(st.liked).filter((k) => st.liked[Number(k)]).map(Number);
@@ -230,7 +259,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 22px 6px" }}>
-            <span style={{ fontSize: 13, color: T.muted, fontWeight: 600 }}>전체 {PRODUCTS.length}개</span>
+            <span style={{ fontSize: 13, color: T.muted, fontWeight: 600 }}>전체 {products.length}개</span>
             <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 700, letterSpacing: "-.2px", cursor: "pointer" }}>AI 핏 높은순
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
             </div>
@@ -258,17 +287,28 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
           </div>
           <div className="pf-scroll" style={{ flex: 1, overflowY: "auto" }}>
             <div style={{ margin: "6px 22px 0", borderRadius: 22, position: "relative", overflow: "hidden", aspectRatio: "4 / 5", background: T.soft, border: `1px solid ${T.line}` }}>
-              <ImageSlot label="초코 전신 사진" />
-              <span style={{ position: "absolute", top: 14, left: 14, background: "rgba(255,255,255,.94)", color: T.ink, fontSize: 11, fontWeight: 700, padding: "6px 11px", borderRadius: 999, letterSpacing: "-.2px" }}>피팅 적용됨</span>
+              {fit.loading ? (
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", border: `3px solid ${T.line}`, borderTopColor: T.accent, animation: "pf-spin 0.8s linear infinite" }} />
+                  <span style={{ fontSize: 13, color: T.sub, fontWeight: 600 }}>AI가 {petName}에게 입히는 중…</span>
+                </div>
+              ) : fit.result ? (
+                <img src={apiBase + fit.result.image_url} alt="AI 피팅 결과" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              ) : (
+                <ImageSlot label={fit.error ? "백엔드 미연결 — 더미 표시" : "초코 전신 사진"} />
+              )}
+              {fit.result && (
+                <span style={{ position: "absolute", top: 14, left: 14, background: "rgba(255,255,255,.94)", color: T.ink, fontSize: 11, fontWeight: 700, padding: "6px 11px", borderRadius: 999, letterSpacing: "-.2px" }}>피팅 적용됨</span>
+              )}
             </div>
             <div style={{ margin: "18px 22px 0", display: "flex", gap: 10 }}>
               <div style={{ flex: 1, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 15, padding: "14px 16px" }}>
                 <div style={{ fontSize: 11.5, color: T.muted, fontWeight: 600 }}>AI 핏 스코어</div>
-                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.5px", marginTop: 3, color: T.accent }}>{fitP.fit}<span style={{ fontSize: 13 }}>%</span></div>
+                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.5px", marginTop: 3, color: T.accent }}>{fit.loading ? "…" : fitScore}<span style={{ fontSize: 13 }}>%</span></div>
               </div>
               <div style={{ flex: 1, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 15, padding: "14px 16px" }}>
                 <div style={{ fontSize: 11.5, color: T.muted, fontWeight: 600 }}>추천 사이즈</div>
-                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.5px", marginTop: 3 }}>{st.size}<span style={{ fontSize: 12, color: T.muted, fontWeight: 600, marginLeft: 5 }}>가슴 42cm</span></div>
+                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.5px", marginTop: 3 }}>{fitRecSize}<span style={{ fontSize: 12, color: T.muted, fontWeight: 600, marginLeft: 5 }}>가슴 42cm</span></div>
               </div>
             </div>
             <div style={{ padding: "24px 22px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -276,7 +316,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               <span style={{ fontSize: 12.5, color: T.muted, fontWeight: 600 }}>{fitP.brand} {fitP.name}</span>
             </div>
             <div className="pf-scroll" style={{ display: "flex", gap: 10, overflowX: "auto", padding: "14px 22px 4px" }}>
-              {PRODUCTS.map((_, i) => (
+              {products.map((_, i) => (
                 <div key={i} onClick={() => set({ fitG: i })} style={{ flexShrink: 0, borderRadius: 14, padding: 3, cursor: "pointer", border: `2px solid ${st.fitG === i ? T.accent : "transparent"}` }}>
                   <div style={{ width: 60, height: 60 }}><ImageSlot label="옷" radius={12} /></div>
                 </div>
@@ -284,7 +324,13 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             </div>
             <div style={{ margin: "20px 22px 0", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: "16px 18px" }}>
               <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-.3px" }}>AI 핏 분석</div>
-              <p style={{ margin: "9px 0 0", fontSize: 13, lineHeight: 1.65, color: T.sub, fontWeight: 500, letterSpacing: "-.2px" }}>초코의 체형에는 <b style={{ color: T.ink }}>{st.size} 사이즈</b>가 가장 잘 맞아요. 목둘레가 여유로워 활동성이 좋고, 어깨선이 자연스럽게 떨어집니다.</p>
+              <p style={{ margin: "9px 0 0", fontSize: 13, lineHeight: 1.65, color: T.sub, fontWeight: 500, letterSpacing: "-.2px" }}>
+                {fit.result
+                  ? fit.result.analysis
+                  : fit.loading
+                  ? "AI가 체형을 분석하고 있어요…"
+                  : `${petName}의 체형에는 ${fitRecSize} 사이즈가 가장 잘 맞아요.`}
+              </p>
             </div>
             <div style={{ height: 118 }} />
           </div>
