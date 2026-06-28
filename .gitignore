@@ -1,0 +1,26 @@
+# Node / frontend
+node_modules/
+dist/
+preview-dist/
+*.tsbuildinfo
+
+# Python / backend
+.venv/
+__pycache__/
+*.pyc
+.env
+uploads/
+
+# design-sync tooling (Claude Design)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+
+# Unrelated external repo present in this workspace
+App/
+
+# OS / editor
+.DS_Store
+Thumbs.db

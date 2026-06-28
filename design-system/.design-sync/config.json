@@ -1,0 +1,7 @@
+{
+  "pkg": "petfit-design-system",
+  "globalName": "PetFit",
+  "shape": "package",
+  "buildCmd": "npm run build",
+  "cssEntry": "tokens.css"
+}

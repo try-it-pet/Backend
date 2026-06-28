@@ -1,0 +1,41 @@
+{
+  "name": "petfit-design-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PetFit 디자인 시스템 — 반려동물 AI 쇼핑 앱의 토큰·컴포넌트 (Claude Design /design-sync 소스)",
+  "type": "module",
+  "main": "./dist/index.es.js",
+  "module": "./dist/index.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js"
+    },
+    "./tokens.css": "./tokens.css"
+  },
+  "files": ["dist", "tokens.css"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "vite",
+    "preview": "vite",
+    "clean": "rimraf dist"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  },
+  "petfit": {
+    "tokensDocs": "../docs/07_DESIGN_SYSTEM.md"
+  }
+}

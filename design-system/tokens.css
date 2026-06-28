@@ -1,0 +1,56 @@
+:root {
+  /* Surfaces / neutrals (Claude Design 핸드오프 팔레트) */
+  --pf-paper: #FAF8F5;
+  --pf-surface: #FFFFFF;
+  --pf-soft: #F1ECE6;
+  --pf-hero-bg: #EDE6DD;
+
+  --pf-ink: #1A1714;
+  --pf-sub: #6E665E;
+  --pf-muted: #9B948C;
+  --pf-muted-2: #A89F95;
+  --pf-line: #ECE7E1;
+
+  /* Accent — 코랄 단일 액센트 */
+  --pf-accent: #E8674A;
+  --pf-accent-soft: #FBEDE8;
+  --pf-hero-label: #A2693F;
+
+  --pf-on-accent: #FFFFFF;
+  --pf-on-ink: #FFFFFF;
+
+  /* Typography */
+  --pf-font: "Pretendard", system-ui, sans-serif;
+  --pf-fs-display: 21px;
+  --pf-fs-h1: 20px;
+  --pf-fs-h2: 18px;
+  --pf-fs-body: 13.5px;
+  --pf-fs-price: 15px;
+  --pf-fs-caption: 12px;
+  --pf-fs-label: 11.5px;
+  --pf-fw-regular: 400;
+  --pf-fw-medium: 500;
+  --pf-fw-semibold: 600;
+  --pf-fw-bold: 700;
+  --pf-fw-heavy: 800;
+
+  /* Spacing */
+  --pf-space-1: 4px;
+  --pf-space-2: 8px;
+  --pf-space-3: 12px;
+  --pf-space-4: 16px;
+  --pf-space-6: 24px;
+  --pf-screen-padding: 22px;
+
+  /* Radius */
+  --pf-radius-sm: 12px;
+  --pf-radius-md: 14px;
+  --pf-radius-card: 16px;
+  --pf-radius-hero: 22px;
+  --pf-radius-frame: 42px;
+  --pf-radius-full: 999px;
+
+  /* Elevation (거의 사용 안 함 — 미니멀) */
+  --pf-shadow-fab: 0 6px 16px rgba(232, 103, 74, 0.32);
+  --pf-shadow-frame: 0 30px 80px rgba(40, 30, 25, 0.18);
+}
