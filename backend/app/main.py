@@ -5,9 +5,9 @@ from .config import settings
 from .routers import auth, me, products, tryon
 
 app = FastAPI(
-    title="PetFit API",
-    version="0.1.0",
-    description="반려동물 AI 쇼핑 — 상품·펫·AI 가상 피팅 API (프로토타입, mock 프로바이더).",
+    title="Pawdy API",
+    version="0.2.0",
+    description="Pawdy — 펫 전문 멀티샵: 상품·펫·AI 가상 피팅(착용·배치) API (프로토타입).",
 )
 
 app.add_middleware(

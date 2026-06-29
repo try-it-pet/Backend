@@ -9,7 +9,10 @@ class Product(BaseModel):
     brand: str
     name: str
     price: int
-    fit: int = Field(description="AI 핏 점수(%) — fit>=93 이면 'AI 추천' 라벨")
+    fit: int = Field(description="AI 핏/매치 점수(%) — fit>=93 이면 'AI 추천' 라벨")
+    category: str = Field("fashion", description="care|fashion|active|wellness|home")
+    species: str = Field("dog", description="dog|cat|all")
+    fittable: bool = Field(True, description="AI 피팅(착용/배치) 가능 여부")
 
 
 class PetCreate(BaseModel):

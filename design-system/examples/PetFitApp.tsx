@@ -6,7 +6,7 @@ import {
 } from "./api";
 
 /**
- * PetFit 앱 — Claude Design 핸드오프("PetFit App.dc.html")의 충실한 React 구현.
+ * Pawdy — 펫 전문 멀티샵 앱. 반려동물 프로필 기반 추천 + AI 가상 피팅(착용·배치).
  * 디자인 철학: 미니멀, 그라데이션 없음, 액센트는 코랄(#E8674A) 한 가지,
  * AI는 작은 텍스트 라벨로 조용히 표현(반짝이/별 아이콘 금지).
  */
@@ -26,14 +26,37 @@ const T = {
   heroLabel: "#A2693F",
 };
 
-type Product = { brand: string; name: string; price: number; fit: number };
+type Product = { id: number; brand: string; name: string; price: number; fit: number; category: string; species: string; fittable: boolean };
+
+const CATEGORIES: { key: string; label: string; subs: string[] }[] = [
+  { key: "care", label: "데일리케어", subs: ["샴푸", "브러쉬", "덴탈케어", "위생용품", "사료", "간식", "영양제"] },
+  { key: "fashion", label: "패션·스타일", subs: ["의류", "하네스", "리드줄", "액세서리", "코스튬"] },
+  { key: "active", label: "액티브·아웃도어", subs: ["산책용품", "유모차", "이동가방", "카시트", "장난감", "훈련용품"] },
+  { key: "wellness", label: "헬스·웰니스", subs: ["건강보조제", "관절케어", "피부케어", "체중관리"] },
+  { key: "home", label: "홈·인테리어", subs: ["캣타워", "숨숨집", "쿠션", "하우스", "스크래처", "터널", "급수기"] },
+];
+const CAT_LABEL: Record<string, string> = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.label]));
+
+// 백엔드 미연결 시 폴백 (실제 카탈로그는 GET /products). 펫 전문 멀티샵.
 const PRODUCTS: Product[] = [
-  { brand: "무무펫", name: "코지 니트 스웨터", price: 28000, fit: 96 },
-  { brand: "도그웨어", name: "체크 하네스 세트", price: 34000, fit: 89 },
-  { brand: "펫코", name: "경량 패딩 베스트", price: 42000, fit: 94 },
-  { brand: "모카독", name: "데일리 후디", price: 25000, fit: 92 },
-  { brand: "무무펫", name: "윈터 울 코트", price: 48000, fit: 90 },
-  { brand: "도그웨어", name: "스트라이프 티셔츠", price: 19000, fit: 88 },
+  { id: 0, brand: "무무펫", name: "코지 니트 스웨터", price: 28000, fit: 96, category: "fashion", species: "dog", fittable: true },
+  { id: 1, brand: "도그웨어", name: "체크 하네스 세트", price: 34000, fit: 89, category: "fashion", species: "dog", fittable: true },
+  { id: 2, brand: "펫코", name: "경량 패딩 베스트", price: 42000, fit: 94, category: "fashion", species: "dog", fittable: true },
+  { id: 3, brand: "모카독", name: "데일리 후디", price: 25000, fit: 92, category: "fashion", species: "dog", fittable: true },
+  { id: 4, brand: "무무펫", name: "윈터 울 코트", price: 48000, fit: 90, category: "fashion", species: "dog", fittable: true },
+  { id: 5, brand: "캣무드", name: "니트 캣 코스튬", price: 21000, fit: 88, category: "fashion", species: "cat", fittable: true },
+  { id: 6, brand: "퓨어펫", name: "약산성 저자극 샴푸", price: 16000, fit: 91, category: "care", species: "all", fittable: false },
+  { id: 7, brand: "치카독", name: "덴탈케어 껌 30개입", price: 9000, fit: 87, category: "care", species: "dog", fittable: false },
+  { id: 8, brand: "네이처바울", name: "자연식 연어 사료 2kg", price: 38000, fit: 95, category: "care", species: "all", fittable: false },
+  { id: 9, brand: "리얼바이트", name: "동결건조 닭가슴살 간식", price: 14000, fit: 90, category: "care", species: "all", fittable: false },
+  { id: 10, brand: "워크업", name: "가벼운 산책 리드줄", price: 22000, fit: 89, category: "active", species: "dog", fittable: false },
+  { id: 11, brand: "트래블펫", name: "반려동물 4륜 유모차", price: 159000, fit: 92, category: "active", species: "all", fittable: true },
+  { id: 12, brand: "플레이펫", name: "노즈워크 코끼리 장난감", price: 18000, fit: 88, category: "active", species: "dog", fittable: false },
+  { id: 13, brand: "헬스독", name: "관절 글루코사민 영양제", price: 32000, fit: 93, category: "wellness", species: "dog", fittable: false },
+  { id: 14, brand: "스킨펫", name: "피부 보습 미스트", price: 15000, fit: 86, category: "wellness", species: "all", fittable: false },
+  { id: 15, brand: "코지캣", name: "3단 원목 캣타워", price: 89000, fit: 94, category: "home", species: "cat", fittable: true },
+  { id: 16, brand: "하우스펫", name: "포근 숨숨집 텐트", price: 26000, fit: 90, category: "home", species: "all", fittable: true },
+  { id: 17, brand: "워터펫", name: "자동 순환 급수기", price: 34000, fit: 88, category: "home", species: "all", fittable: false },
 ];
 const won = (n: number) => n.toLocaleString("ko-KR");
 
@@ -92,11 +115,12 @@ const ImageSlot = ({ label, radius = 0, circle = false, style }: { label: string
 
 export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   const [st, setSt] = useState<{
-    screen: Screen; prev: Screen; chip: string; catChip: string; size: string; fitG: number; selProd: number; liked: Liked;
+    screen: Screen; prev: Screen; chip: string; catChip: string; species: string; size: string; fitG: number; selProd: number; liked: Liked;
   }>({
-    screen: "home", prev: "home", chip: "전체", catChip: "전체", size: "M", fitG: 0, selProd: 0,
+    screen: "home", prev: "home", chip: "all", catChip: "all", species: "all", size: "M", fitG: 0, selProd: 0,
     liked: { 0: false, 1: true, 2: false, 3: true, 4: false, 5: false },
   });
+  const [recent, setRecent] = useState<number[]>([]); // 최근 본 상품 (찜 화면)
 
   // 백엔드 연동: 상품은 API 에서 로드(실패 시 로컬 폴백), AI 피팅은 /tryon 잡으로 처리
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
@@ -195,7 +219,10 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     return {
       i, brand: p.brand, name: p.name, priceText: won(p.price), showBadge: p.fit >= 93,
       heartFill: on ? T.accent : "none", heartStroke: on ? T.accent : T.ink,
-      onOpen: () => setSt((s) => ({ ...s, screen: "detail", prev: s.screen, selProd: i })),
+      onOpen: () => {
+        setRecent((r) => [i, ...r.filter((x) => x !== i)].slice(0, 8));
+        setSt((s) => ({ ...s, screen: "detail", prev: s.screen, selProd: i }));
+      },
       onLike: (e: React.MouseEvent) => { e.stopPropagation(); toggle(i); },
     };
   };
@@ -233,8 +260,18 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   const fitRecSize = fit.result?.recommended_size ?? st.size;
   const fitOn = st.liked[st.fitG];
   const d = card(st.selProd);
+  const dProd = products[st.selProd];
+  const fitVerb = dProd?.category === "home" ? "배치해보기" : "입혀보기";
   const likedIdx = Object.keys(st.liked).filter((k) => st.liked[Number(k)]).map(Number);
   const showTab = ["home", "category", "likes", "my"].includes(st.screen);
+
+  const matchesSpecies = (p: Product) => st.species === "all" || p.species === st.species || p.species === "all";
+  const catIdx = products.map((_, i) => i).filter((i) => (st.catChip === "all" || products[i].category === st.catChip) && matchesSpecies(products[i]));
+  const homeIdx = (st.chip === "all"
+    ? [0, 8, 15, 13, 2, 9]
+    : products.map((_, i) => i).filter((i) => products[i].category === st.chip)
+  ).filter((i) => i < products.length).slice(0, 6);
+  const selectedCat = CATEGORIES.find((c) => c.key === st.catChip);
 
   const frame: React.CSSProperties = {
     width: 390, height: 844, margin: "0 auto", background: T.paper, borderRadius: 42,
@@ -260,7 +297,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
           <div style={headPad}>
             <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px" }}>
               <div style={{ display: "flex", alignItems: "baseline" }}>
-                <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.8px" }}>PetFit</span>
+                <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.8px" }}>Pawdy</span>
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent, marginLeft: 2, alignSelf: "flex-end", marginBottom: 5 }} />
               </div>
               <div onClick={() => go("my")} style={{ width: 36, height: 36, cursor: "pointer" }}>
@@ -277,8 +314,8 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
           </div>
           <div className="pf-scroll" style={{ flex: 1, overflowY: "auto" }}>
             <div className="pf-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", padding: "6px 22px" }}>
-              {["전체", "상의", "하네스", "아우터"].map((l) => (
-                <div key={l} style={chipStyle(st.chip === l)} onClick={() => set({ chip: l })}>{l}</div>
+              {[{ key: "all", label: "전체" }, ...CATEGORIES].map((c) => (
+                <div key={c.key} style={chipStyle(st.chip === c.key)} onClick={() => set({ chip: c.key })}>{c.label}</div>
               ))}
             </div>
             <div style={{ margin: "12px 22px 6px", background: T.heroBg, borderRadius: 22, padding: "24px 22px", display: "flex", alignItems: "center", gap: 14, overflow: "hidden", cursor: "pointer" }} onClick={() => go("fit")}>
@@ -299,7 +336,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               <div style={{ fontSize: 13, color: T.muted, fontWeight: 600, cursor: "pointer" }} onClick={() => go("category")}>더보기</div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px 14px", padding: "18px 22px 0" }}>
-              {[0, 1, 2, 3].map((i) => <ProductCardView key={i} p={card(i)} />)}
+              {homeIdx.map((i) => <ProductCardView key={i} p={card(i)} />)}
             </div>
             <div style={{ height: 112 }} />
           </div>
@@ -317,21 +354,31 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 <span style={{ flex: 1, fontSize: 14, color: T.muted2, fontWeight: 500, letterSpacing: "-.3px" }}>우리 아이 옷 찾기</span>
               </div>
             </div>
-            <div className="pf-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", padding: "4px 16px 14px" }}>
-              {["전체", "상의", "하네스", "아우터", "신발", "액세서리"].map((l) => (
-                <div key={l} style={chipStyle(st.catChip === l)} onClick={() => set({ catChip: l })}>{l}</div>
+            <div className="pf-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", padding: "4px 16px 12px" }}>
+              {[{ key: "all", label: "전체" }, ...CATEGORIES].map((c) => (
+                <div key={c.key} style={chipStyle(st.catChip === c.key)} onClick={() => set({ catChip: c.key })}>{c.label}</div>
               ))}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 22px 6px" }}>
-            <span style={{ fontSize: 13, color: T.muted, fontWeight: 600 }}>전체 {products.length}개</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 700, letterSpacing: "-.2px", cursor: "pointer" }}>AI 핏 높은순
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+          {selectedCat && (
+            <div className="pf-scroll" style={{ display: "flex", gap: 7, overflowX: "auto", padding: "2px 22px 8px" }}>
+              {selectedCat.subs.map((s) => (
+                <span key={s} style={{ flexShrink: 0, fontSize: 12, color: T.sub, fontWeight: 600, background: T.soft, padding: "6px 12px", borderRadius: 999, whiteSpace: "nowrap" }}>{s}</span>
+              ))}
             </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 22px 4px" }}>
+            {[{ key: "all", label: "전체" }, { key: "dog", label: "강아지" }, { key: "cat", label: "고양이" }].map((sp) => {
+              const on = st.species === sp.key;
+              return (
+                <button key={sp.key} onClick={() => set({ species: sp.key })} style={{ fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 999, cursor: "pointer", background: on ? T.accentSoft : T.surface, color: on ? T.accent : T.sub, border: `1px solid ${on ? T.accent : T.line}` }}>{sp.label}</button>
+              );
+            })}
+            <span style={{ marginLeft: "auto", fontSize: 13, color: T.muted, fontWeight: 600 }}>{catIdx.length}개</span>
           </div>
           <div className="pf-scroll" style={{ flex: 1, overflowY: "auto" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px 14px", padding: "12px 22px 0" }}>
-              {[0, 1, 2, 3, 4, 5].map((i) => <ProductCardView key={i} p={card(i)} />)}
+              {catIdx.map((i) => <ProductCardView key={i} p={card(i)} />)}
             </div>
             <div style={{ height: 112 }} />
           </div>
@@ -460,14 +507,16 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-.6px" }}>{d.priceText}<span style={{ fontSize: 15 }}>원</span></span>
               </div>
             </div>
-            <div onClick={() => setSt((s) => ({ ...s, screen: "fit", prev: "detail", fitG: s.selProd }))} style={{ margin: "20px 22px 0", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: "15px 17px", display: "flex", alignItems: "center", gap: 13, cursor: "pointer" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 11, background: T.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><FitIcon /></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-.3px" }}>{petName}한테 입혀보기</div>
-                <div style={{ fontSize: 12, color: T.muted, fontWeight: 500, marginTop: 2 }}>AI가 우리 아이 사진에 바로 입혀드려요</div>
+            {dProd?.fittable && (
+              <div onClick={() => setSt((s) => ({ ...s, screen: "fit", prev: "detail", fitG: s.selProd }))} style={{ margin: "20px 22px 0", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: "15px 17px", display: "flex", alignItems: "center", gap: 13, cursor: "pointer" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 11, background: T.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><FitIcon /></div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-.3px" }}>{dProd.category === "home" ? `우리 집에 ${fitVerb}` : `${petName}한테 ${fitVerb}`}</div>
+                  <div style={{ fontSize: 12, color: T.muted, fontWeight: 500, marginTop: 2 }}>{dProd.category === "home" ? "AI가 우리 집 사진에 배치해드려요" : "AI가 우리 아이 사진에 바로 입혀드려요"}</div>
+                </div>
+                <ChevR size={19} stroke="#C4BDB3" w={2.2} />
               </div>
-              <ChevR size={19} stroke="#C4BDB3" w={2.2} />
-            </div>
+            )}
             <div style={{ padding: "26px 22px 0" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-.3px" }}>사이즈</span>
@@ -504,7 +553,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", background: T.paper }}>
           <div style={{ paddingTop: 44 }}>
             <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px" }}>
-              <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.5px" }}>좋아요</span>
+              <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.5px" }}>찜</span>
               <span style={{ fontSize: 13, color: T.muted, fontWeight: 600 }}>{likedIdx.length}개 저장됨</span>
             </div>
           </div>
@@ -527,7 +576,17 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             ) : (
               <div style={{ padding: "90px 40px", textAlign: "center" }}>
                 <div style={{ width: 60, height: 60, borderRadius: 18, background: T.soft, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center" }}><Heart size={28} fill="none" stroke="#C4BDB3" /></div>
-                <p style={{ margin: "18px 0 0", fontSize: 14, color: T.muted, fontWeight: 600 }}>아직 좋아요한 상품이 없어요</p>
+                <p style={{ margin: "18px 0 0", fontSize: 14, color: T.muted, fontWeight: 600 }}>아직 찜한 상품이 없어요</p>
+              </div>
+            )}
+            {recent.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ padding: "0 22px 4px", fontSize: 16, fontWeight: 800, letterSpacing: "-.4px" }}>최근 본 상품</div>
+                <div className="pf-scroll" style={{ display: "flex", gap: 12, overflowX: "auto", padding: "12px 22px 0" }}>
+                  {recent.map((i) => (products[i] ? (
+                    <div key={i} style={{ width: 116, flexShrink: 0 }}><ProductCardView p={card(i)} badge={false} /></div>
+                  ) : null))}
+                </div>
               </div>
             )}
             <div style={{ height: 112 }} />
@@ -560,7 +619,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                     <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-.4px" }}>초코</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: T.sub, background: T.soft, padding: "3px 9px", borderRadius: 999 }}>말티즈 · 3.2kg</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: T.sub, background: T.soft, padding: "3px 9px", borderRadius: 999 }}>말티즈 · 남아 · 3.2kg</span>
                   </div>
                   <div style={{ fontSize: 12.5, color: T.muted, fontWeight: 500, marginTop: 5 }}>가슴 42cm · 목 24cm · 등길이 30cm</div>
                 </div>
@@ -594,7 +653,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               ))}
             </div>
             <div style={{ margin: "14px 22px 0", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, overflow: "hidden" }}>
-              {[["주문 내역", ""], ["AI 피팅 기록", "12회"], ["내가 쓴 리뷰", "4"], ["쿠폰함", "3장"], ["고객센터 · 설정", ""]].map(([label, meta], i, arr) => (
+              {[["주문 내역", ""], ["배송 현황", "2건 배송중"], ["AI 피팅 기록", "12회"], ["리뷰 관리", "4"], ["쿠폰 · 포인트", "3장 · 2,400P"], ["고객센터 · 설정", ""]].map(([label, meta], i, arr) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 18px", cursor: "pointer", borderBottom: i < arr.length - 1 ? "1px solid #F1ECE6" : "none" }}>
                   <span style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: "-.3px" }}>{label}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -628,7 +687,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             </div>
             <span style={{ fontSize: 10, fontWeight: 700, color: T.accent, marginTop: 4, letterSpacing: "-.2px" }}>AI 피팅</span>
           </div>
-          {([["likes", "좋아요"], ["my", "마이"]] as [Screen, string][]).map(([key, label]) => (
+          {([["likes", "찜"], ["my", "마이"]] as [Screen, string][]).map(([key, label]) => (
             <div key={key} onClick={() => go(key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: "-.2px", color: st.screen === key ? T.accent : "#B3ABA1" }}>
               {key === "likes" ? (
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20.5C7 16.5 3.5 13.3 3.5 9.4 3.5 6.9 5.5 5 7.9 5c1.6 0 2.9.8 4.1 2.3C13.2 5.8 14.5 5 16.1 5c2.4 0 4.4 1.9 4.4 4.4 0 3.9-3.5 7.1-8.5 11.1z" /></svg>

@@ -1,14 +1,39 @@
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 
-from ..data import PRODUCTS, PRODUCTS_BY_ID
+from ..data import CATEGORIES, PRODUCTS, PRODUCTS_BY_ID
 from ..models import Product
 
 router = APIRouter(prefix="/products", tags=["products"])
 
 
+@router.get("/categories")
+def list_categories() -> list[dict]:
+    """5 대분류 + 세부 항목 (Pawdy 기획서)."""
+    return CATEGORIES
+
+
 @router.get("", response_model=list[Product])
-def list_products() -> list[Product]:
-    return PRODUCTS
+def list_products(
+    category: Optional[str] = None,
+    species: Optional[str] = None,
+    min_price: Optional[int] = None,
+    max_price: Optional[int] = None,
+    fittable: Optional[bool] = None,
+) -> list[Product]:
+    items = PRODUCTS
+    if category:
+        items = [p for p in items if p.category == category]
+    if species and species != "all":
+        items = [p for p in items if p.species in (species, "all")]
+    if min_price is not None:
+        items = [p for p in items if p.price >= min_price]
+    if max_price is not None:
+        items = [p for p in items if p.price <= max_price]
+    if fittable is not None:
+        items = [p for p in items if p.fittable == fittable]
+    return items
 
 
 @router.get("/{product_id}", response_model=Product)
