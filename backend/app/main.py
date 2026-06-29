@@ -36,4 +36,4 @@ def health() -> dict:
 
 @app.get("/", tags=["meta"])
 def root() -> dict:
-    return {"name": "PetFit API", "docs": "/docs", "provider": settings.provider}
+    return {"name": "Pawdy API", "docs": "/docs", "provider": settings.provider}
