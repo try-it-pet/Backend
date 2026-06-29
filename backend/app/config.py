@@ -1,4 +1,12 @@
 import os
+from pathlib import Path
+
+try:  # .env 를 앱에서 직접 로드(uvicorn --env-file + --reload 전달 누락 대비)
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+except ImportError:
+    pass
 
 
 class Settings:

@@ -4,6 +4,7 @@ pydantic==2.10.3
 python-multipart==0.0.17
 PyJWT==2.10.1
 httpx==0.28.1
+python-dotenv==1.0.1
 # AI 피팅 프로바이더 (키 설정 시 사용)
 openai>=1.55.0
 replicate>=1.0.0

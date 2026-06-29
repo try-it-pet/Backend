@@ -163,8 +163,14 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   useEffect(() => { if (st.screen === "my" && getToken()) fetchStats().then(setStats).catch(() => {}); }, [st.screen, user]);
 
   const doDevLogin = async () => {
-    const { token, user: u } = await devLogin();
-    setToken(token); setUser(u); showToast(`${u.nickname}님 환영해요`); loadLikes();
+    try {
+      const { token, user: u } = await devLogin();
+      setToken(token); setUser(u); showToast(`${u.nickname}님 환영해요`); loadLikes();
+    } catch {
+      // 데모(백엔드 미배포): 클라이언트 목업 로그인
+      setUser({ id: 0, provider: "dev", nickname: "초코집사", profile_image: null, kakao_id: null });
+      showToast("초코집사님 환영해요 (데모)");
+    }
   };
   const doKakaoLogin = () => { window.location.href = kakaoLoginUrl(); };
   const logout = () => { setToken(null); setUser(null); setStats(null); setSt((s) => ({ ...s, liked: {} })); showToast("로그아웃됐어요"); };
@@ -196,7 +202,15 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
         if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false, msg: "" });
         else setFit({ loading: false, result: null, error: true, msg: job.error || "생성 실패" });
       })
-      .catch(() => { if (fitReq.current === reqId) setFit({ loading: false, result: null, error: true, msg: "백엔드 연결 실패" }); });
+      .catch(() => {
+        if (fitReq.current !== reqId) return;
+        // 데모(백엔드 미배포): 클라이언트 목업 결과로 화면을 채운다
+        setFit({
+          loading: false, error: false, msg: "",
+          result: { image_url: "", fit_score: product.fit, recommended_size: st.size,
+            analysis: `${petName}의 체형에는 ${st.size} 사이즈가 잘 맞아요. (데모 미리보기)` },
+        });
+      });
   }, [st.screen, st.fitG, st.size, products, provider, petPhoto]);
 
   const set = (patch: Partial<typeof st>) => setSt((s) => ({ ...s, ...patch }));
@@ -417,7 +431,13 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                   <span style={{ fontSize: 13, color: T.sub, fontWeight: 600 }}>AI가 {petName}에게 입히는 중…</span>
                 </div>
               ) : fit.result ? (
-                <img src={apiBase + fit.result.image_url} alt="AI 피팅 결과" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                fit.result.image_url ? (
+                  <img src={fit.result.image_url.startsWith("http") ? fit.result.image_url : apiBase + fit.result.image_url} alt="AI 피팅 결과" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                ) : petPhotoUrl ? (
+                  <img src={petPhotoUrl} alt="AI 피팅 결과" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                ) : (
+                  <ImageSlot label="AI 피팅 결과 미리보기" />
+                )
               ) : petPhotoUrl ? (
                 <img src={petPhotoUrl} alt="펫 사진" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               ) : (
