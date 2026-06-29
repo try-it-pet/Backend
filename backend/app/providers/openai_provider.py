@@ -20,7 +20,7 @@ def _build_prompt(product: Product, pet: Optional[Pet]) -> str:
 
 
 class OpenAIProvider(TryOnProvider):
-    """OpenAI gpt-image-1 이미지 편집(edit)으로 펫에 옷을 입힌다.
+    """OpenAI gpt-image-2 이미지 편집(edit)으로 펫에 옷을 입힌다.
 
     펫 사진을 입력 이미지로, 상품 정보를 프롬프트로 사용. 상품 레퍼런스 이미지가
     생기면 다중 이미지 입력으로 품질을 더 올릴 수 있다.
@@ -57,7 +57,7 @@ class OpenAIProvider(TryOnProvider):
                 model=settings.openai_model,
                 image=img,
                 prompt=prompt,
-                size="1024x1024",
+                size=settings.openai_size,
             )
             return base64.b64decode(resp.data[0].b64_json)
 

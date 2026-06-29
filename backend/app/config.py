@@ -7,9 +7,11 @@ class Settings:
     # 기본 프로바이더: mock | openai | replicate
     provider: str = os.getenv("PETFIT_PROVIDER", "mock")
 
-    # OpenAI (gpt-image-1)
+    # OpenAI (gpt-image-2, 2026-04 출시 — 편집·지시이해·2K 향상)
     openai_api_key: str = os.getenv("PETFIT_OPENAI_API_KEY", "")
-    openai_model: str = os.getenv("PETFIT_OPENAI_MODEL", "gpt-image-1")
+    openai_model: str = os.getenv("PETFIT_OPENAI_MODEL", "gpt-image-2")
+    # size: 양 변 16의 배수, 최대 변 3840px, 총 픽셀 655,360~8,294,400
+    openai_size: str = os.getenv("PETFIT_OPENAI_SIZE", "1024x1024")
 
     # Replicate
     replicate_token: str = os.getenv("PETFIT_REPLICATE_TOKEN", "")

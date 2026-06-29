@@ -61,7 +61,7 @@ backend/app/
 | provider | 모델 | 필요 키 | 비고 |
 | --- | --- | --- | --- |
 | `mock` | 없음(더미 SVG) | — | 기본값, 종단 플로우 검증 |
-| `openai` | gpt-image-1 (image edit) | `PETFIT_OPENAI_API_KEY` | 펫 이미지 필수, 바이트 결과 |
+| `openai` | gpt-image-2 (image edit) | `PETFIT_OPENAI_API_KEY` | 펫 이미지 필수, 바이트 결과 |
 | `replicate` | `PETFIT_REPLICATE_MODEL`(기본 flux-kontext) | `PETFIT_REPLICATE_TOKEN` | 펫 이미지 필수, URL 결과 |
 
 ### 키 설정 + 실행
