@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { apiBase, fetchProducts, runTryOn, type TryOnResult } from "./api";
+import { apiBase, fetchProducts, runTryOn, type TryOnResult, type Provider } from "./api";
 
 /**
  * PetFit 앱 — Claude Design 핸드오프("PetFit App.dc.html")의 충실한 React 구현.
@@ -96,10 +96,21 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
 
   // 백엔드 연동: 상품은 API 에서 로드(실패 시 로컬 폴백), AI 피팅은 /tryon 잡으로 처리
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
-  const [fit, setFit] = useState<{ loading: boolean; result: TryOnResult | null; error: boolean }>({
-    loading: false, result: null, error: false,
+  const [fit, setFit] = useState<{ loading: boolean; result: TryOnResult | null; error: boolean; msg: string }>({
+    loading: false, result: null, error: false, msg: "",
   });
+  const [provider, setProvider] = useState<Provider>("mock"); // mock=키 불필요 / openai=gpt-image-2 / replicate
+  const [petPhoto, setPetPhoto] = useState<File | null>(null);
+  const [petPhotoUrl, setPetPhotoUrl] = useState<string | null>(null);
   const fitReq = useRef(0);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const onPickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setPetPhoto(f);
+    setPetPhotoUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f); });
+  };
 
   useEffect(() => {
     fetchProducts().then(setProducts).catch(() => {/* 백엔드 미연결 시 로컬 더미 유지 */});
@@ -109,16 +120,21 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     if (st.screen !== "fit") return;
     const product = products[st.fitG];
     if (!product) return;
+    // 실제 모델(openai/replicate)은 펫 사진이 필요. mock 은 사진 없이도 동작.
+    if (provider !== "mock" && !petPhoto) {
+      setFit({ loading: false, result: null, error: false, msg: "펫 사진을 추가하면 AI가 입혀드려요" });
+      return;
+    }
     const reqId = ++fitReq.current;
-    setFit({ loading: true, result: null, error: false });
-    runTryOn({ productId: product.id, size: st.size })
+    setFit({ loading: true, result: null, error: false, msg: "" });
+    runTryOn({ productId: product.id, size: st.size, provider, petImage: petPhoto ?? undefined })
       .then((job) => {
-        if (fitReq.current !== reqId) return; // 최신 요청만 반영(가먼트 빠른 전환 대비)
-        if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false });
-        else setFit({ loading: false, result: null, error: true });
+        if (fitReq.current !== reqId) return; // 최신 요청만 반영(가먼트/모델 빠른 전환 대비)
+        if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false, msg: "" });
+        else setFit({ loading: false, result: null, error: true, msg: job.error || "생성 실패" });
       })
-      .catch(() => { if (fitReq.current === reqId) setFit({ loading: false, result: null, error: true }); });
-  }, [st.screen, st.fitG, st.size, products]);
+      .catch(() => { if (fitReq.current === reqId) setFit({ loading: false, result: null, error: true, msg: "백엔드 연결 실패" }); });
+  }, [st.screen, st.fitG, st.size, products, provider, petPhoto]);
 
   const set = (patch: Partial<typeof st>) => setSt((s) => ({ ...s, ...patch }));
   const go = (screen: Screen) => setSt((s) => ({ ...s, screen, prev: s.screen }));
@@ -286,7 +302,19 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             </div>
           </div>
           <div className="pf-scroll" style={{ flex: 1, overflowY: "auto" }}>
-            <div style={{ margin: "6px 22px 0", borderRadius: 22, position: "relative", overflow: "hidden", aspectRatio: "4 / 5", background: T.soft, border: `1px solid ${T.line}` }}>
+            <input ref={fileRef} type="file" accept="image/*" onChange={onPickPhoto} style={{ display: "none" }} />
+            <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 22px 2px" }}>
+              <span style={{ fontSize: 11, color: T.muted, fontWeight: 600 }}>AI 모델</span>
+              {(["mock", "openai", "replicate"] as Provider[]).map((pv) => {
+                const on = provider === pv;
+                return (
+                  <button key={pv} onClick={() => setProvider(pv)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer", background: on ? T.ink : T.surface, color: on ? "#fff" : T.sub, border: `1px solid ${on ? T.ink : T.line}` }}>
+                    {pv === "openai" ? "gpt-image-2" : pv}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ margin: "8px 22px 0", borderRadius: 22, position: "relative", overflow: "hidden", aspectRatio: "4 / 5", background: T.soft, border: `1px solid ${T.line}` }}>
               {fit.loading ? (
                 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
                   <div style={{ width: 44, height: 44, borderRadius: "50%", border: `3px solid ${T.line}`, borderTopColor: T.accent, animation: "pf-spin 0.8s linear infinite" }} />
@@ -294,11 +322,25 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 </div>
               ) : fit.result ? (
                 <img src={apiBase + fit.result.image_url} alt="AI 피팅 결과" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              ) : petPhotoUrl ? (
+                <img src={petPhotoUrl} alt="펫 사진" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               ) : (
-                <ImageSlot label={fit.error ? "백엔드 미연결 — 더미 표시" : "초코 전신 사진"} />
+                <button onClick={() => fileRef.current?.click()} style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, background: "none", border: "none", cursor: "pointer" }}>
+                  <div style={{ width: 52, height: 52, borderRadius: "50%", background: T.surface, border: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" /><circle cx="12" cy="13" r="3" /></svg>
+                  </div>
+                  <span style={{ fontSize: 13, color: T.sub, fontWeight: 600 }}>{petName} 사진 추가</span>
+                  {fit.msg && <span style={{ fontSize: 11, color: T.muted }}>{fit.msg}</span>}
+                </button>
               )}
               {fit.result && (
                 <span style={{ position: "absolute", top: 14, left: 14, background: "rgba(255,255,255,.94)", color: T.ink, fontSize: 11, fontWeight: 700, padding: "6px 11px", borderRadius: 999, letterSpacing: "-.2px" }}>피팅 적용됨</span>
+              )}
+              {petPhotoUrl && !fit.result && !fit.loading && (
+                <button onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(26,23,20,.7)", color: "#fff", fontSize: 11, fontWeight: 600, padding: "6px 11px", borderRadius: 999, border: "none", cursor: "pointer" }}>사진 바꾸기</button>
+              )}
+              {fit.error && (
+                <span style={{ position: "absolute", bottom: 12, left: 12, right: 12, background: "rgba(26,23,20,.78)", color: "#fff", fontSize: 11, padding: "7px 11px", borderRadius: 10 }}>{fit.msg}</span>
               )}
             </div>
             <div style={{ margin: "18px 22px 0", display: "flex", gap: 10 }}>
