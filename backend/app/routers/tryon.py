@@ -6,9 +6,9 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
 from ..data import PRODUCTS_BY_ID
-from ..models import JobStatus, TryOnJob
+from ..models import JobStatus, TryOnJob, TryOnResult
 from ..providers import get_provider
-from ..store import JOBS, PETS
+from ..store import JOBS, PETS, RESULTS
 
 router = APIRouter(prefix="/tryon", tags=["tryon"])
 
@@ -17,15 +17,31 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
     """비동기 워커 시뮬레이션. 실제로는 Celery/BullMQ 큐로 분리."""
     job = JOBS[job_id]
     job.status = JobStatus.processing
-    await asyncio.sleep(1.5)  # 인퍼런스 지연 흉내
     try:
         product = PRODUCTS_BY_ID[job.product_id]
         pet = PETS.get(job.pet_id) if job.pet_id is not None else None
-        result = await get_provider().generate(
-            product=product, size=job.size, pet=pet, pet_image=pet_image
+        provider = get_provider(job.provider)
+
+        # mock 은 즉시 반환되므로 지연을 흉내 내 로딩 UX 를 검증
+        if provider.name == "mock":
+            await asyncio.sleep(1.5)
+
+        out = await provider.generate(product=product, size=job.size, pet=pet, pet_image=pet_image)
+
+        if out.image_bytes is not None:
+            RESULTS[job_id] = (out.image_bytes, out.image_mime or "image/png")
+            image_url = f"/tryon/{job_id}/result"
+        elif out.image_url:
+            image_url = out.image_url  # 외부 호스팅(Replicate 등)
+        else:
+            image_url = f"/tryon/{job_id}/preview.svg"  # mock
+
+        job.result = TryOnResult(
+            image_url=image_url,
+            fit_score=out.fit_score,
+            recommended_size=out.recommended_size,
+            analysis=out.analysis,
         )
-        result.image_url = f"/tryon/{job_id}/preview.svg"
-        job.result = result
         job.status = JobStatus.done
     except Exception as exc:  # noqa: BLE001
         job.status = JobStatus.failed
@@ -37,15 +53,22 @@ async def create_tryon(
     product_id: int = Form(...),
     size: str = Form("M"),
     pet_id: Optional[int] = Form(None),
+    provider: Optional[str] = Form(None, description="mock | openai | replicate (비교용 override)"),
     pet_image: Optional[UploadFile] = File(None),
 ) -> TryOnJob:
-    """펫 이미지 + 상품 → 피팅 잡 생성(비동기). 결과는 GET /tryon/{id} 로 폴링."""
+    """펫 이미지 + 상품 → 피팅 잡 생성(비동기). 결과는 GET /tryon/{id} 로 폴링.
+
+    `provider` 로 요청마다 모델을 바꿔 같은 입력의 품질을 비교할 수 있다.
+    """
     if product_id not in PRODUCTS_BY_ID:
         raise HTTPException(status_code=404, detail="product not found")
     image_bytes = await pet_image.read() if pet_image is not None else None
 
     job_id = uuid4().hex
-    job = TryOnJob(id=job_id, status=JobStatus.queued, product_id=product_id, pet_id=pet_id, size=size)
+    job = TryOnJob(
+        id=job_id, status=JobStatus.queued, product_id=product_id,
+        pet_id=pet_id, size=size, provider=provider,
+    )
     JOBS[job_id] = job
     asyncio.create_task(_process_job(job_id, image_bytes))
     return job
@@ -59,9 +82,19 @@ def get_job(job_id: str) -> TryOnJob:
     return job
 
 
+@router.get("/{job_id}/result")
+def job_result(job_id: str) -> Response:
+    """프로바이더가 바이트로 준 결과 이미지(OpenAI 등)."""
+    item = RESULTS.get(job_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="result image not found")
+    data, mime = item
+    return Response(content=data, media_type=mime)
+
+
 @router.get("/{job_id}/preview.svg")
 def job_preview(job_id: str) -> Response:
-    """Mock 결과 이미지(SVG). 실제 프로바이더는 생성된 래스터 이미지 URL을 반환."""
+    """Mock 결과 이미지(SVG). 실제 프로바이더는 생성된 래스터 이미지/URL을 반환."""
     job = JOBS.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")

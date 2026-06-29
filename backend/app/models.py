@@ -48,5 +48,6 @@ class TryOnJob(BaseModel):
     product_id: int
     pet_id: Optional[int] = None
     size: str = "M"
+    provider: Optional[str] = Field(None, description="mock | openai | replicate (비교용)")
     result: Optional[TryOnResult] = None
     error: Optional[str] = None

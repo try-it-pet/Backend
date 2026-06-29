@@ -53,8 +53,34 @@ backend/app/
    └─ mock.py         MockProvider (실제 모델 자리)
 ```
 
-## 실제 모델로 교체
+## AI 피팅 프로바이더 (mock / openai / replicate)
 
-`providers/base.py`의 `TryOnProvider.generate()` 시그니처만 지키면 라우터는 그대로.
-`providers/` 에 `RealProvider` 추가 → `providers/__init__.py`의 `get_provider()` 분기 +
-`PETFIT_PROVIDER=real`, `PETFIT_MODEL_API_KEY` 설정.
+`TryOnProvider` 추상화로 3종을 모두 지원. **요청마다 `provider` 필드로 바꿔** 같은 입력의
+품질을 비교할 수 있다.
+
+| provider | 모델 | 필요 키 | 비고 |
+| --- | --- | --- | --- |
+| `mock` | 없음(더미 SVG) | — | 기본값, 종단 플로우 검증 |
+| `openai` | gpt-image-1 (image edit) | `PETFIT_OPENAI_API_KEY` | 펫 이미지 필수, 바이트 결과 |
+| `replicate` | `PETFIT_REPLICATE_MODEL`(기본 flux-kontext) | `PETFIT_REPLICATE_TOKEN` | 펫 이미지 필수, URL 결과 |
+
+### 키 설정 + 실행
+```bash
+cp .env.example .env          # 키 채우기
+uvicorn app.main:app --reload --env-file .env --port 8000
+```
+
+### 두 모델 품질 비교 (같은 입력, provider 만 변경)
+```bash
+# OpenAI
+curl -F product_id=0 -F size=M -F provider=openai -F pet_image=@my_dog.jpg http://localhost:8000/tryon
+# Replicate
+curl -F product_id=0 -F size=M -F provider=replicate -F pet_image=@my_dog.jpg http://localhost:8000/tryon
+# → 각 jobId 폴링 후 result.image_url 비교
+```
+
+`GET /health` 의 `providers` 로 어떤 키가 설정됐는지 확인 가능.
+
+### 새 모델/프로바이더 추가
+`providers/` 에 `TryOnProvider` 구현 추가 → `providers/__init__.py`의 `get_provider()` 분기.
+`generate()` 시그니처(`-> ProviderOutput`)만 지키면 라우터·프론트는 그대로.

@@ -25,7 +25,11 @@ app.include_router(tryon.router)
 
 @app.get("/health", tags=["meta"])
 def health() -> dict:
-    return {"status": "ok", "provider": settings.provider}
+    return {
+        "status": "ok",
+        "default_provider": settings.provider,
+        "providers": settings.configured_providers(),  # 키 설정 여부
+    }
 
 
 @app.get("/", tags=["meta"])
