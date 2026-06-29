@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import pets, products, tryon
+from .routers import auth, me, products, tryon
 
 app = FastAPI(
     title="PetFit API",
@@ -18,8 +18,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(products.router)
-app.include_router(pets.router)
+app.include_router(me.router)
 app.include_router(tryon.router)
 
 

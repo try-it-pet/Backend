@@ -2,13 +2,14 @@ import asyncio
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
+from ..auth import get_optional_user
 from ..data import PRODUCTS_BY_ID
-from ..models import JobStatus, TryOnJob, TryOnResult
+from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
-from ..store import JOBS, PETS, RESULTS
+from ..store import FITTINGS, JOBS, PETS_BY_USER, RESULTS
 
 router = APIRouter(prefix="/tryon", tags=["tryon"])
 
@@ -19,7 +20,12 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
     job.status = JobStatus.processing
     try:
         product = PRODUCTS_BY_ID[job.product_id]
-        pet = PETS.get(job.pet_id) if job.pet_id is not None else None
+        pet = None
+        if job.pet_id is not None:
+            for plist in PETS_BY_USER.values():
+                pet = next((p for p in plist if p.id == job.pet_id), None)
+                if pet:
+                    break
         provider = get_provider(job.provider)
 
         # mock 은 즉시 반환되므로 지연을 흉내 내 로딩 UX 를 검증
@@ -55,14 +61,18 @@ async def create_tryon(
     pet_id: Optional[int] = Form(None),
     provider: Optional[str] = Form(None, description="mock | openai | replicate (비교용 override)"),
     pet_image: Optional[UploadFile] = File(None),
+    user: Optional[User] = Depends(get_optional_user),
 ) -> TryOnJob:
     """펫 이미지 + 상품 → 피팅 잡 생성(비동기). 결과는 GET /tryon/{id} 로 폴링.
 
     `provider` 로 요청마다 모델을 바꿔 같은 입력의 품질을 비교할 수 있다.
+    로그인 상태면 마이 화면 'AI 피팅' 통계에 집계된다.
     """
     if product_id not in PRODUCTS_BY_ID:
         raise HTTPException(status_code=404, detail="product not found")
     image_bytes = await pet_image.read() if pet_image is not None else None
+    if user is not None:
+        FITTINGS[user.id] = FITTINGS.get(user.id, 0) + 1
 
     job_id = uuid4().hex
     job = TryOnJob(

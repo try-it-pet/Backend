@@ -28,6 +28,43 @@ class Pet(PetCreate):
     id: int
 
 
+class User(BaseModel):
+    id: int
+    provider: str = Field(description="kakao | dev")
+    nickname: str
+    profile_image: Optional[str] = None
+    kakao_id: Optional[str] = None
+
+
+class AuthResult(BaseModel):
+    token: str
+    user: User
+
+
+class CartItemCreate(BaseModel):
+    product_id: int
+    size: str = "M"
+    qty: int = 1
+
+
+class CartItem(CartItemCreate):
+    id: int
+    product: Product
+
+
+class Order(BaseModel):
+    id: int
+    items: list[CartItem]
+    total: int
+    created_at: str
+
+
+class Stats(BaseModel):
+    orders: int
+    likes: int
+    fittings: int
+
+
 class JobStatus(str, Enum):
     queued = "queued"
     processing = "processing"
