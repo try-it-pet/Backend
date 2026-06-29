@@ -60,6 +60,19 @@ const PRODUCTS: Product[] = [
 ];
 const won = (n: number) => n.toLocaleString("ko-KR");
 
+// 목업 이미지: 상품은 이름에 맞는 키워드로 Flickr 검색(loremflickr), 펫은 placedog(강아지).
+// 로드 실패 시 라벨 박스로 폴백.
+const PROD_KW: Record<number, string> = {
+  0: "dog,sweater", 1: "dog,harness", 2: "dog,coat", 3: "dog,hoodie", 4: "dog,coat", 5: "cat,costume",
+  6: "dog,bath", 7: "dog,chewing", 8: "dog,food", 9: "dog,treat",
+  10: "dog,leash", 11: "dog,stroller", 12: "dog,toy",
+  13: "dog,vitamins", 14: "dog,grooming",
+  15: "cat,tree", 16: "dog,bed", 17: "cat,fountain",
+};
+const prodImg = (id: number, w = 600, h = 600) =>
+  `https://loremflickr.com/${w}/${h}/${PROD_KW[id] ?? "pet"}?lock=${id + 1}`;
+const petImg = (n: number, w = 400, h = 500) => `https://placedog.net/${w}/${h}?id=${n}`;
+
 type Screen = "home" | "category" | "fit" | "detail" | "likes" | "my";
 type Liked = Record<number, boolean>;
 
@@ -96,9 +109,10 @@ const Search = ({ size = 18 }: { size?: number }) => (
 );
 
 /* ── 이미지 플레이스홀더 ── */
-const ImageSlot = ({ label, radius = 0, circle = false, style }: { label: string; radius?: number; circle?: boolean; style?: React.CSSProperties }) => (
+const ImageSlot = ({ label, src, radius = 0, circle = false, style }: { label: string; src?: string; radius?: number; circle?: boolean; style?: React.CSSProperties }) => (
   <div
     style={{
+      position: "relative",
       width: "100%",
       height: "100%",
       background: T.soft,
@@ -106,10 +120,20 @@ const ImageSlot = ({ label, radius = 0, circle = false, style }: { label: string
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
+      overflow: "hidden",
       ...style,
     }}
   >
     <span style={{ fontSize: 10.5, color: T.muted2, fontWeight: 600, letterSpacing: "-.2px", textAlign: "center", padding: 4 }}>{label}</span>
+    {src && (
+      <img
+        src={src}
+        alt={label}
+        loading="lazy"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        onError={(e) => { e.currentTarget.style.display = "none"; }}
+      />
+    )}
   </div>
 );
 
@@ -251,7 +275,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   const ProductCardView = ({ p, badge = true }: { p: ReturnType<typeof card>; badge?: boolean }) => (
     <div onClick={p.onOpen} style={{ cursor: "pointer" }}>
       <div style={{ position: "relative", aspectRatio: "1 / 1", background: T.soft, borderRadius: 16, overflow: "hidden" }}>
-        <ImageSlot label="상품 사진" />
+        <ImageSlot label="상품 사진" src={prodImg(p.i)} />
         {badge && p.showBadge && (
           <span style={{ position: "absolute", top: 9, left: 9, background: "rgba(255,255,255,.94)", color: T.accent, fontSize: 10.5, fontWeight: 800, padding: "4px 9px", borderRadius: 999, letterSpacing: "-.2px" }}>AI 추천</span>
         )}
@@ -315,7 +339,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent, marginLeft: 2, alignSelf: "flex-end", marginBottom: 5 }} />
               </div>
               <div onClick={() => go("my")} style={{ width: 36, height: 36, cursor: "pointer" }}>
-                <ImageSlot label="펫" circle />
+                <ImageSlot label="펫" circle src={petImg(7)} />
               </div>
             </div>
             <div style={{ padding: "6px 22px 14px" }} onClick={() => go("category")}>
@@ -340,7 +364,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
                 </div>
               </div>
-              <div style={{ width: 104, height: 128, flexShrink: 0 }}><ImageSlot label="초코 사진" radius={18} /></div>
+              <div style={{ width: 104, height: 128, flexShrink: 0 }}><ImageSlot label="초코 사진" radius={18} src={petImg(1)} /></div>
             </div>
             <div style={{ padding: "26px 22px 0", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
               <div>
@@ -476,7 +500,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             <div className="pf-scroll" style={{ display: "flex", gap: 10, overflowX: "auto", padding: "14px 22px 4px" }}>
               {products.map((_, i) => (
                 <div key={i} onClick={() => set({ fitG: i })} style={{ flexShrink: 0, borderRadius: 14, padding: 3, cursor: "pointer", border: `2px solid ${st.fitG === i ? T.accent : "transparent"}` }}>
-                  <div style={{ width: 60, height: 60 }}><ImageSlot label="옷" radius={12} /></div>
+                  <div style={{ width: 60, height: 60 }}><ImageSlot label="옷" radius={12} src={prodImg(i)} /></div>
                 </div>
               ))}
             </div>
@@ -506,7 +530,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", background: T.paper }}>
           <div className="pf-scroll" style={{ flex: 1, overflowY: "auto" }}>
             <div style={{ position: "relative", aspectRatio: "1 / 1", background: T.soft }}>
-              <ImageSlot label="상품 사진" />
+              <ImageSlot label="상품 사진" src={prodImg(d.i)} />
               <div style={{ position: "absolute", top: 44, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button onClick={() => set({ screen: st.prev || "home" })} style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.94)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Back /></button>
                 <button style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.94)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -635,7 +659,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 16 }}>
-                <div style={{ width: 60, height: 60, flexShrink: 0 }}><ImageSlot label="초코" circle /></div>
+                <div style={{ width: 60, height: 60, flexShrink: 0 }}><ImageSlot label="초코" circle src={petImg(1)} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                     <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-.4px" }}>초코</span>
@@ -649,11 +673,11 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               </div>
               <div style={{ display: "flex", gap: 14, marginTop: 20 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 50, height: 50, borderRadius: "50%", border: `2px solid ${T.accent}`, padding: 2 }}><ImageSlot label="초코" circle /></div>
+                  <div style={{ width: 50, height: 50, borderRadius: "50%", border: `2px solid ${T.accent}`, padding: 2 }}><ImageSlot label="초코" circle src={petImg(1)} /></div>
                   <span style={{ fontSize: 11, fontWeight: 700 }}>초코</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 50, height: 50, borderRadius: "50%", border: `1px solid ${T.line}`, padding: 2 }}><ImageSlot label="콩이" circle /></div>
+                  <div style={{ width: 50, height: 50, borderRadius: "50%", border: `1px solid ${T.line}`, padding: 2 }}><ImageSlot label="콩이" circle src={petImg(2)} /></div>
                   <span style={{ fontSize: 11, fontWeight: 600, color: T.muted }}>콩이</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>

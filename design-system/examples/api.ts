@@ -111,9 +111,10 @@ export async function runTryOn(p: {
   petImage?: File;
 }): Promise<TryOnJob> {
   let job = await createTryOn(p);
-  for (let i = 0; i < 30; i++) {
+  // gpt-image-2 생성은 15~40초+ 걸릴 수 있어 충분히 폴링한다(최대 ~160초)
+  for (let i = 0; i < 80; i++) {
     if (job.status === "done" || job.status === "failed") return job;
-    await new Promise((res) => setTimeout(res, 400));
+    await new Promise((res) => setTimeout(res, 2000));
     job = await getTryOn(job.id);
   }
   return job;

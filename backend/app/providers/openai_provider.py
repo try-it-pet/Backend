@@ -3,6 +3,7 @@ import io
 from typing import Optional
 
 import anyio
+import httpx
 
 from ..config import settings
 from ..models import Pet, Product
@@ -10,20 +11,27 @@ from .base import ProviderOutput, TryOnProvider
 from .mock import recommend_size
 
 
-def _build_prompt(product: Product, pet: Optional[Pet]) -> str:
+def _build_prompt(product: Product, pet: Optional[Pet], has_ref: bool) -> str:
     pet_desc = f"{pet.species}" if pet else "pet"
+    if has_ref:
+        return (
+            f"Dress the {pet_desc} in the FIRST image with the exact clothing item shown in the "
+            f"SECOND image (the product '{product.name}'). Photorealistic result. Keep the pet's "
+            f"identity, fur pattern, face and pose unchanged; fit the garment naturally on its body. "
+            f"Soft, clean studio background."
+        )
     return (
         f"Dress this {pet_desc} in a '{product.name}' by {product.brand}, a piece of pet clothing. "
-        f"Photorealistic result. Keep the pet's identity, fur pattern, face, and pose unchanged — "
-        f"only add the garment so it fits naturally on the body. Soft, clean studio background."
+        f"Photorealistic. Keep the pet's identity, fur, face, and pose unchanged — only add the "
+        f"garment so it fits naturally on the body. Soft, clean studio background."
     )
 
 
 class OpenAIProvider(TryOnProvider):
     """OpenAI gpt-image-2 이미지 편집(edit)으로 펫에 옷을 입힌다.
 
-    펫 사진을 입력 이미지로, 상품 정보를 프롬프트로 사용. 상품 레퍼런스 이미지가
-    생기면 다중 이미지 입력으로 품질을 더 올릴 수 있다.
+    상품에 ref_image(옷 레퍼런스)가 있으면 [펫 사진, 옷 사진] 두 장을 넣어
+    그 옷을 그대로 입힌다. 없으면 상품명 프롬프트만 사용.
     """
 
     name = "openai"
@@ -47,22 +55,33 @@ class OpenAIProvider(TryOnProvider):
 
         rec = size or recommend_size(pet)
         pet_name = pet.name if pet else "반려동물"
-        prompt = _build_prompt(product, pet)
 
         def _call() -> bytes:
             client = OpenAI(api_key=settings.openai_api_key)
-            img = io.BytesIO(pet_image)
-            img.name = "pet.png"
+            pet_io = io.BytesIO(pet_image)
+            pet_io.name = "pet.png"
+            images: list = [pet_io]
+            if product.ref_image:
+                try:
+                    data = httpx.get(product.ref_image, timeout=20, follow_redirects=True).content
+                    if data:
+                        g = io.BytesIO(data)
+                        g.name = "garment.png"
+                        images.append(g)
+                except Exception:  # noqa: BLE001 (레퍼런스 실패 시 프롬프트만으로 진행)
+                    pass
+            prompt = _build_prompt(product, pet, has_ref=len(images) > 1)
             resp = client.images.edit(
                 model=settings.openai_model,
-                image=img,
+                image=images if len(images) > 1 else images[0],
                 prompt=prompt,
                 size=settings.openai_size,
             )
             return base64.b64decode(resp.data[0].b64_json)
 
         png = await anyio.to_thread.run_sync(_call)
-        analysis = f"{pet_name}의 체형에는 {rec} 사이즈가 잘 맞아요. (OpenAI {settings.openai_model})"
+        used_ref = " (옷 레퍼런스 반영)" if product.ref_image else ""
+        analysis = f"{pet_name}의 체형에는 {rec} 사이즈가 잘 맞아요. (OpenAI {settings.openai_model}{used_ref})"
         return ProviderOutput(
             fit_score=product.fit,
             recommended_size=rec,
