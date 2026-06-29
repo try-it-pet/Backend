@@ -5,6 +5,60 @@ const API_BASE: string =
 
 export const apiBase = API_BASE;
 
+// ── 인증 토큰 ──
+let authToken: string | null = (() => {
+  try { return localStorage.getItem("petfit_token"); } catch { return null; }
+})();
+export function setToken(t: string | null) {
+  authToken = t;
+  try { t ? localStorage.setItem("petfit_token", t) : localStorage.removeItem("petfit_token"); } catch { /* ignore */ }
+}
+export function getToken() { return authToken; }
+function authHeaders(): Record<string, string> {
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
+export type User = { id: number; provider: string; nickname: string; profile_image: string | null; kakao_id: string | null };
+export type Stats = { orders: number; likes: number; fittings: number };
+
+export async function devLogin(nickname = "초코집사"): Promise<{ token: string; user: User }> {
+  const r = await fetch(`${API_BASE}/auth/dev-login`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nickname }),
+  });
+  if (!r.ok) throw new Error("dev login failed");
+  return r.json();
+}
+export function kakaoLoginUrl() { return `${API_BASE}/auth/kakao/login`; }
+
+export async function fetchMe(): Promise<User | null> {
+  if (!authToken) return null;
+  const r = await fetch(`${API_BASE}/auth/me`, { headers: authHeaders() });
+  return r.ok ? r.json() : null;
+}
+export async function fetchLikes(): Promise<number[]> {
+  const r = await fetch(`${API_BASE}/me/likes`, { headers: authHeaders() });
+  if (!r.ok) throw new Error("likes failed");
+  return r.json();
+}
+export async function toggleLikeApi(productId: number): Promise<{ liked: boolean; likedIds: number[] }> {
+  const r = await fetch(`${API_BASE}/me/likes/${productId}`, { method: "POST", headers: authHeaders() });
+  if (!r.ok) throw new Error("like failed");
+  return r.json();
+}
+export async function addToCart(productId: number, size: string, qty = 1) {
+  const r = await fetch(`${API_BASE}/me/cart`, {
+    method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ product_id: productId, size, qty }),
+  });
+  if (!r.ok) throw new Error("cart failed");
+  return r.json();
+}
+export async function fetchStats(): Promise<Stats> {
+  const r = await fetch(`${API_BASE}/me/stats`, { headers: authHeaders() });
+  if (!r.ok) throw new Error("stats failed");
+  return r.json();
+}
+
 export type ApiProduct = { id: number; brand: string; name: string; price: number; fit: number };
 export type TryOnResult = { image_url: string; fit_score: number; recommended_size: string; analysis: string };
 export type TryOnJob = {
@@ -37,7 +91,7 @@ export async function createTryOn(p: {
   if (p.petId != null) fd.append("pet_id", String(p.petId));
   if (p.provider) fd.append("provider", p.provider);
   if (p.petImage) fd.append("pet_image", p.petImage);
-  const r = await fetch(`${API_BASE}/tryon`, { method: "POST", body: fd });
+  const r = await fetch(`${API_BASE}/tryon`, { method: "POST", body: fd, headers: authHeaders() });
   if (!r.ok) throw new Error("tryon create failed");
   return r.json();
 }

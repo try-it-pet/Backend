@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { apiBase, fetchProducts, runTryOn, type TryOnResult, type Provider } from "./api";
+import {
+  apiBase, fetchProducts, runTryOn, type TryOnResult, type Provider,
+  setToken, getToken, fetchMe, fetchLikes, toggleLikeApi, addToCart, fetchStats,
+  devLogin, kakaoLoginUrl, type User, type Stats,
+} from "./api";
 
 /**
  * PetFit 앱 — Claude Design 핸드오프("PetFit App.dc.html")의 충실한 React 구현.
@@ -112,6 +116,41 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     setPetPhotoUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f); });
   };
 
+  // ── 인증 ──
+  const [user, setUser] = useState<User | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [toast, setToast] = useState("");
+  const showToast = (m: string) => { setToast(m); window.setTimeout(() => setToast(""), 1800); };
+
+  const loadLikes = () =>
+    fetchLikes().then((ids) => {
+      const liked: Liked = {}; ids.forEach((id) => { liked[id] = true; });
+      setSt((s) => ({ ...s, liked }));
+    }).catch(() => {});
+
+  useEffect(() => {
+    // 카카오 리다이렉트(?token=) 처리
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("token");
+    if (t) { setToken(t); window.history.replaceState({}, "", window.location.pathname); }
+    if (getToken()) fetchMe().then((u) => { setUser(u); if (u) loadLikes(); }).catch(() => {});
+  }, []);
+
+  useEffect(() => { if (st.screen === "my" && getToken()) fetchStats().then(setStats).catch(() => {}); }, [st.screen, user]);
+
+  const doDevLogin = async () => {
+    const { token, user: u } = await devLogin();
+    setToken(token); setUser(u); showToast(`${u.nickname}님 환영해요`); loadLikes();
+  };
+  const doKakaoLogin = () => { window.location.href = kakaoLoginUrl(); };
+  const logout = () => { setToken(null); setUser(null); setStats(null); setSt((s) => ({ ...s, liked: {} })); showToast("로그아웃됐어요"); };
+
+  const addCart = async (productId: number, size: string) => {
+    if (!getToken()) { showToast("로그인이 필요해요"); return; }
+    try { await addToCart(productId, size); showToast("장바구니에 담았어요"); }
+    catch { showToast("담기 실패"); }
+  };
+
   useEffect(() => {
     fetchProducts().then(setProducts).catch(() => {/* 백엔드 미연결 시 로컬 더미 유지 */});
   }, []);
@@ -138,7 +177,17 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
 
   const set = (patch: Partial<typeof st>) => setSt((s) => ({ ...s, ...patch }));
   const go = (screen: Screen) => setSt((s) => ({ ...s, screen, prev: s.screen }));
-  const toggle = (i: number) => setSt((s) => ({ ...s, liked: { ...s.liked, [i]: !s.liked[i] } }));
+  const toggle = (i: number) => {
+    setSt((s) => ({ ...s, liked: { ...s.liked, [i]: !s.liked[i] } })); // 낙관적
+    if (getToken()) {
+      toggleLikeApi(products[i].id)
+        .then((res) => {
+          const liked: Liked = {}; res.likedIds.forEach((id) => { liked[id] = true; });
+          setSt((s) => ({ ...s, liked }));
+        })
+        .catch(() => {/* 낙관적 상태 유지 */});
+    }
+  };
 
   const card = (i: number) => {
     const p = products[i];
@@ -445,7 +494,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
           </div>
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "12px 22px 30px", background: T.paper, borderTop: `1px solid ${T.line}`, display: "flex", gap: 11, alignItems: "center" }}>
             <button onClick={d.onLike} style={{ width: 52, height: 52, borderRadius: 15, border: `1px solid ${T.line}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Heart size={23} fill={d.heartFill} stroke={d.heartStroke} /></button>
-            <button style={{ flex: 1, height: 52, borderRadius: 15, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 15.5, fontWeight: 800, color: "#fff", letterSpacing: "-.3px", background: T.ink }}>장바구니 담기</button>
+            <button onClick={() => addCart(d.i, st.size)} style={{ flex: 1, height: 52, borderRadius: 15, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 15.5, fontWeight: 800, color: "#fff", letterSpacing: "-.3px", background: T.ink }}>장바구니 담기</button>
           </div>
         </div>
       )}
@@ -495,7 +544,18 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.5px" }}>마이</span>
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" /></svg>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 10 }}>
+              {user ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
+                  <span style={{ fontSize: 13, color: T.sub, fontWeight: 600 }}>{user.nickname}님 · {user.provider === "kakao" ? "카카오" : "체험"}</span>
+                  <button onClick={logout} style={{ fontSize: 12, fontWeight: 600, color: T.sub, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 999, padding: "6px 12px", cursor: "pointer" }}>로그아웃</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button onClick={doKakaoLogin} style={{ flex: 1, height: 44, borderRadius: 12, border: "none", cursor: "pointer", background: "#FEE500", color: "#1A1714", fontSize: 14, fontWeight: 800, letterSpacing: "-.3px" }}>카카오로 로그인</button>
+                  <button onClick={doDevLogin} style={{ height: 44, borderRadius: 12, border: `1px solid ${T.line}`, background: T.surface, color: T.sub, fontSize: 13, fontWeight: 700, padding: "0 14px", cursor: "pointer" }}>둘러보기</button>
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 16 }}>
                 <div style={{ width: 60, height: 60, flexShrink: 0 }}><ImageSlot label="초코" circle /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -526,7 +586,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               </div>
             </div>
             <div style={{ margin: "0 22px", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: "18px 0", display: "flex" }}>
-              {[["7", "주문"], [String(likedIdx.length), "좋아요"], ["12", "AI 피팅"]].map(([n, l], i) => (
+              {[[String(stats ? stats.orders : 7), "주문"], [String(stats ? stats.likes : likedIdx.length), "좋아요"], [String(stats ? stats.fittings : 12), "AI 피팅"]].map(([n, l], i) => (
                 <div key={l} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? `1px solid ${T.soft}` : "none" }}>
                   <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-.4px" }}>{n}</div>
                   <div style={{ fontSize: 11.5, color: T.muted, fontWeight: 600, marginTop: 3 }}>{l}</div>
@@ -579,6 +639,10 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             </div>
           ))}
         </div>
+      )}
+
+      {toast && (
+        <div style={{ position: "absolute", bottom: 96, left: "50%", transform: "translateX(-50%)", background: "rgba(26,23,20,.9)", color: "#fff", fontSize: 12, fontWeight: 600, padding: "9px 16px", borderRadius: 999, zIndex: 80, whiteSpace: "nowrap" }}>{toast}</div>
       )}
 
       {/* home indicator */}
