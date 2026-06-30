@@ -214,8 +214,15 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     fetchProducts().then(setProducts).catch(() => {/* 백엔드 미연결 시 로컬 더미 유지 */});
   }, []);
 
+  // 옷/옵션/사진을 바꾸면 이전 결과를 비우고 '입혀보기'를 다시 누르도록 한다(자동 생성 X).
   useEffect(() => {
-    if (st.screen !== "fit") return;
+    fitReq.current++; // 진행 중 요청 무효화
+    setFit({ loading: false, result: null, error: false, msg: "" });
+  }, [st.fitG, st.size, provider, petPhoto, style, composition, background]);
+
+  // '입혀보기' 버튼을 눌렀을 때만 AI 생성을 실행한다.
+  const runFitting = () => {
+    if (fit.loading) return;
     const product = products[st.fitG];
     if (!product) return;
     // 실제 모델(openai/replicate)은 펫 사진이 필요. mock 은 사진 없이도 동작.
@@ -240,7 +247,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             analysis: `${petName}의 체형에는 ${st.size} 사이즈가 잘 맞아요. (데모 미리보기)` },
         });
       });
-  }, [st.screen, st.fitG, st.size, products, provider, petPhoto, style, composition, background]);
+  };
 
   const set = (patch: Partial<typeof st>) => setSt((s) => ({ ...s, ...patch }));
   const go = (screen: Screen) => setSt((s) => ({ ...s, screen, prev: s.screen }));
@@ -545,7 +552,15 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 </div>
               ))}
             </div>
-            <div style={{ margin: "20px 22px 0", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: "16px 18px" }}>
+            <button
+              onClick={runFitting}
+              disabled={fit.loading}
+              style={{ margin: "18px 22px 0", width: "calc(100% - 44px)", height: 50, borderRadius: 15, border: "none", cursor: fit.loading ? "default" : "pointer", fontFamily: "inherit", fontSize: 14.5, fontWeight: 800, color: "#fff", letterSpacing: "-.3px", background: fit.loading ? T.muted : T.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 1.9 4.8L18.7 9l-4.8 1.9L12 16l-1.9-5.1L5.3 9l4.8-1.2z" /><path d="M19 14l.6 1.6L21 16l-1.4.4L19 18l-.6-1.6L17 16l1.4-.4z" /></svg>
+              {fit.loading ? "AI가 입히는 중…" : fit.result ? "다시 입혀보기" : `${petName}에게 입혀보기`}
+            </button>
+            <div style={{ margin: "16px 22px 0", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: "16px 18px" }}>
               <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-.3px" }}>AI 핏 분석</div>
               <p style={{ margin: "9px 0 0", fontSize: 13, lineHeight: 1.65, color: T.sub, fontWeight: 500, letterSpacing: "-.2px" }}>
                 {fit.result
