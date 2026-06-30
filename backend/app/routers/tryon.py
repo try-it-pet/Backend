@@ -47,7 +47,10 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
         if provider.name == "mock":
             await asyncio.sleep(1.5)
 
-        out = await provider.generate(product=product, size=job.size, pet=pet, pet_image=pet_image)
+        out = await provider.generate(
+            product=product, size=job.size, pet=pet, pet_image=pet_image,
+            style=job.style, composition=job.composition, background=job.background,
+        )
 
         if out.image_bytes is not None:
             RESULTS[job_id] = (out.image_bytes, out.image_mime or "image/png")
@@ -75,6 +78,9 @@ async def create_tryon(
     size: str = Form("M"),
     pet_id: Optional[int] = Form(None),
     provider: Optional[str] = Form(None, description="mock | openai | replicate (비교용 override)"),
+    style: Optional[str] = Form(None, description="studio | lifestyle | film | snap (사진풍)"),
+    composition: Optional[str] = Form(None, description="front_full | side | closeup | sitting (구도)"),
+    background: Optional[str] = Form(None, description="studio(교체) | keep(원본 유지)"),
     pet_image: Optional[UploadFile] = File(None),
     user: Optional[User] = Depends(get_optional_user),
 ) -> TryOnJob:
@@ -93,6 +99,7 @@ async def create_tryon(
     job = TryOnJob(
         id=job_id, status=JobStatus.queued, product_id=product_id,
         pet_id=pet_id, size=size, provider=provider,
+        style=style, composition=composition, background=background,
     )
     JOBS[job_id] = job
     asyncio.create_task(_process_job(job_id, image_bytes))

@@ -9,12 +9,31 @@ from .base import ProviderOutput, TryOnProvider
 from .mock import recommend_size
 
 
-def _build_prompt(product: Product, pet: Optional[Pet]) -> str:
+def _build_prompt(
+    product: Product,
+    pet: Optional[Pet],
+    style: Optional[str] = None,
+    composition: Optional[str] = None,
+    background: Optional[str] = None,
+) -> str:
+    from .openai_provider import (  # 프리셋 단일 출처
+        BACKGROUND_PRESETS,
+        COMPOSITION_PRESETS,
+        STYLE_PRESETS,
+    )
+
     pet_desc = f"{pet.species}" if pet else "pet"
-    return (
+    base = (
         f"Dress this {pet_desc} in a {product.name} ({product.brand}), a piece of pet clothing. "
         f"Photorealistic, keep the pet's identity, fur, face and pose; the garment fits naturally."
     )
+    extras: list[str] = []
+    if style in STYLE_PRESETS:
+        extras.append(f"Style: {STYLE_PRESETS[style]}.")
+    if composition in COMPOSITION_PRESETS:
+        extras.append(f"Composition: {COMPOSITION_PRESETS[composition]}.")
+    extras.append(BACKGROUND_PRESETS.get(background or "studio", BACKGROUND_PRESETS["studio"]))
+    return base + " " + " ".join(extras)
 
 
 class ReplicateProvider(TryOnProvider):
@@ -33,6 +52,9 @@ class ReplicateProvider(TryOnProvider):
         size: str,
         pet: Optional[Pet] = None,
         pet_image: Optional[bytes] = None,
+        style: Optional[str] = None,
+        composition: Optional[str] = None,
+        background: Optional[str] = None,
     ) -> ProviderOutput:
         if not settings.replicate_token:
             raise RuntimeError("PETFIT_REPLICATE_TOKEN 가 설정되지 않았습니다.")
@@ -45,7 +67,7 @@ class ReplicateProvider(TryOnProvider):
 
         rec = size or recommend_size(pet)
         pet_name = pet.name if pet else "반려동물"
-        prompt = _build_prompt(product, pet)
+        prompt = _build_prompt(product, pet, style, composition, background)
 
         def _call() -> str:
             client = replicate.Client(api_token=settings.replicate_token)

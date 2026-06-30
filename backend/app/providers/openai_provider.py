@@ -12,20 +12,53 @@ from .base import ProviderOutput, TryOnProvider
 from .mock import recommend_size
 
 
-def _build_prompt(product: Product, pet: Optional[Pet], has_ref: bool) -> str:
+# 구도/사진풍 프리셋 — 프론트 칩과 1:1 대응. 키가 없으면 무시(자유 생성).
+STYLE_PRESETS = {
+    "studio": "clean catalog studio photo, even soft lighting, crisp focus",
+    "lifestyle": "lifestyle photo at home or on a walk, natural ambient light, shallow depth of field",
+    "film": "warm analog film look, soft grain, gentle highlights",
+    "snap": "candid smartphone snapshot, natural daylight, relaxed everyday mood",
+}
+COMPOSITION_PRESETS = {
+    "front_full": "front-facing full-body framing with the whole pet visible",
+    "side": "side profile, full body in frame",
+    "closeup": "close-up on the upper body and face, the garment clearly visible",
+    "sitting": "the pet sitting in a three-quarter view, full body in frame",
+}
+BACKGROUND_PRESETS = {
+    "studio": "Replace the background with a soft, clean studio backdrop.",
+    "keep": "Preserve the original background and setting of the first image.",
+}
+
+
+def _build_prompt(
+    product: Product,
+    pet: Optional[Pet],
+    has_ref: bool,
+    style: Optional[str] = None,
+    composition: Optional[str] = None,
+    background: Optional[str] = None,
+) -> str:
     pet_desc = f"{pet.species}" if pet else "pet"
     if has_ref:
-        return (
+        base = (
             f"Dress the {pet_desc} in the FIRST image with the exact clothing item shown in the "
             f"SECOND image (the product '{product.name}'). Photorealistic result. Keep the pet's "
-            f"identity, fur pattern, face and pose unchanged; fit the garment naturally on its body. "
-            f"Soft, clean studio background."
+            f"identity, fur pattern, face and pose unchanged; fit the garment naturally on its body."
         )
-    return (
-        f"Dress this {pet_desc} in a '{product.name}' by {product.brand}, a piece of pet clothing. "
-        f"Photorealistic. Keep the pet's identity, fur, face, and pose unchanged — only add the "
-        f"garment so it fits naturally on the body. Soft, clean studio background."
-    )
+    else:
+        base = (
+            f"Dress this {pet_desc} in a '{product.name}' by {product.brand}, a piece of pet clothing. "
+            f"Photorealistic. Keep the pet's identity, fur, face, and pose unchanged — only add the "
+            f"garment so it fits naturally on the body."
+        )
+    extras: list[str] = []
+    if style in STYLE_PRESETS:
+        extras.append(f"Style: {STYLE_PRESETS[style]}.")
+    if composition in COMPOSITION_PRESETS:
+        extras.append(f"Composition: {COMPOSITION_PRESETS[composition]}.")
+    extras.append(BACKGROUND_PRESETS.get(background or "studio", BACKGROUND_PRESETS["studio"]))
+    return base + " " + " ".join(extras)
 
 
 class OpenAIProvider(TryOnProvider):
@@ -44,6 +77,9 @@ class OpenAIProvider(TryOnProvider):
         size: str,
         pet: Optional[Pet] = None,
         pet_image: Optional[bytes] = None,
+        style: Optional[str] = None,
+        composition: Optional[str] = None,
+        background: Optional[str] = None,
     ) -> ProviderOutput:
         if not settings.openai_api_key:
             raise RuntimeError("PETFIT_OPENAI_API_KEY 가 설정되지 않았습니다.")
@@ -77,7 +113,10 @@ class OpenAIProvider(TryOnProvider):
                         images.append(g)
                 except Exception:  # noqa: BLE001 (레퍼런스 실패 시 프롬프트만으로 진행)
                     pass
-            prompt = _build_prompt(product, pet, has_ref=len(images) > 1)
+            prompt = _build_prompt(
+                product, pet, has_ref=len(images) > 1,
+                style=style, composition=composition, background=background,
+            )
             resp = client.images.edit(
                 model=settings.openai_model,
                 image=images if len(images) > 1 else images[0],

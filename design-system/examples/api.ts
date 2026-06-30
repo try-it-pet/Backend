@@ -77,19 +77,30 @@ export async function fetchProducts(): Promise<ApiProduct[]> {
 }
 
 export type Provider = "mock" | "openai" | "replicate";
+export type Style = "studio" | "lifestyle" | "film" | "snap";
+export type Composition = "front_full" | "side" | "closeup" | "sitting";
+export type Background = "studio" | "keep";
 
-export async function createTryOn(p: {
+export type TryOnParams = {
   productId: number;
   size: string;
   petId?: number;
   provider?: Provider;
   petImage?: File;
-}): Promise<TryOnJob> {
+  style?: Style;
+  composition?: Composition;
+  background?: Background;
+};
+
+export async function createTryOn(p: TryOnParams): Promise<TryOnJob> {
   const fd = new FormData();
   fd.append("product_id", String(p.productId));
   fd.append("size", p.size);
   if (p.petId != null) fd.append("pet_id", String(p.petId));
   if (p.provider) fd.append("provider", p.provider);
+  if (p.style) fd.append("style", p.style);
+  if (p.composition) fd.append("composition", p.composition);
+  if (p.background) fd.append("background", p.background);
   if (p.petImage) fd.append("pet_image", p.petImage);
   const r = await fetch(`${API_BASE}/tryon`, { method: "POST", body: fd, headers: authHeaders() });
   if (!r.ok) throw new Error("tryon create failed");
@@ -103,13 +114,7 @@ export async function getTryOn(jobId: string): Promise<TryOnJob> {
 }
 
 /** 잡 생성 후 done/failed 까지 폴링. */
-export async function runTryOn(p: {
-  productId: number;
-  size: string;
-  petId?: number;
-  provider?: Provider;
-  petImage?: File;
-}): Promise<TryOnJob> {
+export async function runTryOn(p: TryOnParams): Promise<TryOnJob> {
   let job = await createTryOn(p);
   // gpt-image-2 생성은 15~40초+ 걸릴 수 있어 충분히 폴링한다(최대 ~160초)
   for (let i = 0; i < 80; i++) {

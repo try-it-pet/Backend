@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   apiBase, fetchProducts, runTryOn, type TryOnResult, type Provider,
+  type Style, type Composition,
   setToken, getToken, fetchMe, fetchLikes, toggleLikeApi, addToCart, fetchStats,
   devLogin, kakaoLoginUrl, type User, type Stats,
 } from "./api";
@@ -152,6 +153,10 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     loading: false, result: null, error: false, msg: "",
   });
   const [provider, setProvider] = useState<Provider>("mock"); // mock=키 불필요 / openai=gpt-image-2 / replicate
+  const [style, setStyle] = useState<Style>("studio"); // 사진풍
+  const [composition, setComposition] = useState<Composition>("front_full"); // 구도
+  // studio 스타일은 깔끔한 배경 교체, 그 외(lifestyle/film/snap)는 원본 배경 유지
+  const background = style === "studio" ? "studio" : "keep";
   const [petPhoto, setPetPhoto] = useState<File | null>(null);
   const [petPhotoUrl, setPetPhotoUrl] = useState<string | null>(null);
   const fitReq = useRef(0);
@@ -220,7 +225,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     }
     const reqId = ++fitReq.current;
     setFit({ loading: true, result: null, error: false, msg: "" });
-    runTryOn({ productId: product.id, size: st.size, provider, petImage: petPhoto ?? undefined })
+    runTryOn({ productId: product.id, size: st.size, provider, petImage: petPhoto ?? undefined, style, composition, background })
       .then((job) => {
         if (fitReq.current !== reqId) return; // 최신 요청만 반영(가먼트/모델 빠른 전환 대비)
         if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false, msg: "" });
@@ -235,7 +240,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             analysis: `${petName}의 체형에는 ${st.size} 사이즈가 잘 맞아요. (데모 미리보기)` },
         });
       });
-  }, [st.screen, st.fitG, st.size, products, provider, petPhoto]);
+  }, [st.screen, st.fitG, st.size, products, provider, petPhoto, style, composition, background]);
 
   const set = (patch: Partial<typeof st>) => setSt((s) => ({ ...s, ...patch }));
   const go = (screen: Screen) => setSt((s) => ({ ...s, screen, prev: s.screen }));
@@ -451,6 +456,28 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 return (
                   <button key={pv} onClick={() => setProvider(pv)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer", background: on ? T.ink : T.surface, color: on ? "#fff" : T.sub, border: `1px solid ${on ? T.ink : T.line}` }}>
                     {pv === "openai" ? "gpt-image-2" : pv}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="pf-scroll" style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 22px 2px", overflowX: "auto" }}>
+              <span style={{ fontSize: 11, color: T.muted, fontWeight: 600, flexShrink: 0 }}>사진풍</span>
+              {([["studio", "스튜디오"], ["lifestyle", "일상"], ["film", "필름"], ["snap", "스냅"]] as [Style, string][]).map(([key, label]) => {
+                const on = style === key;
+                return (
+                  <button key={key} onClick={() => setStyle(key)} style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer", background: on ? T.accent : T.surface, color: on ? "#fff" : T.sub, border: `1px solid ${on ? T.accent : T.line}` }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="pf-scroll" style={{ display: "flex", gap: 6, alignItems: "center", padding: "4px 22px 2px", overflowX: "auto" }}>
+              <span style={{ fontSize: 11, color: T.muted, fontWeight: 600, flexShrink: 0 }}>구도</span>
+              {([["front_full", "정면 전신"], ["side", "측면"], ["closeup", "클로즈업"], ["sitting", "앉은 자세"]] as [Composition, string][]).map(([key, label]) => {
+                const on = composition === key;
+                return (
+                  <button key={key} onClick={() => setComposition(key)} style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer", background: on ? T.accent : T.surface, color: on ? "#fff" : T.sub, border: `1px solid ${on ? T.accent : T.line}` }}>
+                    {label}
                   </button>
                 );
               })}

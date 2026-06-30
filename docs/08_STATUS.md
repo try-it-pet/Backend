@@ -41,6 +41,7 @@ cd design-system && npm install && npm run dev   # http://localhost:5173
   - **펫 사진 사전 검증**(`vision.py` detect_pet, gpt-4o-mini): 강아지/고양이 아니면 생성 전 친절히 실패(이유 표시).
   - 프론트 폴링 **160초**(gpt-image-2는 15~40초 — 과거 12초 타임아웃이 "생성 실패" 원인이었음).
 - **상품 이미지**: 18종 모두 gpt-image-2로 생성한 깔끔한 상품컷 = `backend/app/static/garments/{id}.png`, `/static`로 서빙. `Product.image`(카드)·`ref_image`(피팅 옷). "입혀볼 옷"은 `fittable`만 노출.
+- **구도/사진풍 옵션**: `/tryon` 에 `style`(studio·lifestyle·film·snap) / `composition`(front_full·side·closeup·sitting) / `background`(studio 교체·keep 원본유지) Form 필드. 프리셋은 `openai_provider.STYLE/COMPOSITION/BACKGROUND_PRESETS` 단일 출처(replicate도 재사용), `_build_prompt`에 주입. 프론트 피팅 화면에 "사진풍/구도" 칩 UI(`PetFitApp.tsx`), `background`는 style에서 파생(studio→교체, 그 외→원본 유지).
 - **인증/계정**: 카카오 OAuth + JWT + dev-login(둘러보기). 사용자 기준 `/me/likes·cart·orders·pets·stats`.
 - **배포**: 프론트 정적(Vercel) + 백엔드(Railway Docker). 백엔드 없을 때 프론트 데모 폴백.
 
@@ -51,16 +52,8 @@ cd design-system && npm install && npm run dev   # http://localhost:5173
 
 ## 🔜 다음 작업 (우선순위)
 
-### 1. ⭐ 구도/사진풍 옵션 생성 (사용자 요청 — 다음 세션 1순위)
-같은 펫+옷으로 **다양한 구도/스타일**의 결과를 만들기.
-- **백엔드**: `POST /tryon` 에 `style`, `composition`, `background` Form 필드 추가 → `OpenAIProvider._build_prompt`에 주입.
-  - 스타일 프리셋(예): `studio`(흰 배경 상품컷) / `lifestyle`(집·산책 배경) / `film`(따뜻한 필름톤) / `snap`(스냅 캔디드).
-  - 구도 프리셋(예): `front_full`(정면 전신) / `side` / `closeup` / `sitting`.
-  - 배경: `studio`(교체) / `keep`(원본 유지 — 프롬프트에 "preserve original background" 명시).
-  - 프롬프트 조립: 기존 문구 + `f"Style: {style_desc}. Composition: {comp_desc}. Background: {bg_desc}."`
-  - 파일: `backend/app/providers/openai_provider.py` `_build_prompt`, `backend/app/routers/tryon.py`(Form 추가 → job/provider 전달; `TryOnJob`에 필드 추가).
-- **프론트**: 피팅 화면에 스타일/구도 칩 선택 UI → `runTryOn`에 전달. 파일: `design-system/examples/api.ts`(createTryOn 파라미터), `examples/PetFitApp.tsx`(피팅 화면 칩 + state).
-- 결과 여러 장 비교(갤러리)로 확장 가능.
+### 1. ✅ 구도/사진풍 옵션 생성 — **완료** (2026-06-30)
+구현됨(위 ✅ 구현 완료 참고). 남은 확장 아이디어: 결과 **여러 장 비교(갤러리)** — 한 번에 여러 style/composition 조합을 보내 썸네일로 나열. 현재는 칩 변경 시 단일 결과만 재생성.
 
 ### 2. 프롬프트 품질 ↑ / 홈·인테리어 "배치" 피팅
 - 의류 외에 캣타워·숨숨집 등 **배치(placement)** 프롬프트 분기(`category=="home"`이면 "place the item next to the pet in a room").

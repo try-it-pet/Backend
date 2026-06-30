@@ -33,6 +33,9 @@ class MockProvider(TryOnProvider):
         size: str,
         pet: Optional[Pet] = None,
         pet_image: Optional[bytes] = None,
+        style: Optional[str] = None,
+        composition: Optional[str] = None,
+        background: Optional[str] = None,
     ) -> ProviderOutput:
         rec = size or recommend_size(pet)
         pet_name = pet.name if pet else "우리 아이"

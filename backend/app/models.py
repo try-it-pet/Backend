@@ -91,5 +91,8 @@ class TryOnJob(BaseModel):
     pet_id: Optional[int] = None
     size: str = "M"
     provider: Optional[str] = Field(None, description="mock | openai | replicate (비교용)")
+    style: Optional[str] = Field(None, description="studio | lifestyle | film | snap (사진풍)")
+    composition: Optional[str] = Field(None, description="front_full | side | closeup | sitting (구도)")
+    background: Optional[str] = Field(None, description="studio(교체) | keep(원본 유지)")
     result: Optional[TryOnResult] = None
     error: Optional[str] = None
