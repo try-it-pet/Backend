@@ -6,10 +6,12 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
 from ..auth import get_optional_user
+from ..config import settings
 from ..data import PRODUCTS_BY_ID
 from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
 from ..store import FITTINGS, JOBS, PETS_BY_USER, RESULTS
+from ..vision import detect_pet
 
 router = APIRouter(prefix="/tryon", tags=["tryon"])
 
@@ -27,6 +29,19 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
                 if pet:
                     break
         provider = get_provider(job.provider)
+
+        # 실제 모델: 강아지/고양이 사진인지 사전 검증 → 아니면 이유를 담아 친절히 실패
+        if provider.name != "mock" and pet_image is not None and settings.openai_api_key:
+            check = await detect_pet(pet_image)
+            if not check.get("pet"):
+                subj = check.get("subject")
+                job.status = JobStatus.failed
+                job.error = (
+                    "사진에서 강아지나 고양이를 찾지 못했어요"
+                    + (f" ({subj})" if subj else "")
+                    + ". 반려동물이 또렷하게 나온 정면 사진으로 다시 시도해주세요."
+                )
+                return
 
         # mock 은 즉시 반환되므로 지연을 흉내 내 로딩 UX 를 검증
         if provider.name == "mock":

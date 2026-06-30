@@ -486,7 +486,14 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 <button onClick={() => fileRef.current?.click()} style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(26,23,20,.7)", color: "#fff", fontSize: 11, fontWeight: 600, padding: "6px 11px", borderRadius: 999, border: "none", cursor: "pointer" }}>사진 바꾸기</button>
               )}
               {fit.error && (
-                <span style={{ position: "absolute", bottom: 12, left: 12, right: 12, background: "rgba(26,23,20,.78)", color: "#fff", fontSize: 11, padding: "7px 11px", borderRadius: 10 }}>{fit.msg}</span>
+                <div style={{ position: "absolute", inset: 0, background: "rgba(26,23,20,.58)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: 28, textAlign: "center" }}>
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 16h.01" /></svg>
+                  </div>
+                  <div style={{ color: "#fff", fontSize: 14, fontWeight: 800, letterSpacing: "-.3px" }}>AI 피팅을 만들 수 없어요</div>
+                  <div style={{ color: "rgba(255,255,255,.9)", fontSize: 12.5, lineHeight: 1.6, maxWidth: 260 }}>{fit.msg}</div>
+                  <button onClick={() => fileRef.current?.click()} style={{ marginTop: 4, background: "#fff", color: T.ink, border: "none", borderRadius: 999, padding: "9px 18px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>다른 사진으로</button>
+                </div>
               )}
             </div>
             <div style={{ margin: "18px 22px 0", display: "flex", gap: 10 }}>
