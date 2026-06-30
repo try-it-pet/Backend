@@ -1,5 +1,6 @@
 import base64
 import io
+from pathlib import Path
 from typing import Optional
 
 import anyio
@@ -63,7 +64,13 @@ class OpenAIProvider(TryOnProvider):
             images: list = [pet_io]
             if product.ref_image:
                 try:
-                    data = httpx.get(product.ref_image, timeout=20, follow_redirects=True).content
+                    ref = product.ref_image
+                    if ref.startswith("/static/"):
+                        # 백엔드 내부 정적 상품컷 → 로컬 파일에서 직접 읽기
+                        fp = Path(__file__).resolve().parent.parent / ref.lstrip("/")
+                        data = fp.read_bytes()
+                    else:
+                        data = httpx.get(ref, timeout=20, follow_redirects=True).content
                     if data:
                         g = io.BytesIO(data)
                         g.name = "garment.png"

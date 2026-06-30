@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .routers import auth, me, products, tryon
@@ -23,6 +26,9 @@ app.include_router(auth.router)
 app.include_router(products.router)
 app.include_router(me.router)
 app.include_router(tryon.router)
+
+# 상품 이미지 등 정적 파일 (app/static → /static)
+app.mount("/static", StaticFiles(directory=Path(__file__).resolve().parent / "static"), name="static")
 
 
 @app.get("/health", tags=["meta"])

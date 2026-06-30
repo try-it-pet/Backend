@@ -11,13 +11,13 @@ CATEGORIES = [
 
 # 펫 전문 멀티샵 더미 카탈로그. fittable=착용/배치 미리보기 가능(패션·홈 일부).
 PRODUCTS: list[Product] = [
-    # 패션·스타일 (착용 피팅) — ref_image: 옷 레퍼런스(강아지 옷 사진)로 AI가 그 옷을 입힘
-    Product(id=0, brand="무무펫", name="코지 니트 스웨터", price=28000, fit=96, category="fashion", species="dog", fittable=True, ref_image="https://loremflickr.com/700/700/dog,sweater?lock=31"),
-    Product(id=1, brand="도그웨어", name="체크 하네스 세트", price=34000, fit=89, category="fashion", species="dog", fittable=True, ref_image="https://loremflickr.com/700/700/dog,harness?lock=32"),
-    Product(id=2, brand="펫코", name="경량 패딩 베스트", price=42000, fit=94, category="fashion", species="dog", fittable=True, ref_image="https://loremflickr.com/700/700/dog,vest?lock=33"),
-    Product(id=3, brand="모카독", name="데일리 후디", price=25000, fit=92, category="fashion", species="dog", fittable=True, ref_image="https://loremflickr.com/700/700/dog,hoodie?lock=34"),
-    Product(id=4, brand="무무펫", name="윈터 울 코트", price=48000, fit=90, category="fashion", species="dog", fittable=True, ref_image="https://loremflickr.com/700/700/dog,coat?lock=35"),
-    Product(id=5, brand="캣무드", name="니트 캣 코스튬", price=21000, fit=88, category="fashion", species="cat", fittable=True, ref_image="https://loremflickr.com/700/700/cat,sweater?lock=36"),
+    # 패션·스타일 (착용 피팅) — ref_image: 실제 상품컷(정적 파일). AI 피팅이 이 옷을 입힘.
+    Product(id=0, brand="무무펫", name="코지 니트 스웨터", price=28000, fit=96, category="fashion", species="dog", fittable=True, ref_image="/static/garments/0.png"),
+    Product(id=1, brand="도그웨어", name="체크 하네스 세트", price=34000, fit=89, category="fashion", species="dog", fittable=True, ref_image="/static/garments/1.png"),
+    Product(id=2, brand="펫코", name="경량 패딩 베스트", price=42000, fit=94, category="fashion", species="dog", fittable=True, ref_image="/static/garments/2.png"),
+    Product(id=3, brand="모카독", name="데일리 후디", price=25000, fit=92, category="fashion", species="dog", fittable=True, ref_image="/static/garments/3.png"),
+    Product(id=4, brand="무무펫", name="윈터 울 코트", price=48000, fit=90, category="fashion", species="dog", fittable=True, ref_image="/static/garments/4.png"),
+    Product(id=5, brand="캣무드", name="니트 캣 코스튬", price=21000, fit=88, category="fashion", species="cat", fittable=True, ref_image="/static/garments/5.png"),
     # 데일리케어
     Product(id=6, brand="퓨어펫", name="약산성 저자극 샴푸", price=16000, fit=91, category="care", species="all", fittable=False),
     Product(id=7, brand="치카독", name="덴탈케어 껌 30개입", price=9000, fit=87, category="care", species="dog", fittable=False),

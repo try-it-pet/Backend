@@ -26,7 +26,7 @@ const T = {
   heroLabel: "#A2693F",
 };
 
-type Product = { id: number; brand: string; name: string; price: number; fit: number; category: string; species: string; fittable: boolean };
+type Product = { id: number; brand: string; name: string; price: number; fit: number; category: string; species: string; fittable: boolean; ref_image?: string | null };
 
 const CATEGORIES: { key: string; label: string; subs: string[] }[] = [
   { key: "care", label: "데일리케어", subs: ["샴푸", "브러쉬", "덴탈케어", "위생용품", "사료", "간식", "영양제"] },
@@ -251,6 +251,12 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     }
   };
 
+  // 상품 이미지: 실제 상품컷(ref_image, 백엔드 정적)이 있으면 그걸, 없으면 키워드 목업
+  const imgFor = (id: number) => {
+    const p = products[id];
+    return p && p.ref_image ? `${apiBase}${p.ref_image}` : prodImg(id);
+  };
+
   const card = (i: number) => {
     const p = products[i];
     const on = st.liked[i];
@@ -275,7 +281,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   const ProductCardView = ({ p, badge = true }: { p: ReturnType<typeof card>; badge?: boolean }) => (
     <div onClick={p.onOpen} style={{ cursor: "pointer" }}>
       <div style={{ position: "relative", aspectRatio: "1 / 1", background: T.soft, borderRadius: 16, overflow: "hidden" }}>
-        <ImageSlot label="상품 사진" src={prodImg(p.i)} />
+        <ImageSlot label="상품 사진" src={imgFor(p.i)} />
         {badge && p.showBadge && (
           <span style={{ position: "absolute", top: 9, left: 9, background: "rgba(255,255,255,.94)", color: T.accent, fontSize: 10.5, fontWeight: 800, padding: "4px 9px", borderRadius: 999, letterSpacing: "-.2px" }}>AI 추천</span>
         )}
@@ -500,7 +506,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             <div className="pf-scroll" style={{ display: "flex", gap: 10, overflowX: "auto", padding: "14px 22px 4px" }}>
               {products.map((_, i) => (
                 <div key={i} onClick={() => set({ fitG: i })} style={{ flexShrink: 0, borderRadius: 14, padding: 3, cursor: "pointer", border: `2px solid ${st.fitG === i ? T.accent : "transparent"}` }}>
-                  <div style={{ width: 60, height: 60 }}><ImageSlot label="옷" radius={12} src={prodImg(i)} /></div>
+                  <div style={{ width: 60, height: 60 }}><ImageSlot label="옷" radius={12} src={imgFor(i)} /></div>
                 </div>
               ))}
             </div>
@@ -530,7 +536,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", background: T.paper }}>
           <div className="pf-scroll" style={{ flex: 1, overflowY: "auto" }}>
             <div style={{ position: "relative", aspectRatio: "1 / 1", background: T.soft }}>
-              <ImageSlot label="상품 사진" src={prodImg(d.i)} />
+              <ImageSlot label="상품 사진" src={imgFor(d.i)} />
               <div style={{ position: "absolute", top: 44, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button onClick={() => set({ screen: st.prev || "home" })} style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.94)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Back /></button>
                 <button style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.94)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
