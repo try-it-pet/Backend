@@ -26,7 +26,7 @@ const T = {
   heroLabel: "#A2693F",
 };
 
-type Product = { id: number; brand: string; name: string; price: number; fit: number; category: string; species: string; fittable: boolean; ref_image?: string | null };
+type Product = { id: number; brand: string; name: string; price: number; fit: number; category: string; species: string; fittable: boolean; image?: string | null; ref_image?: string | null };
 
 const CATEGORIES: { key: string; label: string; subs: string[] }[] = [
   { key: "care", label: "데일리케어", subs: ["샴푸", "브러쉬", "덴탈케어", "위생용품", "사료", "간식", "영양제"] },
@@ -254,7 +254,8 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   // 상품 이미지: 실제 상품컷(ref_image, 백엔드 정적)이 있으면 그걸, 없으면 키워드 목업
   const imgFor = (id: number) => {
     const p = products[id];
-    return p && p.ref_image ? `${apiBase}${p.ref_image}` : prodImg(id);
+    const path = p?.image || p?.ref_image;
+    return path ? `${apiBase}${path}` : prodImg(id);
   };
 
   const card = (i: number) => {
@@ -511,9 +512,9 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               <span style={{ fontSize: 12.5, color: T.muted, fontWeight: 600 }}>{fitP.brand} {fitP.name}</span>
             </div>
             <div className="pf-scroll" style={{ display: "flex", gap: 10, overflowX: "auto", padding: "14px 22px 4px" }}>
-              {products.map((_, i) => (
-                <div key={i} onClick={() => set({ fitG: i })} style={{ flexShrink: 0, borderRadius: 14, padding: 3, cursor: "pointer", border: `2px solid ${st.fitG === i ? T.accent : "transparent"}` }}>
-                  <div style={{ width: 60, height: 60 }}><ImageSlot label="옷" radius={12} src={imgFor(i)} /></div>
+              {products.filter((p) => p.fittable).map((p) => (
+                <div key={p.id} onClick={() => set({ fitG: p.id })} style={{ flexShrink: 0, borderRadius: 14, padding: 3, cursor: "pointer", border: `2px solid ${st.fitG === p.id ? T.accent : "transparent"}` }}>
+                  <div style={{ width: 60, height: 60 }}><ImageSlot label="옷" radius={12} src={imgFor(p.id)} /></div>
                 </div>
               ))}
             </div>

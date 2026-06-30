@@ -13,6 +13,7 @@ class Product(BaseModel):
     category: str = Field("fashion", description="care|fashion|active|wellness|home")
     species: str = Field("dog", description="dog|cat|all")
     fittable: bool = Field(True, description="AI 피팅(착용/배치) 가능 여부")
+    image: Optional[str] = Field(None, description="상품 카드 이미지 URL/경로")
     ref_image: Optional[str] = Field(None, description="옷 레퍼런스 이미지 URL — AI 피팅이 이 옷을 입힘")
 
 

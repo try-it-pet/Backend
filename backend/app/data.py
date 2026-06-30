@@ -36,4 +36,8 @@ PRODUCTS: list[Product] = [
     Product(id=17, brand="워터펫", name="자동 순환 급수기", price=34000, fit=88, category="home", species="all", fittable=False),
 ]
 
+# 모든 상품에 정적 상품컷 이미지 연결 (app/static/garments/{id}.png)
+for _p in PRODUCTS:
+    _p.image = f"/static/garments/{_p.id}.png"
+
 PRODUCTS_BY_ID = {p.id: p for p in PRODUCTS}
