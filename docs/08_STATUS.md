@@ -42,6 +42,7 @@ cd design-system && npm install && npm run dev   # http://localhost:5173
   - 프론트 폴링 **160초**(gpt-image-2는 15~40초 — 과거 12초 타임아웃이 "생성 실패" 원인이었음).
 - **상품 이미지**: 18종 모두 gpt-image-2로 생성한 깔끔한 상품컷 = `backend/app/static/garments/{id}.png`, `/static`로 서빙. `Product.image`(카드)·`ref_image`(피팅 옷). "입혀볼 옷"은 `fittable`만 노출.
 - **감성 룩 + 구도 옵션**: `/tryon` 에 `style`(winter·studio·lifestyle·film·snap) / `composition`(front_full·side·closeup·sitting) / `background` Form 필드. 룩/구도/배경 프리셋 단일 출처 = `app/providers/looks.py`. **winter=겨울 감성**은 배경까지 연출하는 `SCENE_LOOKS`(studio/keep 무시). 프론트 "감성 룩/구도" 칩(`PetFitApp.tsx`), 기본=겨울 감성. 옷 선택만으로 자동 생성 X → **'입혀보기' 버튼**으로만 트리거.
+- **인생네컷(2x2)**: `POST /tryon/fourcut` — 한 장의 펫 사진 → 4포즈/표정 컷(정면·갸웃·활짝·얼빡, `looks.FOURCUT_POSES`)을 `asyncio.gather`로 동시 생성 → `app/fourcut.py`가 Pillow로 포토부스풍 2x2 합성(크림 프레임·둥근 셀·Pawdy 워드마크). 감성 룩(style)·상품 옷 함께 반영, mock/실패 컷은 플레이스홀더. 결과는 tryon과 동일하게 폴링, `/tryon/{id}/result` PNG. 프론트 피팅 화면에 **입혀보기 + 인생네컷** 버튼(`runFourcut`), 결과는 같은 preview 영역에 표시. (mock E2E 검증됨)
 - **Replicate LoRA 파인튜닝 구조**: 감성 룩 = 학습된 Replicate 모델 1개로 매핑. `PETFIT_LOOK_MODELS`(JSON, 룩→`owner/name:version`) 등록 시 그 LoRA 모델로 생성, 없으면 **프롬프트 폴백**(코드 변경 0). 기본 편집 모델 `flux-kontext-dev`(LoRA 가능한 오픈웨이트). 학습 스크립트 `backend/scripts/train_lora.py` + 데이터셋 가이드 `backend/scripts/README.md`. `looks.py`의 `look_model()/look_trigger()`가 env에서 해석. 학습 시 프롬프트는 트리거 단어로 대체(과지시 방지).
 - **인증/계정**: 카카오 OAuth + JWT + dev-login(둘러보기). 사용자 기준 `/me/likes·cart·orders·pets·stats`.
 - **배포**: 프론트 정적(Vercel) + 백엔드(Railway Docker). 백엔드 없을 때 프론트 데모 폴백.

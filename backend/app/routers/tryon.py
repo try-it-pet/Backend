@@ -2,14 +2,17 @@ import asyncio
 from typing import Optional
 from uuid import uuid4
 
+import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
 from ..auth import get_optional_user
 from ..config import settings
 from ..data import PRODUCTS_BY_ID
+from ..fourcut import compose_2x2
 from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
+from ..providers.looks import FOURCUT_POSES
 from ..store import FITTINGS, JOBS, PETS_BY_USER, RESULTS
 from ..vision import detect_pet
 
@@ -72,6 +75,90 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
         job.error = str(exc)
 
 
+def _find_pet(pet_id: Optional[int]):
+    if pet_id is None:
+        return None
+    for plist in PETS_BY_USER.values():
+        pet = next((p for p in plist if p.id == pet_id), None)
+        if pet:
+            return pet
+    return None
+
+
+async def _fetch_bytes(url: str) -> Optional[bytes]:
+    """외부 호스팅(Replicate 등) 결과 URL → 바이트."""
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as c:
+            r = await c.get(url)
+            return r.content if r.status_code == 200 else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+async def _process_fourcut(job_id: str, pet_image: Optional[bytes]) -> None:
+    """인생네컷: 한 장의 펫 사진 → 4가지 포즈/표정 컷 생성 → 2x2 합성."""
+    job = JOBS[job_id]
+    job.status = JobStatus.processing
+    try:
+        product = PRODUCTS_BY_ID[job.product_id]
+        pet = _find_pet(job.pet_id)
+        provider = get_provider(job.provider)
+
+        if provider.name != "mock":
+            if pet_image is None:
+                job.status = JobStatus.failed
+                job.error = "인생네컷은 펫 사진이 필요해요. 사진을 추가해주세요."
+                return
+            if settings.openai_api_key:  # 강아지/고양이 사전 검증
+                check = await detect_pet(pet_image)
+                if not check.get("pet"):
+                    subj = check.get("subject")
+                    job.status = JobStatus.failed
+                    job.error = (
+                        "사진에서 강아지나 고양이를 찾지 못했어요"
+                        + (f" ({subj})" if subj else "")
+                        + ". 반려동물이 또렷하게 나온 정면 사진으로 다시 시도해주세요."
+                    )
+                    return
+
+        # 4컷을 동시에 생성(포즈/표정만 다르게, 같은 감성 룩·옷). mock 은 즉시 반환.
+        tasks = [
+            provider.generate(
+                product=product, size=job.size, pet=pet, pet_image=pet_image,
+                style=job.style, composition=pose_key,
+            )
+            for pose_key, _ in FOURCUT_POSES
+        ]
+        outs = await asyncio.gather(*tasks, return_exceptions=True)
+
+        cells: list[Optional[bytes]] = []
+        for out in outs:
+            if isinstance(out, BaseException) or out is None:
+                cells.append(None)
+            elif out.image_bytes is not None:
+                cells.append(out.image_bytes)
+            elif out.image_url:
+                cells.append(await _fetch_bytes(out.image_url))
+            else:
+                cells.append(None)
+
+        labels = [ko for _, ko in FOURCUT_POSES]
+        png = await asyncio.to_thread(compose_2x2, cells, labels)
+        RESULTS[job_id] = (png, "image/png")
+
+        made = sum(1 for c in cells if c)
+        job.result = TryOnResult(
+            image_url=f"/tryon/{job_id}/result",
+            fit_score=product.fit,
+            recommended_size=job.size or "M",
+            analysis=f"{pet.name if pet else '우리 아이'}의 인생네컷이 완성됐어요! ({made}/4컷)",
+        )
+        job.status = JobStatus.done
+    except Exception as exc:  # noqa: BLE001
+        job.status = JobStatus.failed
+        job.error = str(exc)
+
+
 @router.post("", response_model=TryOnJob, status_code=202)
 async def create_tryon(
     product_id: int = Form(...),
@@ -103,6 +190,36 @@ async def create_tryon(
     )
     JOBS[job_id] = job
     asyncio.create_task(_process_job(job_id, image_bytes))
+    return job
+
+
+@router.post("/fourcut", response_model=TryOnJob, status_code=202)
+async def create_fourcut(
+    product_id: int = Form(...),
+    size: str = Form("M"),
+    pet_id: Optional[int] = Form(None),
+    provider: Optional[str] = Form(None, description="mock | openai | replicate"),
+    style: Optional[str] = Form(None, description="감성 룩 (winter 등)"),
+    pet_image: Optional[UploadFile] = File(None),
+    user: Optional[User] = Depends(get_optional_user),
+) -> TryOnJob:
+    """인생네컷(2x2): 한 장의 펫 사진 → 4포즈/표정 컷 생성 → 2x2 합성. GET /tryon/{id} 폴링.
+
+    구도는 고정 4컷(정면·갸웃·활짝·얼빡)이며 `style`(감성 룩)·상품 옷은 함께 반영된다.
+    """
+    if product_id not in PRODUCTS_BY_ID:
+        raise HTTPException(status_code=404, detail="product not found")
+    image_bytes = await pet_image.read() if pet_image is not None else None
+    if user is not None:
+        FITTINGS[user.id] = FITTINGS.get(user.id, 0) + 1
+
+    job_id = uuid4().hex
+    job = TryOnJob(
+        id=job_id, status=JobStatus.queued, product_id=product_id,
+        pet_id=pet_id, size=size, provider=provider, style=style,
+    )
+    JOBS[job_id] = job
+    asyncio.create_task(_process_fourcut(job_id, image_bytes))
     return job
 
 

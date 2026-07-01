@@ -35,7 +35,20 @@ COMPOSITION_PRESETS = {
     "side": "side profile, full body in frame",
     "closeup": "close-up on the upper body and face, the garment clearly visible",
     "sitting": "the pet sitting in a three-quarter view, full body in frame",
+    # 인생네컷(2x2) 4컷 포즈/표정 — 칩으로는 노출하지 않고 fourcut 플로우에서만 사용.
+    "fc_front": "front-facing head-and-shoulders portrait, looking straight at the camera, alert and cute",
+    "fc_tilt": "head tilted to one side, curious inquisitive expression, portrait framing",
+    "fc_smile": "happy open-mouth smile with tongue slightly out, joyful, portrait framing",
+    "fc_closeup": "extreme close-up of the face filling the frame, big sparkling eyes, playful 'face-cam' selfie feel",
 }
+
+# 인생네컷 2x2 순서·라벨 (한 장 사진 → 4컷). 라벨은 내부용/플레이스홀더 표기.
+FOURCUT_POSES = [
+    ("fc_front", "정면"),
+    ("fc_tilt", "갸웃"),
+    ("fc_smile", "활짝"),
+    ("fc_closeup", "얼빡"),
+]
 
 BACKGROUND_PRESETS = {
     "studio": "Replace the background with a soft, clean studio backdrop.",

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  apiBase, fetchProducts, runTryOn, type TryOnResult, type Provider,
+  apiBase, fetchProducts, runTryOn, runFourcut, type TryOnResult, type Provider,
   type Style, type Composition,
   setToken, getToken, fetchMe, fetchLikes, toggleLikeApi, addToCart, fetchStats,
   devLogin, kakaoLoginUrl, type User, type Stats,
@@ -246,6 +246,29 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
           result: { image_url: "", fit_score: product.fit, recommended_size: st.size,
             analysis: `${petName}의 체형에는 ${st.size} 사이즈가 잘 맞아요. (데모 미리보기)` },
         });
+      });
+  };
+
+  // '인생네컷' — 한 장 사진 → 4포즈 컷 → 2x2 합성(결과는 같은 preview 영역에 표시).
+  const runFourcutJob = () => {
+    if (fit.loading) return;
+    const product = products[st.fitG];
+    if (!product) return;
+    if (provider !== "mock" && !petPhoto) {
+      setFit({ loading: false, result: null, error: false, msg: "펫 사진을 추가하면 인생네컷을 만들어드려요" });
+      return;
+    }
+    const reqId = ++fitReq.current;
+    setFit({ loading: true, result: null, error: false, msg: "" });
+    runFourcut({ productId: product.id, size: st.size, provider, petImage: petPhoto ?? undefined, style })
+      .then((job) => {
+        if (fitReq.current !== reqId) return;
+        if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false, msg: "" });
+        else setFit({ loading: false, result: null, error: true, msg: job.error || "인생네컷 생성 실패" });
+      })
+      .catch(() => {
+        if (fitReq.current !== reqId) return;
+        setFit({ loading: false, result: null, error: true, msg: "백엔드 연결이 필요해요 (인생네컷은 실서버에서 생성)" });
       });
   };
 
@@ -552,14 +575,24 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                 </div>
               ))}
             </div>
-            <button
-              onClick={runFitting}
-              disabled={fit.loading}
-              style={{ margin: "18px 22px 0", width: "calc(100% - 44px)", height: 50, borderRadius: 15, border: "none", cursor: fit.loading ? "default" : "pointer", fontFamily: "inherit", fontSize: 14.5, fontWeight: 800, color: "#fff", letterSpacing: "-.3px", background: fit.loading ? T.muted : T.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 1.9 4.8L18.7 9l-4.8 1.9L12 16l-1.9-5.1L5.3 9l4.8-1.2z" /><path d="M19 14l.6 1.6L21 16l-1.4.4L19 18l-.6-1.6L17 16l1.4-.4z" /></svg>
-              {fit.loading ? "AI가 입히는 중…" : fit.result ? "다시 입혀보기" : `${petName}에게 입혀보기`}
-            </button>
+            <div style={{ margin: "18px 22px 0", display: "flex", gap: 9 }}>
+              <button
+                onClick={runFitting}
+                disabled={fit.loading}
+                style={{ flex: 1.3, height: 50, borderRadius: 15, border: "none", cursor: fit.loading ? "default" : "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 800, color: "#fff", letterSpacing: "-.3px", background: fit.loading ? T.muted : T.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 1.9 4.8L18.7 9l-4.8 1.9L12 16l-1.9-5.1L5.3 9l4.8-1.2z" /><path d="M19 14l.6 1.6L21 16l-1.4.4L19 18l-.6-1.6L17 16l1.4-.4z" /></svg>
+                {fit.loading ? "만드는 중…" : fit.result ? "다시 입혀보기" : "입혀보기"}
+              </button>
+              <button
+                onClick={runFourcutJob}
+                disabled={fit.loading}
+                style={{ flex: 1, height: 50, borderRadius: 15, border: `1.5px solid ${fit.loading ? T.line : T.ink}`, cursor: fit.loading ? "default" : "pointer", fontFamily: "inherit", fontSize: 14, fontWeight: 800, color: fit.loading ? T.muted : T.ink, letterSpacing: "-.3px", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fit.loading ? T.muted : T.ink} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+                인생네컷
+              </button>
+            </div>
             <div style={{ margin: "16px 22px 0", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: "16px 18px" }}>
               <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-.3px" }}>AI 핏 분석</div>
               <p style={{ margin: "9px 0 0", fontSize: 13, lineHeight: 1.65, color: T.sub, fontWeight: 500, letterSpacing: "-.2px" }}>

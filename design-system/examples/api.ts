@@ -107,6 +107,45 @@ export async function createTryOn(p: TryOnParams): Promise<TryOnJob> {
   return r.json();
 }
 
+/** 인생네컷(2x2): 한 장 사진 → 4포즈 컷 → 합성. tryon 과 동일하게 폴링. */
+export async function createFourcut(p: {
+  productId: number;
+  size: string;
+  petId?: number;
+  provider?: Provider;
+  petImage?: File;
+  style?: Style;
+}): Promise<TryOnJob> {
+  const fd = new FormData();
+  fd.append("product_id", String(p.productId));
+  fd.append("size", p.size);
+  if (p.petId != null) fd.append("pet_id", String(p.petId));
+  if (p.provider) fd.append("provider", p.provider);
+  if (p.style) fd.append("style", p.style);
+  if (p.petImage) fd.append("pet_image", p.petImage);
+  const r = await fetch(`${API_BASE}/tryon/fourcut`, { method: "POST", body: fd, headers: authHeaders() });
+  if (!r.ok) throw new Error("fourcut create failed");
+  return r.json();
+}
+
+export async function runFourcut(p: {
+  productId: number;
+  size: string;
+  petId?: number;
+  provider?: Provider;
+  petImage?: File;
+  style?: Style;
+}): Promise<TryOnJob> {
+  let job = await createFourcut(p);
+  // 4컷 동시 생성 → 합성. 실모델이면 수십 초. 넉넉히 폴링(최대 ~160초).
+  for (let i = 0; i < 80; i++) {
+    if (job.status === "done" || job.status === "failed") return job;
+    await new Promise((res) => setTimeout(res, 2000));
+    job = await getTryOn(job.id);
+  }
+  return job;
+}
+
 export async function getTryOn(jobId: string): Promise<TryOnJob> {
   const r = await fetch(`${API_BASE}/tryon/${jobId}`);
   if (!r.ok) throw new Error("tryon get failed");
