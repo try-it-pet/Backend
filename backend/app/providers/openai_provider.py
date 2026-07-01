@@ -12,23 +12,13 @@ from .base import ProviderOutput, TryOnProvider
 from .mock import recommend_size
 
 
-# 구도/사진풍 프리셋 — 프론트 칩과 1:1 대응. 키가 없으면 무시(자유 생성).
-STYLE_PRESETS = {
-    "studio": "clean catalog studio photo, even soft lighting, crisp focus",
-    "lifestyle": "lifestyle photo at home or on a walk, natural ambient light, shallow depth of field",
-    "film": "warm analog film look, soft grain, gentle highlights",
-    "snap": "candid smartphone snapshot, natural daylight, relaxed everyday mood",
-}
-COMPOSITION_PRESETS = {
-    "front_full": "front-facing full-body framing with the whole pet visible",
-    "side": "side profile, full body in frame",
-    "closeup": "close-up on the upper body and face, the garment clearly visible",
-    "sitting": "the pet sitting in a three-quarter view, full body in frame",
-}
-BACKGROUND_PRESETS = {
-    "studio": "Replace the background with a soft, clean studio backdrop.",
-    "keep": "Preserve the original background and setting of the first image.",
-}
+# 룩/구도/배경 프리셋은 looks.py 가 단일 출처(프롬프트 단계 ↔ LoRA 단계 공유).
+from .looks import (  # noqa: E402
+    BACKGROUND_PRESETS,
+    COMPOSITION_PRESETS,
+    LOOK_PROMPTS as STYLE_PRESETS,
+    SCENE_LOOKS,
+)
 
 
 def _build_prompt(
@@ -57,7 +47,9 @@ def _build_prompt(
         extras.append(f"Style: {STYLE_PRESETS[style]}.")
     if composition in COMPOSITION_PRESETS:
         extras.append(f"Composition: {COMPOSITION_PRESETS[composition]}.")
-    extras.append(BACKGROUND_PRESETS.get(background or "studio", BACKGROUND_PRESETS["studio"]))
+    # 감성 룩(winter 등)은 배경까지 룩이 정하므로 studio/keep 배경 지시를 생략
+    if style not in SCENE_LOOKS:
+        extras.append(BACKGROUND_PRESETS.get(background or "studio", BACKGROUND_PRESETS["studio"]))
     return base + " " + " ".join(extras)
 
 

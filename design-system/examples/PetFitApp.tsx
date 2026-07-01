@@ -153,7 +153,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     loading: false, result: null, error: false, msg: "",
   });
   const [provider, setProvider] = useState<Provider>("mock"); // mock=키 불필요 / openai=gpt-image-2 / replicate
-  const [style, setStyle] = useState<Style>("studio"); // 사진풍
+  const [style, setStyle] = useState<Style>("winter"); // 감성 룩 (겨울 감성 = 히어로)
   const [composition, setComposition] = useState<Composition>("front_full"); // 구도
   // studio 스타일은 깔끔한 배경 교체, 그 외(lifestyle/film/snap)는 원본 배경 유지
   const background = style === "studio" ? "studio" : "keep";
@@ -468,8 +468,8 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               })}
             </div>
             <div className="pf-scroll" style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 22px 2px", overflowX: "auto" }}>
-              <span style={{ fontSize: 11, color: T.muted, fontWeight: 600, flexShrink: 0 }}>사진풍</span>
-              {([["studio", "스튜디오"], ["lifestyle", "일상"], ["film", "필름"], ["snap", "스냅"]] as [Style, string][]).map(([key, label]) => {
+              <span style={{ fontSize: 11, color: T.muted, fontWeight: 600, flexShrink: 0 }}>감성 룩</span>
+              {([["winter", "겨울 감성"], ["studio", "스튜디오"], ["lifestyle", "일상"], ["film", "필름"], ["snap", "스냅"]] as [Style, string][]).map(([key, label]) => {
                 const on = style === key;
                 return (
                   <button key={key} onClick={() => setStyle(key)} style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 999, cursor: "pointer", background: on ? T.accent : T.surface, color: on ? "#fff" : T.sub, border: `1px solid ${on ? T.accent : T.line}` }}>

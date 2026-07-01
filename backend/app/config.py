@@ -26,7 +26,16 @@ class Settings:
     # Replicate
     replicate_token: str = os.getenv("PETFIT_REPLICATE_TOKEN", "")
     # 이미지 편집 모델(레퍼런스 이미지 + 프롬프트). 모델/버전은 env 로 교체.
-    replicate_model: str = os.getenv("PETFIT_REPLICATE_MODEL", "black-forest-labs/flux-kontext-pro")
+    # LoRA 파인튜닝을 쓰려면 오픈웨이트 dev 버전이어야 함(pro 는 폐쇄형 = LoRA 불가).
+    replicate_model: str = os.getenv("PETFIT_REPLICATE_MODEL", "black-forest-labs/flux-kontext-dev")
+    # 감성 룩 → 학습된 LoRA 모델 매핑(JSON). 예: {"winter":"ljo1010/pawdy-winter:<ver>"}
+    look_models_json: str = os.getenv("PETFIT_LOOK_MODELS", "")
+    # 룩 → LoRA 트리거 단어 매핑(JSON, 선택). 예: {"winter":"PAWDYWINTER"}
+    look_triggers_json: str = os.getenv("PETFIT_LOOK_TRIGGERS", "")
+    # LoRA 학습 대상(트레이너 모델 버전) — scripts/train_lora.py 에서 사용
+    replicate_trainer: str = os.getenv(
+        "PETFIT_REPLICATE_TRAINER", "replicate/fast-flux-trainer:latest"
+    )
 
     # 인증 (JWT + Kakao OAuth)
     jwt_secret: str = os.getenv("PETFIT_JWT_SECRET", "dev-secret-change-me")

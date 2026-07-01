@@ -41,7 +41,8 @@ cd design-system && npm install && npm run dev   # http://localhost:5173
   - **펫 사진 사전 검증**(`vision.py` detect_pet, gpt-4o-mini): 강아지/고양이 아니면 생성 전 친절히 실패(이유 표시).
   - 프론트 폴링 **160초**(gpt-image-2는 15~40초 — 과거 12초 타임아웃이 "생성 실패" 원인이었음).
 - **상품 이미지**: 18종 모두 gpt-image-2로 생성한 깔끔한 상품컷 = `backend/app/static/garments/{id}.png`, `/static`로 서빙. `Product.image`(카드)·`ref_image`(피팅 옷). "입혀볼 옷"은 `fittable`만 노출.
-- **구도/사진풍 옵션**: `/tryon` 에 `style`(studio·lifestyle·film·snap) / `composition`(front_full·side·closeup·sitting) / `background`(studio 교체·keep 원본유지) Form 필드. 프리셋은 `openai_provider.STYLE/COMPOSITION/BACKGROUND_PRESETS` 단일 출처(replicate도 재사용), `_build_prompt`에 주입. 프론트 피팅 화면에 "사진풍/구도" 칩 UI(`PetFitApp.tsx`), `background`는 style에서 파생(studio→교체, 그 외→원본 유지).
+- **감성 룩 + 구도 옵션**: `/tryon` 에 `style`(winter·studio·lifestyle·film·snap) / `composition`(front_full·side·closeup·sitting) / `background` Form 필드. 룩/구도/배경 프리셋 단일 출처 = `app/providers/looks.py`. **winter=겨울 감성**은 배경까지 연출하는 `SCENE_LOOKS`(studio/keep 무시). 프론트 "감성 룩/구도" 칩(`PetFitApp.tsx`), 기본=겨울 감성. 옷 선택만으로 자동 생성 X → **'입혀보기' 버튼**으로만 트리거.
+- **Replicate LoRA 파인튜닝 구조**: 감성 룩 = 학습된 Replicate 모델 1개로 매핑. `PETFIT_LOOK_MODELS`(JSON, 룩→`owner/name:version`) 등록 시 그 LoRA 모델로 생성, 없으면 **프롬프트 폴백**(코드 변경 0). 기본 편집 모델 `flux-kontext-dev`(LoRA 가능한 오픈웨이트). 학습 스크립트 `backend/scripts/train_lora.py` + 데이터셋 가이드 `backend/scripts/README.md`. `looks.py`의 `look_model()/look_trigger()`가 env에서 해석. 학습 시 프롬프트는 트리거 단어로 대체(과지시 방지).
 - **인증/계정**: 카카오 OAuth + JWT + dev-login(둘러보기). 사용자 기준 `/me/likes·cart·orders·pets·stats`.
 - **배포**: 프론트 정적(Vercel) + 백엔드(Railway Docker). 백엔드 없을 때 프론트 데모 폴백.
 

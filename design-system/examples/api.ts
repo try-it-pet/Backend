@@ -77,7 +77,7 @@ export async function fetchProducts(): Promise<ApiProduct[]> {
 }
 
 export type Provider = "mock" | "openai" | "replicate";
-export type Style = "studio" | "lifestyle" | "film" | "snap";
+export type Style = "winter" | "studio" | "lifestyle" | "film" | "snap";
 export type Composition = "front_full" | "side" | "closeup" | "sitting";
 export type Background = "studio" | "keep";
 
