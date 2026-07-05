@@ -16,6 +16,12 @@ FITTINGS: Dict[int, int] = {}          # user_id -> AI 피팅 횟수
 JOBS: Dict[str, TryOnJob] = {}
 RESULTS: Dict[str, Tuple[bytes, str]] = {}  # job_id -> (image_bytes, mime)
 
+# AI 생성 횟수 제한(quota). remaining = free_generations + GEN_BONUS - GEN_USED
+GEN_USED: Dict[int, int] = {}     # user_id -> 사용한 생성 횟수
+GEN_BONUS: Dict[int, int] = {}    # user_id -> 구매 등으로 추가 부여된 횟수
+GEN_TOTAL: Dict[str, int] = {"count": 0}  # 전역 누적 생성 수(극초반 상한 판단용)
+GEN_RESERVED: Dict[str, Tuple[int, int]] = {}  # job_id -> (user_id, cost) 실패 시 환불용
+
 _user_seq = count(1)
 _pet_seq = count(1)
 _cart_seq = count(1)

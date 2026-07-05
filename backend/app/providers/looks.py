@@ -78,6 +78,20 @@ def look_model(style: str | None) -> str | None:
     return _look_models().get(style)
 
 
+def look_lora(style: str | None) -> str | None:
+    """해당 룩에 학습된 LoRA 가중치 URL. 있으면 flux-kontext-dev-lora 추론에 얹는다."""
+    if not style:
+        return None
+    raw = settings.look_loras_json
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        return data.get(style) if isinstance(data, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 def look_trigger(style: str | None) -> str | None:
     """LoRA 학습 시 사용한 트리거 단어(있으면 프롬프트 앞에 붙임)."""
     if not style:

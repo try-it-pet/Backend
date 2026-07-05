@@ -13,10 +13,27 @@ from ..fourcut import compose_2x2
 from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
 from ..providers.looks import FOURCUT_POSES
+from ..quota import can_generate, consume, limits_active, refund, settle
 from ..store import FITTINGS, JOBS, PETS_BY_USER, RESULTS
 from ..vision import detect_pet
 
 router = APIRouter(prefix="/tryon", tags=["tryon"])
+
+
+def _quota_precheck(provider: Optional[str], user: Optional[User], cost: int) -> int:
+    """생성 전 횟수 제한 확인. 막히면 예외, 통과 시 소모할 cost 반환(mock 은 0)."""
+    prov = (provider or settings.provider or "mock").lower()
+    if prov == "mock":
+        return 0  # mock(데모)은 과금 없음 → 횟수 소모 안 함
+    if limits_active():
+        if user is None:
+            raise HTTPException(status_code=401, detail="AI 생성은 로그인이 필요해요.")
+        if not can_generate(user.id, cost):
+            raise HTTPException(
+                status_code=402,
+                detail="무료 AI 생성 횟수를 모두 사용했어요. 상품을 구매하면 5회가 더 충전돼요.",
+            )
+    return cost
 
 
 async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
@@ -73,6 +90,9 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
     except Exception as exc:  # noqa: BLE001
         job.status = JobStatus.failed
         job.error = str(exc)
+    finally:
+        # 생성 성공이면 소모 확정, 실패면 차감 환불
+        (settle if job.status == JobStatus.done else refund)(job_id)
 
 
 def _find_pet(pet_id: Optional[int]):
@@ -121,15 +141,27 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes]) -> None:
                     )
                     return
 
-        # 4컷을 동시에 생성(포즈/표정만 다르게, 같은 감성 룩·옷). mock 은 즉시 반환.
-        tasks = [
-            provider.generate(
-                product=product, size=job.size, pet=pet, pet_image=pet_image,
-                style=job.style, composition=pose_key,
-            )
-            for pose_key, _ in FOURCUT_POSES
-        ]
-        outs = await asyncio.gather(*tasks, return_exceptions=True)
+        # 4컷 생성(포즈/표정만 다르게, 같은 감성 룩·옷). Replicate 429(rate limit) 방지를 위해
+        # 동시성을 제한하고 429 는 백오프 재시도한다. mock 은 즉시 반환.
+        sem = asyncio.Semaphore(2)
+
+        async def _one_cut(pose_key: str):
+            async with sem:
+                for attempt in range(3):
+                    try:
+                        return await provider.generate(
+                            product=product, size=job.size, pet=pet, pet_image=pet_image,
+                            style=job.style, composition=pose_key,
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        if "429" in str(exc) and attempt < 2:
+                            await asyncio.sleep(6)
+                            continue
+                        raise
+
+        outs = await asyncio.gather(
+            *[_one_cut(pk) for pk, _ in FOURCUT_POSES], return_exceptions=True
+        )
 
         cells: list[Optional[bytes]] = []
         for out in outs:
@@ -157,6 +189,8 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes]) -> None:
     except Exception as exc:  # noqa: BLE001
         job.status = JobStatus.failed
         job.error = str(exc)
+    finally:
+        (settle if job.status == JobStatus.done else refund)(job_id)
 
 
 @router.post("", response_model=TryOnJob, status_code=202)
@@ -178,6 +212,7 @@ async def create_tryon(
     """
     if product_id not in PRODUCTS_BY_ID:
         raise HTTPException(status_code=404, detail="product not found")
+    cost = _quota_precheck(provider, user, 1)
     image_bytes = await pet_image.read() if pet_image is not None else None
     if user is not None:
         FITTINGS[user.id] = FITTINGS.get(user.id, 0) + 1
@@ -189,6 +224,8 @@ async def create_tryon(
         style=style, composition=composition, background=background,
     )
     JOBS[job_id] = job
+    if cost:
+        consume(job_id, user.id if user else None, cost)
     asyncio.create_task(_process_job(job_id, image_bytes))
     return job
 
@@ -209,6 +246,7 @@ async def create_fourcut(
     """
     if product_id not in PRODUCTS_BY_ID:
         raise HTTPException(status_code=404, detail="product not found")
+    cost = _quota_precheck(provider, user, settings.fourcut_cost)
     image_bytes = await pet_image.read() if pet_image is not None else None
     if user is not None:
         FITTINGS[user.id] = FITTINGS.get(user.id, 0) + 1
@@ -219,6 +257,8 @@ async def create_fourcut(
         pet_id=pet_id, size=size, provider=provider, style=style,
     )
     JOBS[job_id] = job
+    if cost:
+        consume(job_id, user.id if user else None, cost)
     asyncio.create_task(_process_fourcut(job_id, image_bytes))
     return job
 

@@ -32,9 +32,22 @@ class Settings:
     look_models_json: str = os.getenv("PETFIT_LOOK_MODELS", "")
     # 룩 → LoRA 트리거 단어 매핑(JSON, 선택). 예: {"winter":"PAWDYWINTER"}
     look_triggers_json: str = os.getenv("PETFIT_LOOK_TRIGGERS", "")
-    # LoRA 학습 대상(트레이너 모델 버전) — scripts/train_lora.py 에서 사용
+    # 룩 → LoRA 가중치 URL 매핑(JSON). flux-kontext-dev-lora 추론에 얹음.
+    #   예: {"winter":"https://replicate.delivery/.../trained_model.tar"}
+    look_loras_json: str = os.getenv("PETFIT_LOOK_LORAS", "")
+    lora_strength: float = float(os.getenv("PETFIT_LORA_STRENGTH", "0.9"))
+    # LoRA 추론 품질(프로덕션): 스텝·출력품질
+    lora_steps: int = int(os.getenv("PETFIT_LORA_STEPS", "40"))
+    lora_output_quality: int = int(os.getenv("PETFIT_LORA_OUTPUT_QUALITY", "100"))
+    # LoRA 를 얹을 Kontext 편집 추론 모델
+    kontext_lora_model: str = os.getenv(
+        "PETFIT_KONTEXT_LORA_MODEL", "black-forest-labs/flux-kontext-dev-lora"
+    )
+    # LoRA 학습 대상(Kontext 편집 트레이너) — scripts/train_lora.py 에서 사용
     replicate_trainer: str = os.getenv(
-        "PETFIT_REPLICATE_TRAINER", "replicate/fast-flux-trainer:latest"
+        "PETFIT_REPLICATE_TRAINER",
+        "replicate/fast-flux-kontext-trainer:"
+        "26c877b4ec3988b7e8edc5840e61339c68f09913bb11e23c31566590fd92a66d",
     )
 
     # 인증 (JWT + Kakao OAuth)
@@ -51,6 +64,16 @@ class Settings:
     cors_origins: list[str] = (
         os.getenv("PETFIT_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
     )
+
+    # AI 생성 횟수 제한(요금 방어). 극초반엔 무제한(gen_limit_enabled=False)으로 운영하다가,
+    # 퀄리티 확신 생기면 켠다. 켜지면 계정당 free_generations 부여 + 구매 시 purchase_bonus 추가.
+    gen_limit_enabled: bool = os.getenv("PETFIT_GEN_LIMIT", "0") in ("1", "true", "True")
+    free_generations: int = int(os.getenv("PETFIT_FREE_GENERATIONS", "5"))
+    purchase_bonus: int = int(os.getenv("PETFIT_PURCHASE_BONUS", "5"))
+    # 인생네컷(4컷)이 소모하는 횟수 — 원가는 4배지만 UX상 기본 1회로 침(정책은 env로 조정).
+    fourcut_cost: int = int(os.getenv("PETFIT_FOURCUT_COST", "1"))
+    # 전역 극초반 무제한 상한(누적 생성 이 수치 미만이면 제한 무시). 0 = 미사용.
+    global_free_cap: int = int(os.getenv("PETFIT_GLOBAL_FREE_CAP", "0"))
 
     def configured_providers(self) -> dict[str, bool]:
         return {

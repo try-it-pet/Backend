@@ -238,9 +238,13 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
         if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false, msg: "" });
         else setFit({ loading: false, result: null, error: true, msg: job.error || "생성 실패" });
       })
-      .catch(() => {
+      .catch((e: Error & { status?: number }) => {
         if (fitReq.current !== reqId) return;
-        // 데모(백엔드 미배포): 클라이언트 목업 결과로 화면을 채운다
+        if (e?.status) { // 서버 응답 에러(횟수 제한 402 / 로그인 401 등) → 메시지 표시
+          setFit({ loading: false, result: null, error: true, msg: e.message });
+          return;
+        }
+        // 네트워크 오류(백엔드 미배포): 클라이언트 목업 결과로 화면을 채운다
         setFit({
           loading: false, error: false, msg: "",
           result: { image_url: "", fit_score: product.fit, recommended_size: st.size,
@@ -266,9 +270,10 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
         if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false, msg: "" });
         else setFit({ loading: false, result: null, error: true, msg: job.error || "인생네컷 생성 실패" });
       })
-      .catch(() => {
+      .catch((e: Error & { status?: number }) => {
         if (fitReq.current !== reqId) return;
-        setFit({ loading: false, result: null, error: true, msg: "백엔드 연결이 필요해요 (인생네컷은 실서버에서 생성)" });
+        const msg = e?.status ? e.message : "백엔드 연결이 필요해요 (인생네컷은 실서버에서 생성)";
+        setFit({ loading: false, result: null, error: true, msg });
       });
   };
 

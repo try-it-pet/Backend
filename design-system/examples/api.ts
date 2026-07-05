@@ -103,8 +103,17 @@ export async function createTryOn(p: TryOnParams): Promise<TryOnJob> {
   if (p.background) fd.append("background", p.background);
   if (p.petImage) fd.append("pet_image", p.petImage);
   const r = await fetch(`${API_BASE}/tryon`, { method: "POST", body: fd, headers: authHeaders() });
-  if (!r.ok) throw new Error("tryon create failed");
+  if (!r.ok) throw await apiError(r, "tryon create failed");
   return r.json();
+}
+
+/** 서버 응답 에러를 detail 메시지 + status 로 감싸서 던진다(횟수 제한 402/401 표시용). */
+async function apiError(r: Response, fallback: string): Promise<Error> {
+  let detail = fallback;
+  try { detail = (await r.json())?.detail || fallback; } catch { /* ignore */ }
+  const e = new Error(detail) as Error & { status?: number };
+  e.status = r.status;
+  return e;
 }
 
 /** 인생네컷(2x2): 한 장 사진 → 4포즈 컷 → 합성. tryon 과 동일하게 폴링. */
@@ -124,8 +133,15 @@ export async function createFourcut(p: {
   if (p.style) fd.append("style", p.style);
   if (p.petImage) fd.append("pet_image", p.petImage);
   const r = await fetch(`${API_BASE}/tryon/fourcut`, { method: "POST", body: fd, headers: authHeaders() });
-  if (!r.ok) throw new Error("fourcut create failed");
+  if (!r.ok) throw await apiError(r, "fourcut create failed");
   return r.json();
+}
+
+export type Generations = { unlimited: boolean; remaining: number | null; granted: number | null; used: number };
+export async function fetchGenerations(): Promise<Generations | null> {
+  if (!getToken()) return null;
+  const r = await fetch(`${API_BASE}/me/generations`, { headers: authHeaders() });
+  return r.ok ? r.json() : null;
 }
 
 export async function runFourcut(p: {

@@ -7,6 +7,7 @@ from ..data import PRODUCTS_BY_ID
 from ..models import (
     CartItem, CartItemCreate, Order, Pet, PetCreate, Stats, User,
 )
+from ..quota import grant_purchase, status as quota_status
 from ..store import (
     CARTS, FITTINGS, LIKES, ORDERS, PETS_BY_USER,
     next_cart_id, next_order_id, next_pet_id,
@@ -71,6 +72,7 @@ def checkout(user: User = Depends(get_current_user)) -> Order:
     )
     ORDERS.setdefault(user.id, []).append(order)
     CARTS[user.id] = []  # 주문 후 장바구니 비움
+    grant_purchase(user.id)  # 구매 보상: AI 생성 횟수 추가 충전
     return order
 
 
@@ -90,6 +92,13 @@ def create_pet(body: PetCreate, user: User = Depends(get_current_user)) -> Pet:
     pet = Pet(id=next_pet_id(), **body.model_dump())
     PETS_BY_USER.setdefault(user.id, []).append(pet)
     return pet
+
+
+# ── AI 생성 잔여 횟수 ──
+@router.get("/generations")
+def generations(user: User = Depends(get_current_user)) -> dict:
+    """남은 AI 생성 횟수(무제한 모드면 unlimited=true)."""
+    return quota_status(user.id)
 
 
 # ── 통계 (마이 화면) ──
