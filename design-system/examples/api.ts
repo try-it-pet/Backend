@@ -175,8 +175,8 @@ export async function runFourcut(p: {
   style?: Style;
 }): Promise<TryOnJob> {
   let job = await createFourcut(p);
-  // 4컷 동시 생성 → 합성. 실모델이면 수십 초. 넉넉히 폴링(최대 ~160초).
-  for (let i = 0; i < 80; i++) {
+  // 4컷 생성. LoRA 콜드스타트 시 수분 걸릴 수 있어 넉넉히 폴링(최대 ~360초).
+  for (let i = 0; i < 180; i++) {
     if (job.status === "done" || job.status === "failed") return job;
     await new Promise((res) => setTimeout(res, 2000));
     job = await getTryOn(job.id);
@@ -193,8 +193,8 @@ export async function getTryOn(jobId: string): Promise<TryOnJob> {
 /** 잡 생성 후 done/failed 까지 폴링. */
 export async function runTryOn(p: TryOnParams): Promise<TryOnJob> {
   let job = await createTryOn(p);
-  // gpt-image-2 생성은 15~40초+ 걸릴 수 있어 충분히 폴링한다(최대 ~160초)
-  for (let i = 0; i < 80; i++) {
+  // 생성은 수십 초~수분(LoRA 콜드스타트). 넉넉히 폴링(최대 ~360초)
+  for (let i = 0; i < 180; i++) {
     if (job.status === "done" || job.status === "failed") return job;
     await new Promise((res) => setTimeout(res, 2000));
     job = await getTryOn(job.id);

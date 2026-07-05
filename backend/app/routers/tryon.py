@@ -84,7 +84,9 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
         if out.image_bytes is not None:
             image_url = save_result(job_id, out.image_bytes, out.image_mime or "image/png")
         elif out.image_url:
-            image_url = out.image_url  # 외부 호스팅(Replicate 등)
+            # Replicate 출력 URL 은 임시(~1h) → 지금 받아서 우리 저장소(DB/R2)에 영구 저장
+            data = await _fetch_bytes(out.image_url)
+            image_url = save_result(job_id, data, "image/png") if data else out.image_url
         else:
             image_url = f"/tryon/{job_id}/preview.svg"  # mock
 
