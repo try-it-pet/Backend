@@ -39,10 +39,14 @@ app.mount("/static", StaticFiles(directory=Path(__file__).resolve().parent / "st
 
 @app.get("/health", tags=["meta"])
 def health() -> dict:
+    from .db import engine
+
     return {
         "status": "ok",
         "default_provider": settings.provider,
         "providers": settings.configured_providers(),  # 키 설정 여부
+        "db": engine.dialect.name,          # postgresql = 영구화 OK, sqlite = 폴백(위험)
+        "storage": "r2" if settings.r2_configured() else "db",
     }
 
 
