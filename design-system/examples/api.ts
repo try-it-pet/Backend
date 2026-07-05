@@ -69,7 +69,11 @@ export async function fetchPets(): Promise<Pet[]> {
   const r = await fetch(`${API_BASE}/me/pets`, { headers: authHeaders() });
   return r.ok ? r.json() : [];
 }
-export async function createPet(body: { name: string; species?: string; weight_kg?: number }): Promise<Pet | null> {
+export type PetInput = {
+  name: string; species?: string; breed?: string | null; weight_kg?: number | null;
+  age?: string | null; chest_cm?: number | null; neck_cm?: number | null; back_cm?: number | null;
+};
+export async function createPet(body: PetInput): Promise<Pet | null> {
   const r = await fetch(`${API_BASE}/me/pets`, {
     method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(body),

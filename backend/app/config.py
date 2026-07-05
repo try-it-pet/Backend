@@ -74,6 +74,10 @@ class Settings:
     fourcut_cost: int = int(os.getenv("PETFIT_FOURCUT_COST", "1"))
     # 전역 극초반 무제한 상한(누적 생성 이 수치 미만이면 제한 무시). 0 = 미사용.
     global_free_cap: int = int(os.getenv("PETFIT_GLOBAL_FREE_CAP", "0"))
+    # 생성비 방어(요금 폭탄 차단). daily_gen_cap: 하루 전체 생성 상한(0=무제한, 초과 시 전면 차단).
+    # ip_rate_per_min: 한 IP 가 분당 생성 요청 최대치(0=무제한).
+    daily_gen_cap: int = int(os.getenv("PETFIT_DAILY_GEN_CAP", "0"))
+    ip_rate_per_min: int = int(os.getenv("PETFIT_IP_RATE_PER_MIN", "10"))
 
     def configured_providers(self) -> dict[str, bool]:
         return {

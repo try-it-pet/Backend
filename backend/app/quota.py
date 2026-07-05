@@ -6,7 +6,9 @@
 - 그 외 → 계정당 free_generations + 구매 시 purchase_bonus 만큼만 생성 가능.
 """
 
-from typing import Optional
+import time
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
 
 from .config import settings
 from .store import (
@@ -14,6 +16,38 @@ from .store import (
 )
 
 _TOTAL = "gen_total"  # 전역 누적 생성 수(극초반 상한 판단)
+
+
+# ── 생성비 방어: 전역 일일 상한(kill-switch) ──
+def _day_key() -> str:
+    return "gen_day_" + datetime.now(timezone.utc).strftime("%Y%m%d")
+
+
+def daily_cap_reached() -> bool:
+    cap = settings.daily_gen_cap
+    return cap > 0 and kv_get(_day_key()) >= cap
+
+
+def daily_inc(n: int = 1) -> None:
+    kv_add(_day_key(), n)
+
+
+# ── 생성비 방어: IP 분당 레이트리밋(인메모리 슬라이딩 윈도우) ──
+_IP_HITS: Dict[str, List[float]] = {}
+
+
+def ip_allowed(ip: Optional[str]) -> bool:
+    per_min = settings.ip_rate_per_min
+    if per_min <= 0 or not ip:
+        return True
+    now = time.time()
+    hits = [t for t in _IP_HITS.get(ip, []) if t > now - 60]
+    if len(hits) >= per_min:
+        _IP_HITS[ip] = hits
+        return False
+    hits.append(now)
+    _IP_HITS[ip] = hits
+    return True
 
 
 def limits_active() -> bool:
@@ -52,8 +86,9 @@ def can_generate(user_id: Optional[int], cost: int) -> bool:
 
 
 def consume(job_id: str, user_id: Optional[int], cost: int) -> None:
-    """생성 수락 시 차감(예약). 누적 집계는 항상 올린다. 실패 시 refund 로 되돌림."""
+    """생성 수락 시 차감(예약). 누적·일일 집계는 항상 올린다. 실패 시 refund 로 되돌림."""
     kv_add(_TOTAL, cost)
+    daily_inc(cost)
     if user_id is None:
         return
     if limits_active():

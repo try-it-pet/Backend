@@ -212,13 +212,23 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     return parts.length ? parts.join(" · ") : "신체 치수 미등록";
   };
 
-  // 펫 등록(간단): 이름·종만 받아 백엔드에 저장 → 목록 갱신
-  const addPet = async () => {
+  // 펫 등록 폼(이름·종·체중·체형 치수 → 사이즈 추천에 사용)
+  const emptyPetForm = { open: false, name: "", species: "dog", weight: "", chest: "", neck: "", back: "" };
+  const [petForm, setPetForm] = useState(emptyPetForm);
+  const openPetForm = () => {
     if (!getToken()) { showToast("로그인이 필요해요"); return; }
-    const name = window.prompt("반려동물 이름을 입력해주세요")?.trim();
-    if (!name) return;
-    const pet = await createPet({ name });
-    if (pet) { setMyPets((ps) => [...ps, pet]); showToast(`${name} 등록됐어요`); }
+    setPetForm({ ...emptyPetForm, open: true });
+  };
+  const savePet = async () => {
+    const name = petForm.name.trim();
+    if (!name) { showToast("이름을 입력해주세요"); return; }
+    const num = (v: string) => (v.trim() ? Number(v) : null);
+    const pet = await createPet({
+      name, species: petForm.species,
+      weight_kg: num(petForm.weight), chest_cm: num(petForm.chest),
+      neck_cm: num(petForm.neck), back_cm: num(petForm.back),
+    });
+    if (pet) { setMyPets((ps) => [...ps, pet]); setPetForm(emptyPetForm); showToast(`${name} 등록됐어요`); }
     else showToast("등록 실패");
   };
 
@@ -783,7 +793,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                       </div>
                       <div style={{ fontSize: 12.5, color: T.muted, fontWeight: 500, marginTop: 5 }}>{petMeasure(myPets[0])}</div>
                     </div>
-                    <div onClick={addPet} style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", border: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                    <div onClick={openPetForm} style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", border: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.sub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
                     </div>
                   </div>
@@ -795,7 +805,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                       </div>
                     ))}
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                      <div onClick={addPet} style={{ width: 50, height: 50, borderRadius: "50%", border: "1.5px dashed #D8D2CA", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                      <div onClick={openPetForm} style={{ width: 50, height: 50, borderRadius: "50%", border: "1.5px dashed #D8D2CA", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B3ABA1" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 600, color: T.muted }}>추가</span>
@@ -803,7 +813,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                   </div>
                 </>
               ) : (
-                <div onClick={user ? addPet : undefined} style={{ marginTop: 16, padding: "20px 18px", borderRadius: 14, border: `1.5px dashed ${T.line}`, textAlign: "center", cursor: user ? "pointer" : "default", background: T.surface }}>
+                <div onClick={user ? openPetForm : undefined} style={{ marginTop: 16, padding: "20px 18px", borderRadius: 14, border: `1.5px dashed ${T.line}`, textAlign: "center", cursor: user ? "pointer" : "default", background: T.surface }}>
                   <span style={{ fontSize: 13.5, color: T.sub, fontWeight: 600 }}>{user ? "+ 우리 아이 프로필 등록하기" : "로그인하면 우리 아이를 등록할 수 있어요"}</span>
                 </div>
               )}
@@ -868,6 +878,35 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               <span>{label}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 펫 등록 폼 (바텀시트) */}
+      {petForm.open && (
+        <div onClick={() => setPetForm(emptyPetForm)} style={{ position: "absolute", inset: 0, zIndex: 90, background: "rgba(26,23,20,.42)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: T.paper, borderRadius: "22px 22px 0 0", padding: "22px 22px 32px" }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: T.line, margin: "0 auto 16px" }} />
+            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-.4px", marginBottom: 4 }}>우리 아이 등록</div>
+            <div style={{ fontSize: 12.5, color: T.muted, fontWeight: 500, marginBottom: 16 }}>체형 치수를 입력하면 AI가 딱 맞는 사이즈를 추천해요</div>
+            <input value={petForm.name} onChange={(e) => setPetForm((f) => ({ ...f, name: e.target.value }))} placeholder="이름" style={{ width: "100%", boxSizing: "border-box", height: 46, borderRadius: 12, border: `1px solid ${T.line}`, padding: "0 14px", fontSize: 14, fontFamily: "inherit", marginBottom: 10, outline: "none" }} />
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              {([["dog", "강아지"], ["cat", "고양이"]] as [string, string][]).map(([key, label]) => {
+                const on = petForm.species === key;
+                return <button key={key} onClick={() => setPetForm((f) => ({ ...f, species: key }))} style={{ flex: 1, height: 44, borderRadius: 12, border: `1.5px solid ${on ? T.accent : T.line}`, background: on ? T.accentSoft : "#fff", color: on ? T.accent : T.sub, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>;
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              {([["weight", "몸무게(kg)"], ["chest", "가슴둘레(cm)"]] as [keyof typeof petForm, string][]).map(([key, ph]) => (
+                <input key={key} value={petForm[key] as string} onChange={(e) => setPetForm((f) => ({ ...f, [key]: e.target.value.replace(/[^0-9.]/g, "") }))} inputMode="decimal" placeholder={ph} style={{ flex: 1, width: "100%", boxSizing: "border-box", height: 46, borderRadius: 12, border: `1px solid ${T.line}`, padding: "0 14px", fontSize: 14, fontFamily: "inherit", outline: "none" }} />
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+              {([["neck", "목둘레(cm)"], ["back", "등길이(cm)"]] as [keyof typeof petForm, string][]).map(([key, ph]) => (
+                <input key={key} value={petForm[key] as string} onChange={(e) => setPetForm((f) => ({ ...f, [key]: e.target.value.replace(/[^0-9.]/g, "") }))} inputMode="decimal" placeholder={ph} style={{ flex: 1, width: "100%", boxSizing: "border-box", height: 46, borderRadius: 12, border: `1px solid ${T.line}`, padding: "0 14px", fontSize: 14, fontFamily: "inherit", outline: "none" }} />
+              ))}
+            </div>
+            <button onClick={savePet} style={{ width: "100%", height: 52, borderRadius: 15, border: "none", background: T.accent, color: "#fff", fontSize: 15, fontWeight: 800, letterSpacing: "-.3px", cursor: "pointer", fontFamily: "inherit" }}>등록하기</button>
+          </div>
         </div>
       )}
 

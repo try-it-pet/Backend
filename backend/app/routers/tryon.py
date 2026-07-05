@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import uuid4
 
 import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 
 from ..auth import get_optional_user
@@ -13,18 +13,32 @@ from ..fourcut import compose_2x2
 from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
 from ..providers.looks import FOURCUT_POSES
-from ..quota import can_generate, consume, limits_active, refund, settle
+from ..quota import can_generate, consume, daily_cap_reached, ip_allowed, limits_active, refund, settle
 from ..store import JOBS, find_pet, get_result, inc_fitting, prune_jobs, save_result, track_job
 from ..vision import detect_pet
 
 router = APIRouter(prefix="/tryon", tags=["tryon"])
 
 
-def _quota_precheck(provider: Optional[str], user: Optional[User], cost: int) -> int:
-    """생성 전 횟수 제한 확인. 막히면 예외, 통과 시 소모할 cost 반환(mock 은 0)."""
+def _client_ip(request: Optional[Request]) -> Optional[str]:
+    if request is None:
+        return None
+    fwd = request.headers.get("x-forwarded-for")  # Railway/프록시 뒤 실제 IP
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
+def _quota_precheck(provider: Optional[str], user: Optional[User], cost: int,
+                    request: Optional[Request] = None) -> int:
+    """생성 전 방어: IP 레이트리밋 → 전역 일일 상한 → 계정 횟수. 통과 시 cost 반환(mock 0)."""
     prov = (provider or settings.provider or "mock").lower()
     if prov == "mock":
         return 0  # mock(데모)은 과금 없음 → 횟수 소모 안 함
+    if not ip_allowed(_client_ip(request)):
+        raise HTTPException(status_code=429, detail="요청이 너무 많아요. 잠시 후 다시 시도해주세요.")
+    if daily_cap_reached():
+        raise HTTPException(status_code=503, detail="오늘 AI 생성이 많아 잠시 쉬어가요. 잠시 후 다시 시도해주세요.")
     if limits_active():
         if user is None:
             raise HTTPException(status_code=401, detail="AI 생성은 로그인이 필요해요.")
@@ -180,6 +194,7 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes]) -> None:
 
 @router.post("", response_model=TryOnJob, status_code=202)
 async def create_tryon(
+    request: Request,
     product_id: int = Form(...),
     size: str = Form("M"),
     pet_id: Optional[int] = Form(None),
@@ -197,7 +212,7 @@ async def create_tryon(
     """
     if product_id not in PRODUCTS_BY_ID:
         raise HTTPException(status_code=404, detail="product not found")
-    cost = _quota_precheck(provider, user, 1)
+    cost = _quota_precheck(provider, user, 1, request)
     image_bytes = await pet_image.read() if pet_image is not None else None
     if user is not None:
         inc_fitting(user.id)
@@ -219,6 +234,7 @@ async def create_tryon(
 
 @router.post("/fourcut", response_model=TryOnJob, status_code=202)
 async def create_fourcut(
+    request: Request,
     product_id: int = Form(...),
     size: str = Form("M"),
     pet_id: Optional[int] = Form(None),
@@ -233,7 +249,7 @@ async def create_fourcut(
     """
     if product_id not in PRODUCTS_BY_ID:
         raise HTTPException(status_code=404, detail="product not found")
-    cost = _quota_precheck(provider, user, settings.fourcut_cost)
+    cost = _quota_precheck(provider, user, settings.fourcut_cost, request)
     image_bytes = await pet_image.read() if pet_image is not None else None
     if user is not None:
         inc_fitting(user.id)
