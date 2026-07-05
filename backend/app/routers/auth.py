@@ -8,23 +8,13 @@ from fastapi.responses import RedirectResponse
 from ..auth import create_token, get_current_user
 from ..config import settings
 from ..models import AuthResult, User
-from ..store import KAKAO_TO_USER, USERS, next_user_id
+from ..store import create_dev_user, upsert_kakao_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 KAKAO_AUTH = "https://kauth.kakao.com/oauth/authorize"
 KAKAO_TOKEN = "https://kauth.kakao.com/oauth/token"
 KAKAO_ME = "https://kapi.kakao.com/v2/user/me"
-
-
-def _upsert_kakao_user(kakao_id: str, nickname: str, image: Optional[str]) -> User:
-    uid = KAKAO_TO_USER.get(kakao_id)
-    if uid is not None:
-        return USERS[uid]
-    user = User(id=next_user_id(), provider="kakao", nickname=nickname, profile_image=image, kakao_id=kakao_id)
-    USERS[user.id] = user
-    KAKAO_TO_USER[kakao_id] = user.id
-    return user
 
 
 @router.get("/kakao/login")
@@ -58,7 +48,7 @@ async def kakao_callback(code: str) -> RedirectResponse:
         me.raise_for_status()
         data = me.json()
     profile = (data.get("kakao_account") or {}).get("profile") or {}
-    user = _upsert_kakao_user(
+    user = upsert_kakao_user(
         kakao_id=str(data["id"]),
         nickname=profile.get("nickname") or "카카오 사용자",
         image=profile.get("profile_image_url"),
@@ -73,8 +63,7 @@ def dev_login(nickname: str = Body("초코집사", embed=True)) -> AuthResult:
     """키 없이 테스트용 로그인. 운영에선 PETFIT_ALLOW_DEV_LOGIN=0 으로 비활성화."""
     if not settings.allow_dev_login:
         raise HTTPException(status_code=403, detail="dev-login 비활성화됨")
-    user = User(id=next_user_id(), provider="dev", nickname=nickname)
-    USERS[user.id] = user
+    user = create_dev_user(nickname)
     return AuthResult(token=create_token(user.id), user=user)
 
 

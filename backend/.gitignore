@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 .env
 uploads/
+
+# SQLite (로컬 DB)
+*.db

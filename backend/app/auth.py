@@ -6,7 +6,7 @@ from fastapi import Header, HTTPException
 
 from .config import settings
 from .models import User
-from .store import USERS
+from .store import get_user
 
 
 def create_token(user_id: int) -> str:
@@ -20,7 +20,7 @@ def create_token(user_id: int) -> str:
 def _user_from_token(token: str) -> Optional[User]:
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
-        return USERS.get(int(payload["sub"]))
+        return get_user(int(payload["sub"]))
     except Exception:  # noqa: BLE001 (만료/위조/형식오류 모두 무효 토큰)
         return None
 

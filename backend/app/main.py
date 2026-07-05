@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
+from .db import init_db
 from .routers import auth, me, products, tryon
 
 app = FastAPI(
@@ -12,6 +13,11 @@ app = FastAPI(
     version="0.2.0",
     description="Pawdy — 펫 전문 멀티샵: 상품·펫·AI 가상 피팅(착용·배치) API (프로토타입).",
 )
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    init_db()  # DB 테이블 생성(SQLite 로컬 / Postgres 배포)
 
 app.add_middleware(
     CORSMiddleware,

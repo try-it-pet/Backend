@@ -14,7 +14,7 @@ from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
 from ..providers.looks import FOURCUT_POSES
 from ..quota import can_generate, consume, limits_active, refund, settle
-from ..store import FITTINGS, JOBS, PETS_BY_USER, RESULTS, prune_jobs, track_job
+from ..store import JOBS, find_pet, get_result, inc_fitting, prune_jobs, save_result, track_job
 from ..vision import detect_pet
 
 router = APIRouter(prefix="/tryon", tags=["tryon"])
@@ -42,12 +42,7 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
     job.status = JobStatus.processing
     try:
         product = PRODUCTS_BY_ID[job.product_id]
-        pet = None
-        if job.pet_id is not None:
-            for plist in PETS_BY_USER.values():
-                pet = next((p for p in plist if p.id == job.pet_id), None)
-                if pet:
-                    break
+        pet = find_pet(job.pet_id)
         provider = get_provider(job.provider)
 
         # 실제 모델: 강아지/고양이 사진인지 사전 검증 → 아니면 이유를 담아 친절히 실패
@@ -73,7 +68,7 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
         )
 
         if out.image_bytes is not None:
-            RESULTS[job_id] = (out.image_bytes, out.image_mime or "image/png")
+            save_result(job_id, out.image_bytes, out.image_mime or "image/png")
             image_url = f"/tryon/{job_id}/result"
         elif out.image_url:
             image_url = out.image_url  # 외부 호스팅(Replicate 등)
@@ -95,16 +90,6 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
         (settle if job.status == JobStatus.done else refund)(job_id)
 
 
-def _find_pet(pet_id: Optional[int]):
-    if pet_id is None:
-        return None
-    for plist in PETS_BY_USER.values():
-        pet = next((p for p in plist if p.id == pet_id), None)
-        if pet:
-            return pet
-    return None
-
-
 async def _fetch_bytes(url: str) -> Optional[bytes]:
     """외부 호스팅(Replicate 등) 결과 URL → 바이트."""
     try:
@@ -121,7 +106,7 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes]) -> None:
     job.status = JobStatus.processing
     try:
         product = PRODUCTS_BY_ID[job.product_id]
-        pet = _find_pet(job.pet_id)
+        pet = find_pet(job.pet_id)
         provider = get_provider(job.provider)
 
         if provider.name != "mock":
@@ -176,7 +161,7 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes]) -> None:
 
         labels = [ko for _, ko in FOURCUT_POSES]
         png = await asyncio.to_thread(compose_2x2, cells, labels)
-        RESULTS[job_id] = (png, "image/png")
+        save_result(job_id, png, "image/png")
 
         made = sum(1 for c in cells if c)
         job.result = TryOnResult(
@@ -215,7 +200,7 @@ async def create_tryon(
     cost = _quota_precheck(provider, user, 1)
     image_bytes = await pet_image.read() if pet_image is not None else None
     if user is not None:
-        FITTINGS[user.id] = FITTINGS.get(user.id, 0) + 1
+        inc_fitting(user.id)
 
     job_id = uuid4().hex
     job = TryOnJob(
@@ -251,7 +236,7 @@ async def create_fourcut(
     cost = _quota_precheck(provider, user, settings.fourcut_cost)
     image_bytes = await pet_image.read() if pet_image is not None else None
     if user is not None:
-        FITTINGS[user.id] = FITTINGS.get(user.id, 0) + 1
+        inc_fitting(user.id)
 
     job_id = uuid4().hex
     job = TryOnJob(
@@ -278,7 +263,7 @@ def get_job(job_id: str) -> TryOnJob:
 @router.get("/{job_id}/result")
 def job_result(job_id: str) -> Response:
     """프로바이더가 바이트로 준 결과 이미지(OpenAI 등)."""
-    item = RESULTS.get(job_id)
+    item = get_result(job_id)
     if item is None:
         raise HTTPException(status_code=404, detail="result image not found")
     data, mime = item
