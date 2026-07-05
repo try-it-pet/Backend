@@ -82,8 +82,7 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
         )
 
         if out.image_bytes is not None:
-            save_result(job_id, out.image_bytes, out.image_mime or "image/png")
-            image_url = f"/tryon/{job_id}/result"
+            image_url = save_result(job_id, out.image_bytes, out.image_mime or "image/png")
         elif out.image_url:
             image_url = out.image_url  # 외부 호스팅(Replicate 등)
         else:
@@ -175,11 +174,11 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes]) -> None:
 
         labels = [ko for _, ko in FOURCUT_POSES]
         png = await asyncio.to_thread(compose_2x2, cells, labels)
-        save_result(job_id, png, "image/png")
+        result_url = save_result(job_id, png, "image/png")
 
         made = sum(1 for c in cells if c)
         job.result = TryOnResult(
-            image_url=f"/tryon/{job_id}/result",
+            image_url=result_url,
             fit_score=product.fit,
             recommended_size=job.size or "M",
             analysis=f"{pet.name if pet else '우리 아이'}의 인생네컷이 완성됐어요! ({made}/4컷)",

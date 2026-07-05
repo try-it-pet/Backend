@@ -237,14 +237,23 @@ def kv_add(key: str, n: int) -> None:
 
 
 # ── 생성 결과 이미지(DB 영구) ──
-def save_result(job_id: str, data: bytes, mime: str) -> None:
-    with get_session() as s:
+def save_result(job_id: str, data: bytes, mime: str) -> str:
+    """결과 이미지 저장 후 접근 URL 반환. R2 설정 시 R2 공개 URL, 아니면 DB + 내부 경로."""
+    from .storage import configured, put_bytes
+
+    if configured():
+        ext = "png" if "png" in (mime or "") else "jpg"
+        url = put_bytes(f"results/{job_id}.{ext}", data, mime)
+        if url:
+            return url  # R2 공개 URL 직접 사용
+    with get_session() as s:  # DB 폴백
         r = s.get(ResultRow, job_id)
         if r:
             r.data, r.mime, r.created_at = data, mime, time.time()
         else:
             s.add(ResultRow(job_id=job_id, data=data, mime=mime, created_at=time.time()))
         s.commit()
+    return f"/tryon/{job_id}/result"
 
 
 def get_result(job_id: str) -> Optional[Tuple[bytes, str]]:

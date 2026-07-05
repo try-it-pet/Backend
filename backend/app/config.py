@@ -50,6 +50,17 @@ class Settings:
         "26c877b4ec3988b7e8edc5840e61339c68f09913bb11e23c31566590fd92a66d",
     )
 
+    # Cloudflare R2 (S3 호환) — 생성 결과 이미지·LoRA 저장. 미설정 시 DB 폴백.
+    r2_endpoint: str = os.getenv("PETFIT_R2_ENDPOINT", "")        # https://<account>.r2.cloudflarestorage.com
+    r2_access_key: str = os.getenv("PETFIT_R2_ACCESS_KEY_ID", "")
+    r2_secret_key: str = os.getenv("PETFIT_R2_SECRET_ACCESS_KEY", "")
+    r2_bucket: str = os.getenv("PETFIT_R2_BUCKET", "")
+    r2_public_base: str = os.getenv("PETFIT_R2_PUBLIC_BASE", "")  # https://pub-xxx.r2.dev 또는 커스텀 도메인
+
+    def r2_configured(self) -> bool:
+        return all([self.r2_endpoint, self.r2_access_key, self.r2_secret_key,
+                    self.r2_bucket, self.r2_public_base])
+
     # 인증 (JWT + Kakao OAuth)
     jwt_secret: str = os.getenv("PETFIT_JWT_SECRET", "dev-secret-change-me")
     jwt_expire_days: int = int(os.getenv("PETFIT_JWT_EXPIRE_DAYS", "30"))
