@@ -3,7 +3,7 @@ import {
   apiBase, fetchProducts, runTryOn, runFourcut, type TryOnResult, type Provider,
   type Style, type Composition,
   setToken, getToken, fetchMe, fetchLikes, toggleLikeApi, addToCart, fetchStats,
-  devLogin, kakaoLoginUrl, type User, type Stats,
+  fetchPets, createPet, devLogin, kakaoLoginUrl, type User, type Stats, type Pet as PetT,
 } from "./api";
 
 /**
@@ -172,6 +172,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   // ── 인증 ──
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [myPets, setMyPets] = useState<PetT[]>([]);
   const [toast, setToast] = useState("");
   const showToast = (m: string) => { setToast(m); window.setTimeout(() => setToast(""), 1800); };
 
@@ -180,13 +181,14 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
       const liked: Liked = {}; ids.forEach((id) => { liked[id] = true; });
       setSt((s) => ({ ...s, liked }));
     }).catch(() => {});
+  const loadPets = () => fetchPets().then(setMyPets).catch(() => {});
 
   useEffect(() => {
     // 카카오 리다이렉트(?token=) 처리
     const params = new URLSearchParams(window.location.search);
     const t = params.get("token");
     if (t) { setToken(t); window.history.replaceState({}, "", window.location.pathname); }
-    if (getToken()) fetchMe().then((u) => { setUser(u); if (u) loadLikes(); }).catch(() => {});
+    if (getToken()) fetchMe().then((u) => { setUser(u); if (u) { loadLikes(); loadPets(); } }).catch(() => {});
   }, []);
 
   useEffect(() => { if (st.screen === "my" && getToken()) fetchStats().then(setStats).catch(() => {}); }, [st.screen, user]);
@@ -194,7 +196,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   const doDevLogin = async () => {
     try {
       const { token, user: u } = await devLogin();
-      setToken(token); setUser(u); showToast(`${u.nickname}님 환영해요`); loadLikes();
+      setToken(token); setUser(u); showToast(`${u.nickname}님 환영해요`); loadLikes(); loadPets();
     } catch {
       // 데모(백엔드 미배포): 클라이언트 목업 로그인
       setUser({ id: 0, provider: "dev", nickname: "초코집사", profile_image: null, kakao_id: null });
@@ -202,7 +204,23 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     }
   };
   const doKakaoLogin = () => { window.location.href = kakaoLoginUrl(); };
-  const logout = () => { setToken(null); setUser(null); setStats(null); setSt((s) => ({ ...s, liked: {} })); showToast("로그아웃됐어요"); };
+  const logout = () => { setToken(null); setUser(null); setStats(null); setMyPets([]); setSt((s) => ({ ...s, liked: {} })); showToast("로그아웃됐어요"); };
+
+  const speciesKo = (s: string) => (({ dog: "강아지", cat: "고양이", rabbit: "토끼" } as Record<string, string>)[s] || s);
+  const petMeasure = (p: PetT) => {
+    const parts = [p.chest_cm && `가슴 ${p.chest_cm}cm`, p.neck_cm && `목 ${p.neck_cm}cm`, p.back_cm && `등길이 ${p.back_cm}cm`].filter(Boolean);
+    return parts.length ? parts.join(" · ") : "신체 치수 미등록";
+  };
+
+  // 펫 등록(간단): 이름·종만 받아 백엔드에 저장 → 목록 갱신
+  const addPet = async () => {
+    if (!getToken()) { showToast("로그인이 필요해요"); return; }
+    const name = window.prompt("반려동물 이름을 입력해주세요")?.trim();
+    if (!name) return;
+    const pet = await createPet({ name });
+    if (pet) { setMyPets((ps) => [...ps, pet]); showToast(`${name} 등록됐어요`); }
+    else showToast("등록 실패");
+  };
 
   const addCart = async (productId: number, size: string) => {
     if (!getToken()) { showToast("로그인이 필요해요"); return; }
@@ -752,38 +770,46 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                   <button onClick={doDevLogin} style={{ height: 44, borderRadius: 12, border: `1px solid ${T.line}`, background: T.surface, color: T.sub, fontSize: 13, fontWeight: 700, padding: "0 14px", cursor: "pointer" }}>둘러보기</button>
                 </div>
               )}
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 16 }}>
-                <div style={{ width: 60, height: 60, flexShrink: 0 }}><ImageSlot label="초코" circle src={petImg(1)} /></div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-.4px" }}>초코</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: T.sub, background: T.soft, padding: "3px 9px", borderRadius: 999 }}>말티즈 · 남아 · 3.2kg</span>
+              {myPets.length > 0 ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 16 }}>
+                    <div style={{ width: 60, height: 60, flexShrink: 0 }}><ImageSlot label={myPets[0].name} circle /></div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                        <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-.4px" }}>{myPets[0].name}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: T.sub, background: T.soft, padding: "3px 9px", borderRadius: 999 }}>
+                          {[speciesKo(myPets[0].species), myPets[0].breed, myPets[0].weight_kg ? `${myPets[0].weight_kg}kg` : ""].filter(Boolean).join(" · ")}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: T.muted, fontWeight: 500, marginTop: 5 }}>{petMeasure(myPets[0])}</div>
+                    </div>
+                    <div onClick={addPet} style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", border: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.sub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12.5, color: T.muted, fontWeight: 500, marginTop: 5 }}>가슴 42cm · 목 24cm · 등길이 30cm</div>
-                </div>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", border: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.sub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 14, marginTop: 20 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 50, height: 50, borderRadius: "50%", border: `2px solid ${T.accent}`, padding: 2 }}><ImageSlot label="초코" circle src={petImg(1)} /></div>
-                  <span style={{ fontSize: 11, fontWeight: 700 }}>초코</span>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 50, height: 50, borderRadius: "50%", border: `1px solid ${T.line}`, padding: 2 }}><ImageSlot label="콩이" circle src={petImg(2)} /></div>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: T.muted }}>콩이</span>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 50, height: 50, borderRadius: "50%", border: "1.5px dashed #D8D2CA", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B3ABA1" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                  <div style={{ display: "flex", gap: 14, marginTop: 20 }}>
+                    {myPets.map((p, i) => (
+                      <div key={p.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 50, height: 50, borderRadius: "50%", border: `${i === 0 ? 2 : 1}px solid ${i === 0 ? T.accent : T.line}`, padding: 2 }}><ImageSlot label={p.name} circle /></div>
+                        <span style={{ fontSize: 11, fontWeight: i === 0 ? 700 : 600, color: i === 0 ? T.ink : T.muted }}>{p.name}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <div onClick={addPet} style={{ width: 50, height: 50, borderRadius: "50%", border: "1.5px dashed #D8D2CA", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B3ABA1" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: T.muted }}>추가</span>
+                    </div>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: T.muted }}>추가</span>
+                </>
+              ) : (
+                <div onClick={user ? addPet : undefined} style={{ marginTop: 16, padding: "20px 18px", borderRadius: 14, border: `1.5px dashed ${T.line}`, textAlign: "center", cursor: user ? "pointer" : "default", background: T.surface }}>
+                  <span style={{ fontSize: 13.5, color: T.sub, fontWeight: 600 }}>{user ? "+ 우리 아이 프로필 등록하기" : "로그인하면 우리 아이를 등록할 수 있어요"}</span>
                 </div>
-              </div>
+              )}
             </div>
             <div style={{ margin: "0 22px", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: "18px 0", display: "flex" }}>
-              {[[String(stats ? stats.orders : 7), "주문"], [String(stats ? stats.likes : likedIdx.length), "좋아요"], [String(stats ? stats.fittings : 12), "AI 피팅"]].map(([n, l], i) => (
+              {[[String(stats ? stats.orders : 0), "주문"], [String(stats ? stats.likes : likedIdx.length), "좋아요"], [String(stats ? stats.fittings : 0), "AI 피팅"]].map(([n, l], i) => (
                 <div key={l} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? `1px solid ${T.soft}` : "none" }}>
                   <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-.4px" }}>{n}</div>
                   <div style={{ fontSize: 11.5, color: T.muted, fontWeight: 600, marginTop: 3 }}>{l}</div>
@@ -791,7 +817,14 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               ))}
             </div>
             <div style={{ margin: "14px 22px 0", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, overflow: "hidden" }}>
-              {[["주문 내역", ""], ["배송 현황", "2건 배송중"], ["AI 피팅 기록", "12회"], ["리뷰 관리", "4"], ["쿠폰 · 포인트", "3장 · 2,400P"], ["고객센터 · 설정", ""]].map(([label, meta], i, arr) => (
+              {[
+                ["주문 내역", stats && stats.orders ? `${stats.orders}건` : ""],
+                ["배송 현황", ""],
+                ["AI 피팅 기록", `${stats ? stats.fittings : 0}회`],
+                ["리뷰 관리", ""],
+                ["쿠폰 · 포인트", ""],
+                ["고객센터 · 설정", ""],
+              ].map(([label, meta], i, arr) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 18px", cursor: "pointer", borderBottom: i < arr.length - 1 ? "1px solid #F1ECE6" : "none" }}>
                   <span style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: "-.3px" }}>{label}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

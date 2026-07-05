@@ -59,6 +59,24 @@ export async function fetchStats(): Promise<Stats> {
   return r.json();
 }
 
+export type Pet = {
+  id: number; name: string; species: string; breed: string | null;
+  weight_kg: number | null; age: string | null;
+  chest_cm: number | null; neck_cm: number | null; back_cm: number | null;
+};
+export async function fetchPets(): Promise<Pet[]> {
+  if (!authToken) return [];
+  const r = await fetch(`${API_BASE}/me/pets`, { headers: authHeaders() });
+  return r.ok ? r.json() : [];
+}
+export async function createPet(body: { name: string; species?: string; weight_kg?: number }): Promise<Pet | null> {
+  const r = await fetch(`${API_BASE}/me/pets`, {
+    method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return r.ok ? r.json() : null;
+}
+
 export type ApiProduct = { id: number; brand: string; name: string; price: number; fit: number };
 export type TryOnResult = { image_url: string; fit_score: number; recommended_size: string; analysis: string };
 export type TryOnJob = {
