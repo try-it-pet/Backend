@@ -9,8 +9,10 @@ from .base import ProviderOutput, TryOnProvider
 from .looks import (
     BACKGROUND_PRESETS,
     COMPOSITION_PRESETS,
+    ILLUSTRATION_LOOKS,
     LOOK_PROMPTS,
     SCENE_LOOKS,
+    is_illustration,
     look_lora,
     look_model,
     look_trigger,
@@ -26,6 +28,11 @@ def _build_prompt(
     background: Optional[str] = None,
     trigger: Optional[str] = None,
 ) -> str:
+    if is_illustration(style):  # 일러스트 룩: 옷 없이 펫을 다시 그림
+        p = ILLUSTRATION_LOOKS[style]
+        if composition in COMPOSITION_PRESETS:
+            p += f" Pose: {COMPOSITION_PRESETS[composition]}."
+        return p
     pet_desc = f"{pet.species}" if pet else "pet"
     base = (
         f"Dress this {pet_desc} in a {product.name} ({product.brand}), a piece of pet clothing. "

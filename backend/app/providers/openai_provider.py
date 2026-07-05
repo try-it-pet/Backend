@@ -16,8 +16,10 @@ from .mock import recommend_size
 from .looks import (  # noqa: E402
     BACKGROUND_PRESETS,
     COMPOSITION_PRESETS,
+    ILLUSTRATION_LOOKS,
     LOOK_PROMPTS as STYLE_PRESETS,
     SCENE_LOOKS,
+    is_illustration,
 )
 
 
@@ -29,6 +31,12 @@ def _build_prompt(
     composition: Optional[str] = None,
     background: Optional[str] = None,
 ) -> str:
+    # 일러스트 룩은 펫을 통째로 다시 그림 — 착장 base 대신 그림체 프롬프트만 사용.
+    if is_illustration(style):
+        p = ILLUSTRATION_LOOKS[style]
+        if composition in COMPOSITION_PRESETS:
+            p += f" Pose: {COMPOSITION_PRESETS[composition]}."
+        return p
     pet_desc = f"{pet.species}" if pet else "pet"
     if has_ref:
         base = (
@@ -90,7 +98,7 @@ class OpenAIProvider(TryOnProvider):
             pet_io = io.BytesIO(pet_image)
             pet_io.name = "pet.png"
             images: list = [pet_io]
-            if product.ref_image:
+            if product.ref_image and not is_illustration(style):  # 일러스트는 옷 레퍼런스 미사용
                 try:
                     ref = product.ref_image
                     if ref.startswith("/static/"):

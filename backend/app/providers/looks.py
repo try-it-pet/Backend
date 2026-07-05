@@ -30,6 +30,31 @@ LOOK_PROMPTS = {
 # 자체 장면(배경)을 연출하는 감성 룩 — BACKGROUND_PRESETS(studio/keep)를 덮어쓴다.
 SCENE_LOOKS = {"winter"}
 
+# 일러스트/감성 룩 — 펫을 통째로 "다시 그림"(옷 착용 X). 프롬프트가 착장 base 를 대체.
+# gpt-image-2(openai)에서 검증된 20대 트렌디 그림체. 하트·반짝이 없이 무드 팔레트.
+ILLUSTRATION_LOOKS = {
+    "ghibli": (
+        "Redraw this exact pet as a soft dreamy anime-style illustration: gentle natural muted colors, "
+        "delicate soft shading, cinematic calm mood, refined and tasteful, Studio-Ghibli-like warmth. "
+        "No cutesy hearts or sparkles. Keep the pet recognizable (fur pattern, face, accessories)."
+    ),
+    "riso": (
+        "Redraw this exact pet as a trendy risograph print illustration: grainy print texture, limited "
+        "2-3 tone muted retro palette, flat shapes, modern zine aesthetic, stylish and minimal. "
+        "No hearts or sparkles. Keep the pet recognizable (fur pattern, face, accessories)."
+    ),
+    "mood": (
+        "Redraw this exact pet as a trendy minimal illustration for a 20s audience: clean subtle linework, "
+        "muted sophisticated palette (cream, sage, dusty warm tones), flat matte finish, calm cool "
+        "aesthetic, modern illustration-goods style. No hearts, no sparkles, no candy colors. "
+        "Simple background. Keep the pet recognizable (fur pattern, face, accessories)."
+    ),
+}
+
+
+def is_illustration(style: str | None) -> bool:
+    return bool(style) and style in ILLUSTRATION_LOOKS
+
 COMPOSITION_PRESETS = {
     "front_full": "front-facing full-body framing with the whole pet visible",
     "side": "side profile, full body in frame",
