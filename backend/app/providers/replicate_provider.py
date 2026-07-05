@@ -113,11 +113,38 @@ class ReplicateProvider(TryOnProvider):
             tag = f"model:{style}" if trained_model else "prompt"
 
         def _call() -> str:
-            client = replicate.Client(api_token=settings.replicate_token)
-            output = client.run(model, input=payload)
-            if isinstance(output, list):
-                output = output[0] if output else ""
-            return str(output)
+            # client.run() 은 LoRA 콜드스타트 시 내부 타임아웃에 걸림 →
+            # 예측 API 직접 생성 + 자체 폴링(요청별 타임아웃만, 총 대기 길게)으로 안전하게.
+            import base64
+            import time
+
+            import httpx as hx
+
+            tok = settings.replicate_token
+            headers = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
+            inp = {k: v for k, v in payload.items() if k != "input_image"}
+            inp["input_image"] = "data:image/png;base64," + base64.b64encode(pet_image).decode()
+
+            if ":" in model:  # owner/name:version
+                version = model.split(":", 1)[1]
+            else:  # 공식 모델 슬러그 → 최신 버전 조회
+                version = replicate.Client(api_token=tok).models.get(model).latest_version.id
+
+            r = hx.post("https://api.replicate.com/v1/predictions", headers=headers,
+                        json={"version": version, "input": inp}, timeout=60)
+            r.raise_for_status()
+            pid = r.json()["id"]
+            for _ in range(120):  # 최대 ~6분 (콜드스타트 포함)
+                time.sleep(3)
+                s = hx.get(f"https://api.replicate.com/v1/predictions/{pid}",
+                           headers=headers, timeout=30).json()
+                st = s.get("status")
+                if st == "succeeded":
+                    out = s.get("output")
+                    return str(out[0] if isinstance(out, list) else out)
+                if st in ("failed", "canceled"):
+                    raise RuntimeError(s.get("error") or f"replicate {st}")
+            raise RuntimeError("replicate 예측 시간 초과")
 
         url = await anyio.to_thread.run_sync(_call)
         if not url:
