@@ -14,7 +14,7 @@ from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
 from ..providers.looks import FOURCUT_POSES
 from ..quota import can_generate, consume, limits_active, refund, settle
-from ..store import FITTINGS, JOBS, PETS_BY_USER, RESULTS
+from ..store import FITTINGS, JOBS, PETS_BY_USER, RESULTS, prune_jobs, track_job
 from ..vision import detect_pet
 
 router = APIRouter(prefix="/tryon", tags=["tryon"])
@@ -224,6 +224,8 @@ async def create_tryon(
         style=style, composition=composition, background=background,
     )
     JOBS[job_id] = job
+    track_job(job_id)
+    prune_jobs()
     if cost:
         consume(job_id, user.id if user else None, cost)
     asyncio.create_task(_process_job(job_id, image_bytes))
@@ -257,6 +259,8 @@ async def create_fourcut(
         pet_id=pet_id, size=size, provider=provider, style=style,
     )
     JOBS[job_id] = job
+    track_job(job_id)
+    prune_jobs()
     if cost:
         consume(job_id, user.id if user else None, cost)
     asyncio.create_task(_process_fourcut(job_id, image_bytes))

@@ -1,3 +1,4 @@
+import time
 from itertools import count
 from typing import Dict, List, Tuple
 
@@ -42,3 +43,27 @@ def next_cart_id() -> int:
 
 def next_order_id() -> int:
     return next(_order_seq)
+
+
+# ── 잡/결과 메모리 정리(프로토타입 인메모리 저장의 OOM 방지) ──
+# 실서비스에서는 S3/CDN + DB 로 이관해야 함. 그 전까지는 오래된/초과분을 정리.
+JOB_TS: Dict[str, float] = {}  # job_id -> 생성 시각
+
+
+def track_job(job_id: str) -> None:
+    JOB_TS[job_id] = time.time()
+
+
+def prune_jobs(max_keep: int = 500, max_age_sec: int = 7200) -> int:
+    """오래됐거나(2h) 개수 초과(500) 잡·결과·예약을 제거해 RAM 무한 증가를 막는다."""
+    now = time.time()
+    drop = {j for j, ts in JOB_TS.items() if now - ts > max_age_sec}
+    keep = sorted(((ts, j) for j, ts in JOB_TS.items() if j not in drop))
+    if len(keep) > max_keep:
+        drop.update(j for _, j in keep[: len(keep) - max_keep])
+    for j in drop:
+        JOBS.pop(j, None)
+        RESULTS.pop(j, None)
+        JOB_TS.pop(j, None)
+        GEN_RESERVED.pop(j, None)
+    return len(drop)
