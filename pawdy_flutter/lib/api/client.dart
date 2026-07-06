@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/product.dart';
 import '../models/tryon.dart';
 import '../models/user.dart';
+import '../models/commerce.dart';
 
 /// Pawdy 백엔드(FastAPI) 클라이언트.
 /// 운영 = Railway. 빌드 시 --dart-define=API_BASE=... 로 재정의 가능.
@@ -113,8 +114,24 @@ class Api {
       headers: {..._authHeaders(), 'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
-    if (r.statusCode != 200) throw _apiError(r, '펫 등록 실패');
+    if (r.statusCode != 200 && r.statusCode != 201) throw _apiError(r, '펫 등록 실패');
     return Pet.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
+  }
+
+  // ── 주문 / AI 생성 잔여 횟수 ──
+  static Future<List<Order>> fetchOrders() async {
+    final r = await http.get(Uri.parse('$apiBase/me/orders'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, 'orders 실패');
+    return (jsonDecode(utf8.decode(r.bodyBytes)) as List)
+        .map((e) => Order.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<Generations?> fetchGenerations() async {
+    if (_token == null) return null;
+    final r = await http.get(Uri.parse('$apiBase/me/generations'), headers: _authHeaders());
+    if (r.statusCode != 200) return null;
+    return Generations.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
 
   // ── AI 피팅 / 인생네컷 ──

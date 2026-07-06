@@ -3,6 +3,9 @@ import '../models/user.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
 import 'pet_form_sheet.dart';
+import 'settings_screen.dart';
+import 'orders_screen.dart';
+import 'coming_soon_screen.dart';
 
 class MyScreen extends StatelessWidget {
   const MyScreen({super.key});
@@ -57,7 +60,12 @@ class MyScreen extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
                         color: T.ink)),
-                const Icon(Icons.settings_outlined, size: 21, color: T.ink),
+                GestureDetector(
+                  onTap: () => _push(context, const SettingsScreen()),
+                  behavior: HitTestBehavior.opaque,
+                  child: const Icon(Icons.settings_outlined,
+                      size: 21, color: T.ink),
+                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -79,7 +87,7 @@ class MyScreen extends StatelessWidget {
             _statsCard(appState.stats?.orders ?? 0, likes,
                 appState.stats?.fittings ?? 0),
             const SizedBox(height: 14),
-            _menuCard(),
+            _menuCard(context),
           ],
         ),
       ),
@@ -270,14 +278,33 @@ class MyScreen extends StatelessWidget {
 
   Widget _divider() => Container(width: 1, height: 30, color: T.soft);
 
-  Widget _menuCard() {
-    const items = [
-      '주문 내역',
-      '배송 현황',
-      'AI 피팅 기록',
-      '리뷰 관리',
-      '쿠폰 · 포인트',
-      '고객센터 · 설정',
+  void _push(BuildContext context, Widget screen) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
+  void _openOrders(BuildContext context) {
+    if (!appState.loggedIn) {
+      _toast(context, '로그인하면 주문 내역을 볼 수 있어요');
+      return;
+    }
+    _push(context, const OrdersScreen());
+  }
+
+  Widget _menuCard(BuildContext context) {
+    final orders = appState.stats?.orders ?? 0;
+    final fittings = appState.stats?.fittings ?? 0;
+    final items = <(String, String, VoidCallback)>[
+      ('주문 내역', orders > 0 ? '$orders건' : '', () => _openOrders(context)),
+      ('배송 현황', '', () => _push(context,
+          const ComingSoonScreen(title: '배송 현황', icon: Icons.local_shipping_outlined))),
+      ('AI 피팅 기록', '$fittings회', () => _push(context, const ComingSoonScreen(
+          title: 'AI 피팅 기록',
+          subtitle: '생성한 이미지를 모아보는 기능을 준비 중이에요',
+          icon: Icons.auto_awesome))),
+      ('리뷰 관리', '', () => _push(context,
+          const ComingSoonScreen(title: '리뷰 관리', icon: Icons.rate_review_outlined))),
+      ('쿠폰 · 포인트', '', () => _push(context,
+          const ComingSoonScreen(title: '쿠폰 · 포인트', icon: Icons.confirmation_number_outlined))),
+      ('고객센터 · 설정', '', () => _push(context, const SettingsScreen())),
     ];
     return Container(
       decoration: BoxDecoration(
@@ -289,24 +316,42 @@ class MyScreen extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < items.length; i++)
-            Container(
-              decoration: BoxDecoration(
-                border: i < items.length - 1
-                    ? const Border(bottom: BorderSide(color: Color(0xFFF1ECE6)))
-                    : null,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(items[i],
-                      style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w600,
-                          color: T.ink)),
-                  const Icon(Icons.chevron_right,
-                      size: 20, color: Color(0xFFC4BDB3)),
-                ],
+            InkWell(
+              onTap: items[i].$3,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: i < items.length - 1
+                      ? const Border(
+                          bottom: BorderSide(color: Color(0xFFF1ECE6)))
+                      : null,
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(items[i].$1,
+                        style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: T.ink)),
+                    Row(
+                      children: [
+                        if (items[i].$2.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Text(items[i].$2,
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    color: T.muted,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        const Icon(Icons.chevron_right,
+                            size: 20, color: Color(0xFFC4BDB3)),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
