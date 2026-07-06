@@ -44,11 +44,13 @@ class _IntroScreenState extends State<IntroScreen>
   @override
   Widget build(BuildContext context) {
     final curve = CurvedAnimation(parent: _enter, curve: Curves.easeOutCubic);
-    return AnimatedOpacity(
-      opacity: _opacity,
-      duration: const Duration(milliseconds: 420),
-      child: Container(
-        color: T.paper,
+    return Material(
+      color: T.paper,
+      child: AnimatedOpacity(
+        opacity: _opacity,
+        duration: const Duration(milliseconds: 420),
+        child: Container(
+          color: T.paper,
         alignment: Alignment.center,
         child: FadeTransition(
           opacity: curve,
@@ -115,6 +117,7 @@ class _IntroScreenState extends State<IntroScreen>
             ),
           ),
         ),
+      ),
       ),
     );
   }
