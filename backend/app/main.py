@@ -21,7 +21,8 @@ def _startup() -> None:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    # https://localhost, capacitor://localhost = 모바일 앱(Capacitor WebView) 오리진
+    allow_origins=[*settings.cors_origins, "https://localhost", "capacitor://localhost"],
     allow_origin_regex=r"https://.*\.vercel\.app",  # 모든 Vercel 배포/프리뷰 도메인 허용
     allow_credentials=True,
     allow_methods=["*"],
