@@ -1,7 +1,16 @@
 # 08. 구현 현황 & 이어서 작업 (Status & Handoff)
 
 > 새 세션에서 이 문서만 읽으면 이어서 작업 가능. (브랜드: **PetFit → Pawdy** 로 변경됨)
-> 최종 업데이트: 2026-06-30
+> 최종 업데이트: 2026-07-06 (상세 최신 이력은 세션 메모리 pawdy-launch-plan 참고)
+
+## 🆕 2026-07-06 진행 (출시 D-7)
+- **실상품 카탈로그**: data.py 18종 전부 해외직구 실브랜드(maxbone·Ruffwear·Little Beast·earthbath·Greenies·Open Farm·PureBites·ibiyaya·Outward Hound·Zesty Paws·Catit·MEOWFIA)·실가격·실상품컷(`/static/products/`)·구매링크(`Product.url`). 패션 6종 ref_image=실상품 플랫레이(AI 피팅 반영).
+- **사이즈 분류**: `Product.sizes`(의류만 XS~XL, 그 외 null=Free 단일). 상세 화면 Free 칩·카테고리별 상품정보 문구.
+- **로그인 연결**: 찜/장바구니/펫등록/생성 401 → 로그인 바텀시트(카카오+둘러보기). 비로그인 가짜 찜 제거.
+- **안드로이드 앱**: `App/`(별도 레포 try-it-pet/App)에 Capacitor 8 셸. `npm run build:web → npx cap sync android → npm run apk`. 함정: 한글 경로(overridePathCheck), Java 21(JBR). 네이티브에서 아이폰 목업 크롬 제거(웹 데모는 유지, `?native=1` 토글). 백엔드 CORS에 `https://localhost` 허용.
+- **펫 실연동**: 등록 펫 이름/pet_id/가슴둘레가 홈·피팅·추천사이즈에 반영 (등록 API `POST /me/pets`는 기존부터 있음).
+- **카카오 로그인**: redirect_uri 요청 호스트 자동 유도 + `?next=` 복귀 + 클라이언트 시크릿 지원(`PETFIT_KAKAO_CLIENT_SECRET`). 콘솔 새 REST API 키 `1ff0a...` + URI 등록 + Railway env 갱신 완료. **E2E 최종 확인만 남음**(KOE006 재발 시 콘솔 저장 여부 확인). 앱 내 카카오는 미완결(웹 복귀) → 딥링크 필요.
+- **남은 TODO**: 카카오 E2E 확인 → 시크릿 재발급, 인앱 결제, 새 샵 입점 푸시, winter LoRA R2 재호스팅, 홈 카테고리 '배치' 피팅, 릴리스(서명) 빌드.
 
 ## 🌐 라이브 (배포됨)
 - **프론트(Vercel)**: https://backend-delta-flame-87.vercel.app
