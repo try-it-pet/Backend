@@ -186,6 +186,15 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
   const [toast, setToast] = useState("");
   const showToast = (m: string) => { setToast(m); window.setTimeout(() => setToast(""), 1800); };
 
+  // 앱 진입 인트로(스플래시): 브랜드 노출 후 부드럽게 페이드아웃 → 홈.
+  const [intro, setIntro] = useState(true);
+  const [introLeaving, setIntroLeaving] = useState(false);
+  useEffect(() => {
+    const t1 = window.setTimeout(() => setIntroLeaving(true), 1500); // 페이드아웃 시작
+    const t2 = window.setTimeout(() => setIntro(false), 1950);       // 언마운트
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+  }, []);
+
   const loadLikes = () =>
     fetchLikes().then((ids) => {
       const liked: Liked = {}; ids.forEach((id) => { liked[id] = true; });
@@ -989,6 +998,28 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
 
       {toast && (
         <div style={{ position: "absolute", bottom: 96, left: "50%", transform: "translateX(-50%)", background: "rgba(26,23,20,.9)", color: "#fff", fontSize: 12, fontWeight: 600, padding: "9px 16px", borderRadius: 999, zIndex: 80, whiteSpace: "nowrap" }}>{toast}</div>
+      )}
+
+      {/* 앱 진입 인트로(스플래시) — 최상단, 안전영역까지 덮는 브랜드 화면 */}
+      {intro && (
+        <div
+          style={{
+            position: "absolute", inset: 0, zIndex: 200, background: T.paper,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            opacity: introLeaving ? 0 : 1, transition: "opacity .42s ease", pointerEvents: introLeaving ? "none" : "auto",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", animation: "pf-intro-in .7s cubic-bezier(.2,.7,.2,1) both" }}>
+            <div style={{ width: 78, height: 78, borderRadius: 24, background: T.accent, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 34px rgba(232,103,74,.34)" }}>
+              <FitIcon size={40} stroke="#fff" />
+            </div>
+            <div style={{ marginTop: 22, display: "flex", alignItems: "baseline" }}>
+              <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", color: T.ink }}>Pawdy</span>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.accent, marginLeft: 3, alignSelf: "flex-end", marginBottom: 8, animation: "pf-intro-pulse 1.4s ease-in-out infinite" }} />
+            </div>
+            <span style={{ marginTop: 12, fontSize: 13.5, color: T.sub, fontWeight: 500, letterSpacing: "-.3px" }}>우리 아이의 특별한 순간, AI로</span>
+          </div>
+        </div>
       )}
 
       {/* home indicator (데스크톱 목업 전용) */}
