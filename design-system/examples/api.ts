@@ -28,7 +28,12 @@ export async function devLogin(nickname = "초코집사"): Promise<{ token: stri
   if (!r.ok) throw new Error("dev login failed");
   return r.json();
 }
-export function kakaoLoginUrl() { return `${API_BASE}/auth/kakao/login`; }
+export function kakaoLoginUrl() {
+  // 로그인 후 현재 프론트로 복귀(next). 네이티브 앱(WebView localhost)은 복귀 불가라 미전달 → 서버 기본(frontend_url).
+  const native = !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+  const next = native ? "" : `?next=${encodeURIComponent(window.location.origin)}`;
+  return `${API_BASE}/auth/kakao/login${next}`;
+}
 
 export async function fetchMe(): Promise<User | null> {
   if (!authToken) return null;
