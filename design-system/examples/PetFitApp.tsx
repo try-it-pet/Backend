@@ -418,11 +418,21 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
   ).filter((i) => i < products.length).slice(0, 6);
   const selectedCat = CATEGORIES.find((c) => c.key === st.catChip);
 
-  // 웹 데모 = 아이폰 목업 프레임(상태바 44px 고정) / 실제 앱 = 노치·다이내믹아일랜드 safe-area 반영
+  // 반응형: 실제 폰 해상도에 맞춰 뷰포트 폭을 추적(회전·리사이즈 대응).
+  const [vw, setVw] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 390));
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  // 풀스크린(뷰포트 꽉 채움) = 네이티브 앱 이거나 모바일 폭(≤480px). 데스크톱(넓은 화면)만 아이폰 목업 프레임.
+  const fullBleed = isNativeApp || vw <= 480;
+
+  // 풀스크린 = 노치·다이내믹아일랜드 safe-area 반영 / 데스크톱 목업 = 상태바 44px 고정
   // (safe-area-inset은 index.html viewport-fit=cover 필요. 최소값으로 상태바 없는 기기도 여백 확보)
-  const statusH: number | string = isNativeApp ? "max(env(safe-area-inset-top), 14px)" : 44;
-  const safeBottom = isNativeApp ? "env(safe-area-inset-bottom)" : "0px";
-  const frame: React.CSSProperties = isNativeApp
+  const statusH: number | string = fullBleed ? "max(env(safe-area-inset-top), 14px)" : 44;
+  const safeBottom = fullBleed ? "env(safe-area-inset-bottom)" : "0px";
+  const frame: React.CSSProperties = fullBleed
     ? {
         width: "100%", height: "100dvh", background: T.paper,
         overflow: "hidden", position: "relative", fontFamily: "Pretendard, system-ui, sans-serif",
@@ -437,8 +447,8 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
 
   return (
     <div style={frame}>
-      {/* status bar (웹 목업 전용) */}
-      {!isNativeApp && (
+      {/* status bar (데스크톱 목업 전용 — 실제 모바일은 기기 상태바 사용) */}
+      {!fullBleed && (
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 60, height: 44, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", fontSize: 14, fontWeight: 600, letterSpacing: "-.3px", pointerEvents: "none" }}>
         <span>9:41</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -705,7 +715,7 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
           <div className="pf-scroll" style={{ flex: 1, overflowY: "auto" }}>
             <div style={{ position: "relative", aspectRatio: "1 / 1", background: T.soft }}>
               <ImageSlot label="상품 사진" src={imgFor(d.i)} />
-              <div style={{ position: "absolute", top: isNativeApp ? 14 : 44, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ position: "absolute", top: fullBleed ? 14 : 44, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button onClick={() => set({ screen: st.prev || "home" })} style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.94)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Back /></button>
                 <button style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.94)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" /></svg>
@@ -981,8 +991,8 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
         <div style={{ position: "absolute", bottom: 96, left: "50%", transform: "translateX(-50%)", background: "rgba(26,23,20,.9)", color: "#fff", fontSize: 12, fontWeight: 600, padding: "9px 16px", borderRadius: 999, zIndex: 80, whiteSpace: "nowrap" }}>{toast}</div>
       )}
 
-      {/* home indicator (웹 목업 전용) */}
-      {!isNativeApp && (
+      {/* home indicator (데스크톱 목업 전용) */}
+      {!fullBleed && (
       <div style={{ position: "absolute", bottom: 7, left: "50%", transform: "translateX(-50%)", width: 128, height: 5, borderRadius: 3, background: T.ink, opacity: 0.16, zIndex: 50 }} />
       )}
     </div>
