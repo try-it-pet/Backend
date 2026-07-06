@@ -138,7 +138,14 @@ const ImageSlot = ({ label, src, radius = 0, circle = false, style }: { label: s
   </div>
 );
 
-export function PetFitApp({ petName = "초코" }: { petName?: string }) {
+// 실제 모바일 앱(Capacitor WebView)에서는 폰 목업 프레임 없이 풀스크린으로 렌더링
+// (?native=1 = 브라우저에서 앱 레이아웃을 확인하는 개발용 토글)
+const isNativeApp = typeof window !== "undefined" && (
+  !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() ||
+  new URLSearchParams(window.location.search).has("native")
+);
+
+export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: string }) {
   const [st, setSt] = useState<{
     screen: Screen; prev: Screen; chip: string; catChip: string; species: string; size: string; fitG: number; selProd: number; liked: Liked;
   }>({
@@ -173,6 +180,9 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [myPets, setMyPets] = useState<PetT[]>([]);
+  // 등록된 펫(첫 번째)이 있으면 그 아이 기준으로 이름·치수·사이즈 추천을 연결
+  const myPet = myPets[0];
+  const petName = myPet?.name || defaultPetName;
   const [toast, setToast] = useState("");
   const showToast = (m: string) => { setToast(m); window.setTimeout(() => setToast(""), 1800); };
 
@@ -269,7 +279,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     }
     const reqId = ++fitReq.current;
     setFit({ loading: true, result: null, error: false, msg: "" });
-    runTryOn({ productId: product.id, size: st.size, provider, petImage: petPhoto ?? undefined, style, composition, background })
+    runTryOn({ productId: product.id, size: st.size, petId: myPet?.id, provider, petImage: petPhoto ?? undefined, style, composition, background })
       .then((job) => {
         if (fitReq.current !== reqId) return; // 최신 요청만 반영(가먼트/모델 빠른 전환 대비)
         if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false, msg: "" });
@@ -302,7 +312,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
     }
     const reqId = ++fitReq.current;
     setFit({ loading: true, result: null, error: false, msg: "" });
-    runFourcut({ productId: product.id, size: st.size, provider, petImage: petPhoto ?? undefined, style })
+    runFourcut({ productId: product.id, size: st.size, petId: myPet?.id, provider, petImage: petPhoto ?? undefined, style })
       .then((job) => {
         if (fitReq.current !== reqId) return;
         if (job.status === "done" && job.result) setFit({ loading: false, result: job.result, error: false, msg: "" });
@@ -408,16 +418,25 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   ).filter((i) => i < products.length).slice(0, 6);
   const selectedCat = CATEGORIES.find((c) => c.key === st.catChip);
 
-  const frame: React.CSSProperties = {
-    width: 390, height: 844, margin: "0 auto", background: T.paper, borderRadius: 42,
-    overflow: "hidden", position: "relative", fontFamily: "Pretendard, system-ui, sans-serif",
-    color: T.ink, boxShadow: "0 30px 80px rgba(40,30,25,.18)", border: `1px solid ${T.line}`,
-  };
-  const headPad: React.CSSProperties = { paddingTop: 44, background: T.paper };
+  // 웹 데모 = 아이폰 목업 프레임 / 실제 앱 = 풀스크린 (가짜 상태바·홈 인디케이터 없음)
+  const statusH = isNativeApp ? 10 : 44;
+  const frame: React.CSSProperties = isNativeApp
+    ? {
+        width: "100%", height: "100dvh", background: T.paper,
+        overflow: "hidden", position: "relative", fontFamily: "Pretendard, system-ui, sans-serif",
+        color: T.ink,
+      }
+    : {
+        width: 390, height: 844, margin: "0 auto", background: T.paper, borderRadius: 42,
+        overflow: "hidden", position: "relative", fontFamily: "Pretendard, system-ui, sans-serif",
+        color: T.ink, boxShadow: "0 30px 80px rgba(40,30,25,.18)", border: `1px solid ${T.line}`,
+      };
+  const headPad: React.CSSProperties = { paddingTop: statusH, background: T.paper };
 
   return (
     <div style={frame}>
-      {/* status bar */}
+      {/* status bar (웹 목업 전용) */}
+      {!isNativeApp && (
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 60, height: 44, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", fontSize: 14, fontWeight: 600, letterSpacing: "-.3px", pointerEvents: "none" }}>
         <span>9:41</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -425,6 +444,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
           <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="2.5" stroke={T.ink} strokeOpacity=".4" /><rect x="2.5" y="2.5" width="15" height="7" rx="1.3" fill={T.ink} /><rect x="22.5" y="4" width="1.6" height="4" rx=".8" fill={T.ink} fillOpacity=".4" /></svg>
         </div>
       </div>
+      )}
 
       {/* ===== HOME ===== */}
       {st.screen === "home" && (
@@ -461,7 +481,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
                 </div>
               </div>
-              <div style={{ width: 104, height: 128, flexShrink: 0 }}><ImageSlot label="초코 사진" radius={18} src={petImg(1)} /></div>
+              <div style={{ width: 104, height: 128, flexShrink: 0 }}><ImageSlot label={`${petName} 사진`} radius={18} src={petImg(1)} /></div>
             </div>
             <div style={{ padding: "26px 22px 0", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
               <div>
@@ -523,7 +543,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
       {/* ===== AI FITTING ===== */}
       {st.screen === "fit" && (
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", background: T.paper }}>
-          <div style={{ paddingTop: 44 }}>
+          <div style={{ paddingTop: statusH }}>
             <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px" }}>
               <div onClick={() => set({ screen: st.prev || "home" })} style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Back /></div>
               <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-.4px" }}>AI 피팅</span>
@@ -616,7 +636,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               </div>
               <div style={{ flex: 1, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 15, padding: "14px 16px" }}>
                 <div style={{ fontSize: 11.5, color: T.muted, fontWeight: 600 }}>추천 사이즈</div>
-                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.5px", marginTop: 3 }}>{fitRecSize}<span style={{ fontSize: 12, color: T.muted, fontWeight: 600, marginLeft: 5 }}>가슴 42cm</span></div>
+                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.5px", marginTop: 3 }}>{fitRecSize}<span style={{ fontSize: 12, color: T.muted, fontWeight: 600, marginLeft: 5 }}>{myPet?.chest_cm ? `가슴 ${myPet.chest_cm}cm` : "치수 미등록"}</span></div>
               </div>
             </div>
             <div style={{ padding: "24px 22px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -675,7 +695,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
           <div className="pf-scroll" style={{ flex: 1, overflowY: "auto" }}>
             <div style={{ position: "relative", aspectRatio: "1 / 1", background: T.soft }}>
               <ImageSlot label="상품 사진" src={imgFor(d.i)} />
-              <div style={{ position: "absolute", top: 44, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ position: "absolute", top: isNativeApp ? 14 : 44, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button onClick={() => set({ screen: st.prev || "home" })} style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.94)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Back /></button>
                 <button style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.94)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" /></svg>
@@ -741,7 +761,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
       {/* ===== LIKES ===== */}
       {st.screen === "likes" && (
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", background: T.paper }}>
-          <div style={{ paddingTop: 44 }}>
+          <div style={{ paddingTop: statusH }}>
             <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px" }}>
               <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.5px" }}>찜</span>
               <span style={{ fontSize: 13, color: T.muted, fontWeight: 600 }}>{likedIdx.length}개 저장됨</span>
@@ -951,8 +971,10 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
         <div style={{ position: "absolute", bottom: 96, left: "50%", transform: "translateX(-50%)", background: "rgba(26,23,20,.9)", color: "#fff", fontSize: 12, fontWeight: 600, padding: "9px 16px", borderRadius: 999, zIndex: 80, whiteSpace: "nowrap" }}>{toast}</div>
       )}
 
-      {/* home indicator */}
+      {/* home indicator (웹 목업 전용) */}
+      {!isNativeApp && (
       <div style={{ position: "absolute", bottom: 7, left: "50%", transform: "translateX(-50%)", width: 128, height: 5, borderRadius: 3, background: T.ink, opacity: 0.16, zIndex: 50 }} />
+      )}
     </div>
   );
 }
