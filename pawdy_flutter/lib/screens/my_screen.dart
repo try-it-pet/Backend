@@ -1,12 +1,46 @@
 import 'package:flutter/material.dart';
+import '../models/user.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
+import 'pet_form_sheet.dart';
 
 class MyScreen extends StatelessWidget {
   const MyScreen({super.key});
 
+  String _speciesKo(String s) =>
+      const {'dog': '강아지', 'cat': '고양이', 'rabbit': '토끼'}[s] ?? s;
+
+  String _measure(Pet p) {
+    final parts = [
+      if (p.chestCm != null) '가슴 ${p.chestCm}cm',
+      if (p.neckCm != null) '목 ${p.neckCm}cm',
+      if (p.backCm != null) '등길이 ${p.backCm}cm',
+    ];
+    return parts.isEmpty ? '신체 치수 미등록' : parts.join(' · ');
+  }
+
+  void _openPetForm(BuildContext context) {
+    if (!appState.loggedIn) {
+      _toast(context, '로그인하면 우리 아이를 등록할 수 있어요');
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const PetFormSheet(),
+    );
+  }
+
+  void _toast(BuildContext context, String m) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(m), duration: const Duration(milliseconds: 1400)));
+
   @override
   Widget build(BuildContext context) {
+    final user = appState.user;
+    final pet = appState.firstPet;
+    final likes = appState.stats?.likes ?? appState.likedIds.length;
     return Container(
       color: T.paper,
       child: SafeArea(
@@ -27,52 +61,23 @@ class MyScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: FilledButton(
-                      onPressed: () {},
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFEE500),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('카카오로 로그인',
-                          style: TextStyle(
-                              color: T.ink,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 44,
-                  child: OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: T.line),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('둘러보기',
-                        style: TextStyle(
-                            color: T.sub,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ],
-            ),
+            if (user != null)
+              _loggedInRow(context, user)
+            else
+              _loginButtons(context),
             const SizedBox(height: 16),
-            DottedRegisterCard(),
+            if (pet != null)
+              _petRow(context, pet)
+            else
+              GestureDetector(
+                onTap: () => _openPetForm(context),
+                child: _dashedCard(user != null
+                    ? '+ 우리 아이 프로필 등록하기'
+                    : '로그인하면 우리 아이를 등록할 수 있어요'),
+              ),
             const SizedBox(height: 16),
-            AnimatedBuilder(
-              animation: appState,
-              builder: (_, __) => _statsCard(appState.likedIds.length),
-            ),
+            _statsCard(appState.stats?.orders ?? 0, likes,
+                appState.stats?.fittings ?? 0),
             const SizedBox(height: 14),
             _menuCard(),
           ],
@@ -81,7 +86,154 @@ class MyScreen extends StatelessWidget {
     );
   }
 
-  Widget _statsCard(int likes) => Container(
+  Widget _loggedInRow(BuildContext context, User user) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('${user.nickname}님 · ${user.isKakao ? '카카오' : '체험'}',
+              style: const TextStyle(
+                  fontSize: 13, color: T.sub, fontWeight: FontWeight.w600)),
+          GestureDetector(
+            onTap: appState.logout,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: T.surface,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: T.line),
+              ),
+              child: const Text('로그아웃',
+                  style: TextStyle(
+                      fontSize: 12, color: T.sub, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      );
+
+  Widget _loginButtons(BuildContext context) => Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 44,
+              child: FilledButton(
+                onPressed: appState.startKakaoLogin,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFFEE500),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('카카오로 로그인',
+                    style: TextStyle(
+                        color: T.ink,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 44,
+            child: OutlinedButton(
+              onPressed: () async {
+                try {
+                  await appState.devLogin();
+                } catch (e) {
+                  if (context.mounted) _toast(context, '$e');
+                }
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: T.line),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('둘러보기',
+                  style: TextStyle(
+                      color: T.sub, fontSize: 13, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      );
+
+  Widget _petRow(BuildContext context, Pet pet) => Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration:
+                const BoxDecoration(color: T.soft, shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Text(pet.name.isNotEmpty ? pet.name.substring(0, 1) : '펫',
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w800, color: T.sub)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Text(pet.name,
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          color: T.ink)),
+                  const SizedBox(width: 7),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: T.soft, borderRadius: BorderRadius.circular(999)),
+                    child: Text(
+                        [
+                          _speciesKo(pet.species),
+                          if (pet.weightKg != null) '${pet.weightKg}kg'
+                        ].join(' · '),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: T.sub)),
+                  ),
+                ]),
+                const SizedBox(height: 5),
+                Text(_measure(pet),
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        color: T.muted,
+                        fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _openPetForm(context),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: T.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: T.line),
+              ),
+              child: const Icon(Icons.add, size: 16, color: T.sub),
+            ),
+          ),
+        ],
+      );
+
+  Widget _dashedCard(String text) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
+        decoration: BoxDecoration(
+          color: T.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: T.line),
+        ),
+        alignment: Alignment.center,
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 13.5, color: T.sub, fontWeight: FontWeight.w600)),
+      );
+
+  Widget _statsCard(int orders, int likes, int fittings) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -90,11 +242,11 @@ class MyScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 18),
         child: Row(
           children: [
-            _stat('0', '주문'),
+            _stat('$orders', '주문'),
             _divider(),
             _stat('$likes', '좋아요'),
             _divider(),
-            _stat('0', 'AI 피팅'),
+            _stat('$fittings', 'AI 피팅'),
           ],
         ),
       );
@@ -116,8 +268,7 @@ class MyScreen extends StatelessWidget {
         ),
       );
 
-  Widget _divider() =>
-      Container(width: 1, height: 30, color: T.soft);
+  Widget _divider() => Container(width: 1, height: 30, color: T.soft);
 
   Widget _menuCard() {
     const items = [
@@ -144,8 +295,7 @@ class MyScreen extends StatelessWidget {
                     ? const Border(bottom: BorderSide(color: Color(0xFFF1ECE6)))
                     : null,
               ),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -163,22 +313,4 @@ class MyScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class DottedRegisterCard extends StatelessWidget {
-  const DottedRegisterCard({super.key});
-  @override
-  Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
-        decoration: BoxDecoration(
-          color: T.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: T.line),
-        ),
-        alignment: Alignment.center,
-        child: const Text('+ 우리 아이 프로필 등록하기',
-            style: TextStyle(
-                fontSize: 13.5, color: T.sub, fontWeight: FontWeight.w600)),
-      );
 }

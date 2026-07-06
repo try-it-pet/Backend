@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../api/client.dart';
 import '../models/product.dart';
 import '../models/tryon.dart';
+import '../state/app_state.dart';
 import '../theme/tokens.dart';
 
 class FitScreen extends StatefulWidget {
@@ -73,11 +74,12 @@ class _FitScreenState extends State<FitScreen> {
     });
   }
 
-  Future<void> _runFitting() async {
+  Future<void> _run({required bool fourcut}) async {
     final product = _selected;
     if (_loading || product == null) return;
     if (_provider != 'mock' && _photo == null) {
-      setState(() => _msg = '펫 사진을 추가하면 AI가 입혀드려요');
+      setState(() =>
+          _msg = fourcut ? '펫 사진을 추가하면 인생네컷을 만들어드려요' : '펫 사진을 추가하면 AI가 입혀드려요');
       return;
     }
     setState(() {
@@ -86,16 +88,27 @@ class _FitScreenState extends State<FitScreen> {
       _msg = '';
     });
     try {
-      if (!Api.isLoggedIn) await Api.devLogin(); // 둘러보기 토큰(quota/인증)
-      final job = await Api.runTryOn(
-        productId: product.id,
-        size: _size,
-        provider: _provider,
-        style: _style,
-        composition: _composition,
-        background: _style == 'studio' ? 'studio' : 'keep',
-        petImageBytes: _photo,
-      );
+      if (!Api.isLoggedIn) await appState.devLogin(); // 미로그인 시 둘러보기 토큰(quota/인증)
+      final petId = appState.firstPet?.id;
+      final job = fourcut
+          ? await Api.runFourcut(
+              productId: product.id,
+              size: _size,
+              provider: _provider,
+              petId: petId,
+              style: _style,
+              petImageBytes: _photo,
+            )
+          : await Api.runTryOn(
+              productId: product.id,
+              size: _size,
+              provider: _provider,
+              petId: petId,
+              style: _style,
+              composition: _composition,
+              background: _style == 'studio' ? 'studio' : 'keep',
+              petImageBytes: _photo,
+            );
       if (!mounted) return;
       if (job.isDone && job.result != null) {
         setState(() => _result = job.result);
@@ -146,7 +159,7 @@ class _FitScreenState extends State<FitScreen> {
                   _preview(),
                   _scoreCards(product),
                   _garmentPicker(),
-                  _runButton(),
+                  _runButtons(),
                   _analysis(),
                 ],
               ),
@@ -377,29 +390,57 @@ class _FitScreenState extends State<FitScreen> {
     );
   }
 
-  Widget _runButton() => Padding(
+  Widget _runButtons() => Padding(
         padding: const EdgeInsets.fromLTRB(22, 18, 22, 0),
-        child: SizedBox(
-          height: 50,
-          child: FilledButton(
-            onPressed: _loading ? null : _runFitting,
-            style: FilledButton.styleFrom(
-              backgroundColor: _loading ? T.muted : T.ink,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15)),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 13,
+              child: SizedBox(
+                height: 50,
+                child: FilledButton(
+                  onPressed: _loading ? null : () => _run(fourcut: false),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _loading ? T.muted : T.ink,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
+                  ),
+                  child: Text(
+                      _loading
+                          ? '만드는 중…'
+                          : _result != null
+                              ? '다시 입혀보기'
+                              : '입혀보기',
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: Colors.white)),
+                ),
+              ),
             ),
-            child: Text(
-                _loading
-                    ? '만드는 중…'
-                    : _result != null
-                        ? '다시 입혀보기'
-                        : '입혀보기',
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                    color: Colors.white)),
-          ),
+            const SizedBox(width: 9),
+            Expanded(
+              flex: 10,
+              child: SizedBox(
+                height: 50,
+                child: OutlinedButton(
+                  onPressed: _loading ? null : () => _run(fourcut: true),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: _loading ? T.line : T.ink, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
+                  ),
+                  child: Text('인생네컷',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: _loading ? T.muted : T.ink)),
+                ),
+              ),
+            ),
+          ],
         ),
       );
 

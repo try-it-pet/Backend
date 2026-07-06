@@ -189,10 +189,25 @@ class DetailScreen extends StatelessWidget {
               child: SizedBox(
                 height: 52,
                 child: FilledButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('장바구니에 담았어요'),
-                        duration: Duration(milliseconds: 1200)));
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    void snack(String m) => messenger.showSnackBar(SnackBar(
+                        content: Text(m),
+                        duration: const Duration(milliseconds: 1300)));
+                    if (!appState.loggedIn) {
+                      snack('로그인하고 장바구니에 담아보세요');
+                      return;
+                    }
+                    final sizes = product.sizes;
+                    final size = (sizes != null && sizes.isNotEmpty)
+                        ? (sizes.contains('M') ? 'M' : sizes.first)
+                        : 'Free';
+                    try {
+                      await appState.addToCart(product.id, size);
+                      snack('장바구니에 담았어요');
+                    } catch (e) {
+                      snack('$e');
+                    }
                   },
                   style: FilledButton.styleFrom(
                       backgroundColor: T.ink,

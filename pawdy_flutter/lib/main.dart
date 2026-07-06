@@ -45,6 +45,7 @@ class _RootShellState extends State<RootShell> {
   void initState() {
     super.initState();
     appState.load(); // 상품 카탈로그 1회 로드
+    appState.initDeepLinks(); // 카카오 로그인 딥링크(pawdy://login?token=) 수신
   }
 
   void _go(int i) => setState(() => _tab = i);

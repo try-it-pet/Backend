@@ -55,6 +55,9 @@ def _allowed_frontend(origin: str) -> bool:
     import re
 
     o = origin.rstrip("/")
+    # 네이티브 앱(Flutter) 딥링크 복귀 — 카카오 콜백 후 앱으로 토큰 전달
+    if o == "pawdy://login":
+        return True
     if o == settings.frontend_url.rstrip("/"):
         return True
     return bool(re.fullmatch(r"https://[\w.-]+\.vercel\.app|http://(localhost|127\.0\.0\.1)(:\d+)?", o))

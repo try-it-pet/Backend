@@ -41,6 +41,10 @@ dependencies:
   # AI 피팅: 펫 사진 선택(갤러리/카메라) — 웹/모바일 공용
   image_picker: ^1.1.2
 
+  # 카카오 로그인: 외부 브라우저로 OAuth 열기 + pawdy:// 딥링크 콜백 수신
+  url_launcher: ^6.3.1
+  app_links: ^6.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
