@@ -16,6 +16,7 @@ class Product(BaseModel):
     image: Optional[str] = Field(None, description="상품 카드 이미지 URL/경로")
     ref_image: Optional[str] = Field(None, description="옷 레퍼런스 이미지 URL — AI 피팅이 이 옷을 입힘")
     url: Optional[str] = Field(None, description="원 판매처(해외직구) 상품 페이지 링크")
+    sizes: Optional[list[str]] = Field(None, description="선택 가능 사이즈 목록 — 없으면 Free(단일 사이즈) 품목")
 
 
 class PetCreate(BaseModel):

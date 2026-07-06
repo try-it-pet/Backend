@@ -27,7 +27,7 @@ const T = {
   heroLabel: "#A2693F",
 };
 
-type Product = { id: number; brand: string; name: string; price: number; fit: number; category: string; species: string; fittable: boolean; image?: string | null; ref_image?: string | null; url?: string | null };
+type Product = { id: number; brand: string; name: string; price: number; fit: number; category: string; species: string; fittable: boolean; image?: string | null; ref_image?: string | null; url?: string | null; sizes?: string[] | null };
 
 const CATEGORIES: { key: string; label: string; subs: string[] }[] = [
   { key: "care", label: "데일리케어", subs: ["샴푸", "브러쉬", "덴탈케어", "위생용품", "사료", "간식", "영양제"] },
@@ -40,12 +40,12 @@ const CAT_LABEL: Record<string, string> = Object.fromEntries(CATEGORIES.map((c) 
 
 // 백엔드 미연결 시 폴백 (실제 카탈로그는 GET /products). 해외직구 전문 펫샵 — 실브랜드 실상품.
 const PRODUCTS: Product[] = [
-  { id: 0, brand: "maxbone", name: "스키 니트 점퍼", price: 98000, fit: 96, category: "fashion", species: "dog", fittable: true },
-  { id: 1, brand: "Ruffwear", name: "프론트 레인지 하네스", price: 89000, fit: 93, category: "fashion", species: "dog", fittable: true },
-  { id: 2, brand: "Little Beast", name: "빅 블랙 퍼퍼 재킷", price: 112000, fit: 94, category: "fashion", species: "dog", fittable: true },
-  { id: 3, brand: "maxbone", name: "스트레인저 씽스 시그니처 후디", price: 92000, fit: 92, category: "fashion", species: "dog", fittable: true },
-  { id: 4, brand: "Ruffwear", name: "파우더 하운드 윈터 재킷", price: 119000, fit: 90, category: "fashion", species: "dog", fittable: true },
-  { id: 5, brand: "Little Beast", name: "다크 앤 스토미 스트라이프 원지", price: 72000, fit: 88, category: "fashion", species: "cat", fittable: true },
+  { id: 0, brand: "maxbone", name: "스키 니트 점퍼", price: 98000, fit: 96, category: "fashion", species: "dog", fittable: true, sizes: ["XS", "S", "M", "L", "XL"] },
+  { id: 1, brand: "Ruffwear", name: "프론트 레인지 하네스", price: 89000, fit: 93, category: "fashion", species: "dog", fittable: true, sizes: ["XS", "S", "M", "L", "XL"] },
+  { id: 2, brand: "Little Beast", name: "빅 블랙 퍼퍼 재킷", price: 112000, fit: 94, category: "fashion", species: "dog", fittable: true, sizes: ["XS", "S", "M", "L", "XL"] },
+  { id: 3, brand: "maxbone", name: "스트레인저 씽스 시그니처 후디", price: 92000, fit: 92, category: "fashion", species: "dog", fittable: true, sizes: ["XS", "S", "M", "L", "XL"] },
+  { id: 4, brand: "Ruffwear", name: "파우더 하운드 윈터 재킷", price: 119000, fit: 90, category: "fashion", species: "dog", fittable: true, sizes: ["XS", "S", "M", "L", "XL"] },
+  { id: 5, brand: "Little Beast", name: "다크 앤 스토미 스트라이프 원지", price: 72000, fit: 88, category: "fashion", species: "cat", fittable: true, sizes: ["XS", "S", "M", "L", "XL"] },
   { id: 6, brand: "earthbath", name: "오트밀 & 알로에 저자극 샴푸 473ml", price: 32000, fit: 91, category: "care", species: "all", fittable: false },
   { id: 7, brand: "Greenies", name: "오리지널 덴탈 트릿 레귤러 27개입", price: 56000, fit: 87, category: "care", species: "dog", fittable: false },
   { id: 8, brand: "Open Farm", name: "굿것 자연산 연어 키블 1.8kg", price: 55000, fit: 95, category: "care", species: "dog", fittable: false },
@@ -375,6 +375,18 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   const d = card(st.selProd);
   const dProd = products[st.selProd];
   const fitVerb = dProd?.category === "home" ? "배치해보기" : "입혀보기";
+  // 사이즈 분류: sizes 있는 품목(의류 등)만 선택 UI, 나머지는 Free(단일 사이즈)
+  const dSizes = dProd?.sizes && dProd.sizes.length ? dProd.sizes : null;
+  const dSize = dSizes ? (dSizes.includes(st.size) ? st.size : dSizes.includes("M") ? "M" : dSizes[0]) : "Free";
+  // 카테고리별 상품 정보 문구/스펙 (의류 문구가 사료 등에 뜨지 않도록 분리)
+  const DETAIL_COPY: Record<string, { desc: string; spec1: [string, string] }> = {
+    fashion: { desc: "부드러운 안감으로 착용감이 뛰어난 데일리 아이템. 목과 가슴 둘레를 넉넉하게 디자인해 답답함 없이 편안하게 착용할 수 있어요. 산책부터 실내 생활까지 두루 활용하기 좋습니다.", spec1: ["소재", "극세사 / 폴리"] },
+    care: { desc: "매일 챙기는 케어 용품은 성분과 원산지가 가장 중요해요. 해외 원 판매처에서 직배송되는 정품으로, 현지 보호자들의 리뷰로 검증된 베스트셀러입니다.", spec1: ["배송", "해외직구 정품"] },
+    active: { desc: "산책과 외출이 더 즐거워지는 아웃도어 아이템. 견고한 마감과 실사용 중심 설계로 현지에서 오래 사랑받아온 제품입니다.", spec1: ["배송", "해외직구 정품"] },
+    wellness: { desc: "우리 아이의 건강을 위한 웰니스 아이템. 급여량과 주의사항은 원 판매처의 가이드를 함께 확인해 주세요.", spec1: ["배송", "해외직구 정품"] },
+    home: { desc: "우리 집 공간에 자연스럽게 어우러지는 홈 아이템. 조립과 관리가 쉬워 처음 들이는 집사에게도 부담이 없어요.", spec1: ["배송", "해외직구 정품"] },
+  };
+  const dCopy = DETAIL_COPY[dProd?.category ?? "fashion"] ?? DETAIL_COPY.fashion;
   const likedIdx = Object.keys(st.liked).filter((k) => st.liked[Number(k)]).map(Number);
   const showTab = ["home", "category", "likes", "my"].includes(st.screen);
 
@@ -686,30 +698,32 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
             <div style={{ padding: "26px 22px 0" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-.3px" }}>사이즈</span>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: T.accent }}>AI 추천 {st.size}</span>
+                {dSizes
+                  ? <span style={{ fontSize: 12.5, fontWeight: 700, color: T.accent }}>AI 추천 {dSize}</span>
+                  : <span style={{ fontSize: 12.5, fontWeight: 700, color: T.muted }}>단일 사이즈 품목</span>}
               </div>
               <div style={{ display: "flex", gap: 9, marginTop: 13 }}>
-                {["S", "M", "L", "XL"].map((l) => {
-                  const on = st.size === l;
+                {(dSizes ?? ["Free"]).map((l) => {
+                  const on = dSizes ? dSize === l : true;
                   return (
-                    <div key={l} onClick={() => set({ size: l })} style={{ flex: 1, textAlign: "center", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", letterSpacing: "-.2px", background: on ? T.ink : "#fff", color: on ? "#fff" : T.sub, border: `1px solid ${on ? T.ink : T.line}` }}>{l}</div>
+                    <div key={l} onClick={dSizes ? () => set({ size: l }) : undefined} style={{ flex: 1, textAlign: "center", padding: "12px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: dSizes ? "pointer" : "default", letterSpacing: "-.2px", background: on ? T.ink : "#fff", color: on ? "#fff" : T.sub, border: `1px solid ${on ? T.ink : T.line}` }}>{l}</div>
                   );
                 })}
               </div>
             </div>
             <div style={{ padding: "26px 22px 0" }}>
               <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-.3px" }}>상품 정보</span>
-              <p style={{ margin: "12px 0 0", fontSize: 13.5, lineHeight: 1.7, color: T.sub, fontWeight: 500, letterSpacing: "-.2px" }}>부드러운 극세사 안감으로 보온성이 뛰어난 데일리 아이템. 목과 가슴 둘레를 넉넉하게 디자인해 답답함 없이 편안하게 착용할 수 있어요. 산책부터 실내 생활까지 두루 활용하기 좋습니다.</p>
+              <p style={{ margin: "12px 0 0", fontSize: 13.5, lineHeight: 1.7, color: T.sub, fontWeight: 500, letterSpacing: "-.2px" }}>{dCopy.desc}</p>
               <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 13, padding: "13px 15px" }}><div style={{ fontSize: 11.5, color: T.muted, fontWeight: 600 }}>소재</div><div style={{ fontSize: 13.5, fontWeight: 700, marginTop: 3 }}>극세사 / 폴리</div></div>
-                <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 13, padding: "13px 15px" }}><div style={{ fontSize: 11.5, color: T.muted, fontWeight: 600 }}>사이즈 범위</div><div style={{ fontSize: 13.5, fontWeight: 700, marginTop: 3 }}>S · M · L · XL</div></div>
+                <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 13, padding: "13px 15px" }}><div style={{ fontSize: 11.5, color: T.muted, fontWeight: 600 }}>{dCopy.spec1[0]}</div><div style={{ fontSize: 13.5, fontWeight: 700, marginTop: 3 }}>{dCopy.spec1[1]}</div></div>
+                <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 13, padding: "13px 15px" }}><div style={{ fontSize: 11.5, color: T.muted, fontWeight: 600 }}>사이즈 범위</div><div style={{ fontSize: 13.5, fontWeight: 700, marginTop: 3 }}>{dSizes ? dSizes.join(" · ") : "Free (단일 사이즈)"}</div></div>
               </div>
             </div>
             <div style={{ height: 118 }} />
           </div>
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "12px 22px 30px", background: T.paper, borderTop: `1px solid ${T.line}`, display: "flex", gap: 11, alignItems: "center" }}>
             <button onClick={d.onLike} style={{ width: 52, height: 52, borderRadius: 15, border: `1px solid ${T.line}`, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Heart size={23} fill={d.heartFill} stroke={d.heartStroke} /></button>
-            <button onClick={() => addCart(d.i, st.size)} style={{ flex: 1, height: 52, borderRadius: 15, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 15.5, fontWeight: 800, color: "#fff", letterSpacing: "-.3px", background: T.ink }}>장바구니 담기</button>
+            <button onClick={() => addCart(d.i, dSize)} style={{ flex: 1, height: 52, borderRadius: 15, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 15.5, fontWeight: 800, color: "#fff", letterSpacing: "-.3px", background: T.ink }}>장바구니 담기</button>
           </div>
         </div>
       )}
