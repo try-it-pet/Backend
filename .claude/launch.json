@@ -7,6 +7,13 @@
       "runtimeArgs": ["--prefix", "design-system", "run", "dev"],
       "port": 5173,
       "autoPort": true
+    },
+    {
+      "name": "pawdy-flutter-web",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8091", "--directory", "pawdy_flutter/build/web"],
+      "port": 8091,
+      "autoPort": false
     }
   ]
 }
