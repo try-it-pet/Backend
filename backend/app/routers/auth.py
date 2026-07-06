@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..auth import create_token, get_current_user
 from ..config import settings
@@ -92,7 +92,31 @@ async def kakao_callback(code: str, request: Request, state: Optional[str] = Non
     token = create_token(user.id)
     # SPA 로 토큰 전달 — state(=로그인 시작한 프론트 origin)가 있으면 그리로 복귀
     dest = state.rstrip("/") if state and _allowed_frontend(state) else settings.frontend_url.rstrip("/")
+    if dest.startswith("pawdy://"):
+        # 네이티브 앱: 크롬은 웹→커스텀스킴 자동 리다이렉트(302)를 차단하므로
+        # HTML 인터스티셜(자동 시도 + '앱으로 돌아가기' 버튼=사용자 탭)로 딥링크를 연다.
+        return HTMLResponse(_app_return_html(f"{dest}?token={token}"))
     return RedirectResponse(f"{dest}/?token={token}")
+
+
+def _app_return_html(app_url: str) -> str:
+    return (
+        "<!doctype html><html lang='ko'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<title>Pawdy 로그인</title></head>"
+        "<body style='margin:0;background:#FAF8F5;font-family:Pretendard,system-ui,sans-serif;"
+        "display:flex;min-height:100vh;align-items:center;justify-content:center;'>"
+        "<div style='text-align:center;padding:24px;'>"
+        "<div style='font-size:26px;font-weight:800;color:#1A1714;letter-spacing:-1px;'>"
+        "Pawdy<span style='color:#E8674A;'>.</span></div>"
+        "<p style='color:#6E665E;font-size:14px;margin:14px 0 24px;'>로그인 완료! 앱으로 돌아갑니다.</p>"
+        f"<a id='go' href='{app_url}' style='display:inline-block;background:#E8674A;color:#fff;"
+        "text-decoration:none;padding:15px 30px;border-radius:15px;font-weight:800;font-size:15px;'>"
+        "앱으로 돌아가기</a></div>"
+        f"<script>var u=\"{app_url}\";location.href=u;"
+        "setTimeout(function(){location.href=u;},500);</script>"
+        "</body></html>"
+    )
 
 
 @router.post("/dev-login", response_model=AuthResult)
