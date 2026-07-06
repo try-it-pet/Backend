@@ -193,6 +193,14 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
 
   useEffect(() => { if (st.screen === "my" && getToken()) fetchStats().then(setStats).catch(() => {}); }, [st.screen, user]);
 
+  // 로그인 유도 바텀시트 — 로그인이 필요한 액션에서 토스트 대신 로그인 API로 연결
+  const [loginSheet, setLoginSheet] = useState(false);
+  const requireLogin = () => {
+    if (getToken()) return true;
+    setLoginSheet(true);
+    return false;
+  };
+
   const doDevLogin = async () => {
     try {
       const { token, user: u } = await devLogin();
@@ -202,6 +210,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
       setUser({ id: 0, provider: "dev", nickname: "초코집사", profile_image: null, kakao_id: null });
       showToast("초코집사님 환영해요 (데모)");
     }
+    setLoginSheet(false);
   };
   const doKakaoLogin = () => { window.location.href = kakaoLoginUrl(); };
   const logout = () => { setToken(null); setUser(null); setStats(null); setMyPets([]); setSt((s) => ({ ...s, liked: {} })); showToast("로그아웃됐어요"); };
@@ -216,7 +225,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   const emptyPetForm = { open: false, name: "", species: "dog", weight: "", chest: "", neck: "", back: "" };
   const [petForm, setPetForm] = useState(emptyPetForm);
   const openPetForm = () => {
-    if (!getToken()) { showToast("로그인이 필요해요"); return; }
+    if (!requireLogin()) return;
     setPetForm({ ...emptyPetForm, open: true });
   };
   const savePet = async () => {
@@ -233,7 +242,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   };
 
   const addCart = async (productId: number, size: string) => {
-    if (!getToken()) { showToast("로그인이 필요해요"); return; }
+    if (!requireLogin()) return;
     try { await addToCart(productId, size); showToast("장바구니에 담았어요"); }
     catch { showToast("담기 실패"); }
   };
@@ -269,6 +278,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
       .catch((e: Error & { status?: number }) => {
         if (fitReq.current !== reqId) return;
         if (e?.status) { // 서버 응답 에러(횟수 제한 402 / 로그인 401 등) → 메시지 표시
+          if (e.status === 401) setLoginSheet(true); // 로그인 필요 → 로그인 시트로 연결
           setFit({ loading: false, result: null, error: true, msg: e.message });
           return;
         }
@@ -300,6 +310,7 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
       })
       .catch((e: Error & { status?: number }) => {
         if (fitReq.current !== reqId) return;
+        if (e?.status === 401) setLoginSheet(true); // 로그인 필요 → 로그인 시트로 연결
         const msg = e?.status ? e.message : "백엔드 연결이 필요해요 (인생네컷은 실서버에서 생성)";
         setFit({ loading: false, result: null, error: true, msg });
       });
@@ -308,15 +319,14 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
   const set = (patch: Partial<typeof st>) => setSt((s) => ({ ...s, ...patch }));
   const go = (screen: Screen) => setSt((s) => ({ ...s, screen, prev: s.screen }));
   const toggle = (i: number) => {
+    if (!requireLogin()) return; // 비로그인 찜은 저장이 안 되므로 로그인으로 연결
     setSt((s) => ({ ...s, liked: { ...s.liked, [i]: !s.liked[i] } })); // 낙관적
-    if (getToken()) {
-      toggleLikeApi(products[i].id)
-        .then((res) => {
-          const liked: Liked = {}; res.likedIds.forEach((id) => { liked[id] = true; });
-          setSt((s) => ({ ...s, liked }));
-        })
-        .catch(() => {/* 낙관적 상태 유지 */});
-    }
+    toggleLikeApi(products[i].id)
+      .then((res) => {
+        const liked: Liked = {}; res.likedIds.forEach((id) => { liked[id] = true; });
+        setSt((s) => ({ ...s, liked }));
+      })
+      .catch(() => {/* 낙관적 상태 유지 */});
   };
 
   // 상품 이미지: 실제 상품컷(ref_image, 백엔드 정적)이 있으면 그걸, 없으면 키워드 목업
@@ -892,6 +902,19 @@ export function PetFitApp({ petName = "초코" }: { petName?: string }) {
               <span>{label}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 로그인 유도 (바텀시트) — 카카오 OAuth / dev-login API 연결 */}
+      {loginSheet && (
+        <div onClick={() => setLoginSheet(false)} style={{ position: "absolute", inset: 0, zIndex: 95, background: "rgba(26,23,20,.42)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: T.paper, borderRadius: "22px 22px 0 0", padding: "22px 22px 32px" }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: T.line, margin: "0 auto 16px" }} />
+            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-.4px", marginBottom: 4 }}>로그인하고 계속해요</div>
+            <div style={{ fontSize: 12.5, color: T.muted, fontWeight: 500, marginBottom: 18 }}>찜 · 장바구니 · AI 피팅 기록이 계정에 안전하게 저장돼요</div>
+            <button onClick={doKakaoLogin} style={{ width: "100%", height: 52, borderRadius: 15, border: "none", cursor: "pointer", fontFamily: "inherit", background: "#FEE500", color: "#1A1714", fontSize: 15, fontWeight: 800, letterSpacing: "-.3px", marginBottom: 10 }}>카카오로 3초 만에 로그인</button>
+            <button onClick={doDevLogin} style={{ width: "100%", height: 48, borderRadius: 15, border: `1px solid ${T.line}`, cursor: "pointer", fontFamily: "inherit", background: T.surface, color: T.sub, fontSize: 13.5, fontWeight: 700, letterSpacing: "-.3px" }}>로그인 없이 둘러보기</button>
+          </div>
         </div>
       )}
 
