@@ -14,13 +14,22 @@ class CategoryScreen extends StatefulWidget {
 class _CategoryScreenState extends State<CategoryScreen> {
   String _cat = 'all';
   String _species = 'all';
+  String _query = '';
 
   bool _matchesSpecies(Product p) =>
       _species == 'all' || p.species == _species || p.species == 'all';
 
+  bool _matchesQuery(Product p) {
+    if (_query.trim().isEmpty) return true;
+    final q = _query.trim().toLowerCase();
+    return p.name.toLowerCase().contains(q) || p.brand.toLowerCase().contains(q);
+  }
+
   List<Product> _filtered() => appState.products
       .where((p) =>
-          (_cat == 'all' || p.category == _cat) && _matchesSpecies(p))
+          (_cat == 'all' || p.category == _cat) &&
+          _matchesSpecies(p) &&
+          _matchesQuery(p))
       .toList();
 
   @override
@@ -70,15 +79,30 @@ class _CategoryScreenState extends State<CategoryScreen> {
             borderRadius: BorderRadius.circular(13),
             border: Border.all(color: T.line),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.search, size: 18, color: T.muted2),
-              SizedBox(width: 9),
-              Text('우리 아이 옷 찾기',
-                  style: TextStyle(
-                      fontSize: 14,
-                      color: T.muted2,
-                      fontWeight: FontWeight.w500)),
+              const Icon(Icons.search, size: 18, color: T.muted2),
+              const SizedBox(width: 9),
+              Expanded(
+                child: TextField(
+                  onChanged: (v) => setState(() => _query = v),
+                  style: const TextStyle(fontSize: 14, color: T.ink),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    hintText: '우리 아이 옷 찾기',
+                    hintStyle: TextStyle(
+                        fontSize: 14,
+                        color: T.muted2,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ),
+              if (_query.isNotEmpty)
+                GestureDetector(
+                  onTap: () => setState(() => _query = ''),
+                  child: const Icon(Icons.close, size: 17, color: T.muted2),
+                ),
             ],
           ),
         ),

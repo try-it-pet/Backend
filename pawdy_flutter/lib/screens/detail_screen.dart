@@ -4,7 +4,9 @@ import '../models/product.dart';
 import '../models/review.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
+import '../widgets/login_sheet.dart';
 import 'review_write_sheet.dart';
+import 'fit_screen.dart';
 
 const _detailCopy = {
   'fashion': [
@@ -48,12 +50,17 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   ProductReviews _reviews = const ProductReviews();
   bool _loadingReviews = true;
+  String? _selectedSize;
 
   Product get product => widget.product;
 
   @override
   void initState() {
     super.initState();
+    final sizes = product.sizes;
+    if (sizes != null && sizes.isNotEmpty) {
+      _selectedSize = sizes.contains('M') ? 'M' : sizes.first;
+    }
     _loadReviews();
   }
 
@@ -68,8 +75,8 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> _writeReview() async {
     if (!appState.loggedIn) {
-      _snack('로그인하고 리뷰를 남겨보세요');
-      return;
+      await showLoginSheet(context);
+      if (!appState.loggedIn) return;
     }
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -202,6 +209,8 @@ class _DetailScreenState extends State<DetailScreen> {
                         const SizedBox(width: 10),
                         Expanded(child: _spec('사이즈 범위', sizeText)),
                       ]),
+                      if (product.fittable) _fitCta(),
+                      if (sizes != null && sizes.isNotEmpty) _sizeSelector(sizes),
                     ],
                   ),
                 ),
@@ -211,6 +220,112 @@ class _DetailScreenState extends State<DetailScreen> {
             ),
           ),
           _bottomBar(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _fitCta() {
+    final isHome = product.category == 'home';
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => FitScreen(initialProductId: product.id))),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: T.line),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                    color: T.accentSoft, borderRadius: BorderRadius.circular(11)),
+                child: const Icon(Icons.auto_awesome, color: T.accent, size: 20),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(isHome ? '우리 집에 배치해보기' : '우리 아이한테 입혀보기',
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            color: T.ink)),
+                    const SizedBox(height: 2),
+                    Text(isHome ? 'AI가 우리 집 사진에 배치해드려요' : 'AI가 우리 아이 사진에 바로 입혀드려요',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: T.muted,
+                            fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 19, color: Color(0xFFC4BDB3)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sizeSelector(List<String> sizes) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('사이즈',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: T.ink)),
+              Text('AI 추천 ${_selectedSize ?? ''}',
+                  style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: T.accent)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              for (final s in sizes)
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: s == sizes.last ? 0 : 9),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedSize = s),
+                      child: Container(
+                        height: 46,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _selectedSize == s ? T.ink : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: _selectedSize == s ? T.ink : T.line),
+                        ),
+                        child: Text(s,
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: _selectedSize == s ? Colors.white : T.sub)),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -373,13 +488,10 @@ class _DetailScreenState extends State<DetailScreen> {
                 child: FilledButton(
                   onPressed: () async {
                     if (!appState.loggedIn) {
-                      _snack('로그인하고 장바구니에 담아보세요');
-                      return;
+                      await showLoginSheet(context);
+                      if (!appState.loggedIn) return;
                     }
-                    final sizes = product.sizes;
-                    final size = (sizes != null && sizes.isNotEmpty)
-                        ? (sizes.contains('M') ? 'M' : sizes.first)
-                        : 'Free';
+                    final size = _selectedSize ?? 'Free';
                     try {
                       await appState.addToCart(product.id, size);
                       _snack('장바구니에 담았어요');

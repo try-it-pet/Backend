@@ -82,14 +82,41 @@ class Api {
     return (j['likedIds'] as List).map((e) => (e as num).toInt()).toList();
   }
 
-  // ── 장바구니 ──
-  static Future<void> addToCart(int productId, String size, {int qty = 1}) async {
+  // ── 장바구니 / 주문 ──
+  static List<CartItem> _cartFrom(http.Response r) =>
+      (jsonDecode(utf8.decode(r.bodyBytes)) as List)
+          .map((e) => CartItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  static Future<List<CartItem>> addToCart(int productId, String size,
+      {int qty = 1}) async {
     final r = await http.post(
       Uri.parse('$apiBase/me/cart'),
       headers: {..._authHeaders(), 'Content-Type': 'application/json'},
       body: jsonEncode({'product_id': productId, 'size': size, 'qty': qty}),
     );
     if (r.statusCode != 200) throw _apiError(r, '담기 실패');
+    return _cartFrom(r);
+  }
+
+  static Future<List<CartItem>> fetchCart() async {
+    final r = await http.get(Uri.parse('$apiBase/me/cart'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '장바구니 실패');
+    return _cartFrom(r);
+  }
+
+  static Future<List<CartItem>> removeCartItem(int itemId) async {
+    final r = await http.delete(Uri.parse('$apiBase/me/cart/$itemId'),
+        headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '삭제 실패');
+    return _cartFrom(r);
+  }
+
+  /// 체크아웃(장바구니 → 주문 생성). 구매 시 AI 생성 횟수도 충전됨.
+  static Future<Order> checkout() async {
+    final r = await http.post(Uri.parse('$apiBase/me/orders'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '결제 실패');
+    return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
 
   // ── 통계 ──

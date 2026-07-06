@@ -4,6 +4,7 @@ import '../state/app_state.dart';
 import '../theme/tokens.dart';
 import '../widgets/product_card.dart';
 import 'detail_screen.dart';
+import 'cart_screen.dart';
 
 class _Cat {
   final String key;
@@ -96,17 +97,69 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              Container(
-                width: 36,
-                height: 36,
-                decoration:
-                    const BoxDecoration(color: T.soft, shape: BoxShape.circle),
-                child: const Icon(Icons.person_outline, size: 20, color: T.muted),
+              Row(
+                children: [
+                  _cartButton(),
+                  const SizedBox(width: 4),
+                  _profileAvatar(),
+                ],
               ),
             ],
           ),
         ),
       );
+
+  Widget _cartButton() => GestureDetector(
+        onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CartScreen())),
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              const Icon(Icons.shopping_bag_outlined, size: 23, color: T.ink),
+              if (appState.cartCount > 0)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    constraints:
+                        const BoxConstraints(minWidth: 16, minHeight: 16),
+                    decoration: const BoxDecoration(
+                        color: T.accent, shape: BoxShape.circle),
+                    child: Text('${appState.cartCount}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            height: 1)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+
+  // 카카오 프로필 사진(동의 시) → 없으면 중립 실루엣
+  Widget _profileAvatar() {
+    final img = appState.user?.profileImage;
+    return Container(
+      width: 36,
+      height: 36,
+      clipBehavior: Clip.antiAlias,
+      decoration: const BoxDecoration(color: T.soft, shape: BoxShape.circle),
+      child: (img != null && img.isNotEmpty)
+          ? Image.network(img,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.person_outline, size: 20, color: T.muted))
+          : const Icon(Icons.person_outline, size: 20, color: T.muted),
+    );
+  }
 
   Widget _search() => Padding(
         padding: const EdgeInsets.fromLTRB(22, 6, 22, 14),

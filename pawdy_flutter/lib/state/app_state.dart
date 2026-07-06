@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api/client.dart';
 import '../models/product.dart';
 import '../models/user.dart';
+import '../models/commerce.dart';
 
 /// 화면 간 공유 상태: 상품·찜·인증(카카오 딥링크)·펫·통계. 전역 ChangeNotifier 싱글턴.
 class AppState extends ChangeNotifier {
@@ -20,7 +21,9 @@ class AppState extends ChangeNotifier {
   User? user;
   List<Pet> pets = [];
   Stats? stats;
+  List<CartItem> cart = [];
   bool get loggedIn => user != null;
+  int get cartCount => cart.fold(0, (n, it) => n + it.qty);
 
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSub;
@@ -84,6 +87,9 @@ class AppState extends ChangeNotifier {
     try {
       stats = await Api.fetchStats();
     } catch (_) {}
+    try {
+      cart = await Api.fetchCart();
+    } catch (_) {}
     notifyListeners();
   }
 
@@ -92,6 +98,7 @@ class AppState extends ChangeNotifier {
     user = null;
     pets = [];
     stats = null;
+    cart = [];
     likedIds.clear();
     notifyListeners();
   }
@@ -115,9 +122,38 @@ class AppState extends ChangeNotifier {
   List<Product> get liked =>
       products.where((p) => likedIds.contains(p.id)).toList();
 
-  // ── 장바구니 ──
-  Future<void> addToCart(int productId, String size) =>
-      Api.addToCart(productId, size);
+  // ── 장바구니 / 결제 ──
+  Future<void> addToCart(int productId, String size) async {
+    cart = await Api.addToCart(productId, size);
+    notifyListeners();
+  }
+
+  Future<void> refreshCartSafe() async {
+    if (!loggedIn) return;
+    try {
+      cart = await Api.fetchCart();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> removeCartItem(int itemId) async {
+    cart = await Api.removeCartItem(itemId);
+    notifyListeners();
+  }
+
+  int get cartTotal =>
+      cart.fold(0, (sum, it) => sum + it.product.price * it.qty);
+
+  Future<Order> checkout() async {
+    final order = await Api.checkout();
+    cart = [];
+    notifyListeners();
+    try {
+      stats = await Api.fetchStats(); // 주문 수 갱신
+    } catch (_) {}
+    notifyListeners();
+    return order;
+  }
 
   // ── 펫 ──
   Future<void> registerPet(Map<String, dynamic> body) async {

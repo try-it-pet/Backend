@@ -4,11 +4,14 @@ import 'package:image_picker/image_picker.dart';
 import '../api/client.dart';
 import '../models/product.dart';
 import '../models/tryon.dart';
+import '../models/commerce.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
+import '../widgets/login_sheet.dart';
 
 class FitScreen extends StatefulWidget {
-  const FitScreen({super.key});
+  final int? initialProductId; // 상세에서 '이 옷으로 피팅' 진입 시 선택 상품
+  const FitScreen({super.key, this.initialProductId});
 
   @override
   State<FitScreen> createState() => _FitScreenState();
@@ -29,6 +32,7 @@ class _FitScreenState extends State<FitScreen> {
   bool _loading = false;
   TryOnResult? _result;
   String _msg = '';
+  Generations? _gen; // AI 생성 잔여 횟수
 
   static const _providers = ['mock', 'openai', 'replicate'];
   static const _styles = [
@@ -51,8 +55,20 @@ class _FitScreenState extends State<FitScreen> {
       if (!mounted) return;
       setState(() {
         _fittable = all.where((p) => p.fittable).toList();
-        _fitId = _fittable.isNotEmpty ? _fittable.first.id : null;
+        final init = widget.initialProductId;
+        final hasInit = init != null && _fittable.any((p) => p.id == init);
+        _fitId = hasInit
+            ? init
+            : (_fittable.isNotEmpty ? _fittable.first.id : null);
       });
+    }).catchError((_) {});
+    _loadGen();
+  }
+
+  void _loadGen() {
+    if (!appState.loggedIn) return;
+    Api.fetchGenerations().then((g) {
+      if (mounted) setState(() => _gen = g);
     }).catchError((_) {});
   }
 
@@ -87,8 +103,13 @@ class _FitScreenState extends State<FitScreen> {
       _result = null;
       _msg = '';
     });
+    if (!appState.loggedIn) {
+      setState(() => _loading = false);
+      await showLoginSheet(context);
+      if (!appState.loggedIn) return; // 로그인 안 하면 중단(카카오는 딥링크 복귀 후 재시도)
+      setState(() => _loading = true);
+    }
     try {
-      if (!Api.isLoggedIn) await appState.devLogin(); // 미로그인 시 둘러보기 토큰(quota/인증)
       final petId = appState.firstPet?.id;
       final job = fourcut
           ? await Api.runFourcut(
@@ -112,6 +133,7 @@ class _FitScreenState extends State<FitScreen> {
       if (!mounted) return;
       if (job.isDone && job.result != null) {
         setState(() => _result = job.result);
+        _loadGen(); // 생성 후 잔여 횟수 갱신
       } else {
         setState(() => _msg = job.error ?? '생성 실패');
       }
@@ -134,13 +156,37 @@ class _FitScreenState extends State<FitScreen> {
         child: Column(
           children: [
             const SizedBox(height: 6),
-            const Text('AI 피팅',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                    color: T.ink)),
-            const SizedBox(height: 8),
+            SizedBox(
+              height: 30,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Text('AI 피팅',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          color: T.ink)),
+                  if (_gen != null)
+                    Positioned(
+                      right: 22,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                            color: T.accentSoft,
+                            borderRadius: BorderRadius.circular(999)),
+                        child: Text(_gen!.label,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: T.accent)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 24),
