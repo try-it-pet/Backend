@@ -133,15 +133,17 @@ class _BottomBar extends StatelessWidget {
   }
 
   Widget _fitTab() {
+    // Stack(Clip.none)으로 코랄 원이 탭바 위로 튀어나오게 — Column이면 높이 초과로 오버플로우
     return Expanded(
       child: GestureDetector(
         onTap: () => onTap(2),
         behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
           children: [
-            Transform.translate(
-              offset: const Offset(0, -14),
+            Positioned(
+              top: -12,
               child: Container(
                 width: 50,
                 height: 50,
@@ -160,9 +162,9 @@ class _BottomBar extends StatelessWidget {
                     color: Colors.white, size: 22),
               ),
             ),
-            Transform.translate(
-              offset: const Offset(0, -10),
-              child: const Text('AI 피팅',
+            const Positioned(
+              bottom: 6,
+              child: Text('AI 피팅',
                   style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
