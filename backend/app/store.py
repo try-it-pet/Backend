@@ -12,9 +12,9 @@ from sqlmodel import select
 
 from .data import PRODUCTS_BY_ID
 from .db import get_session
-from .models import CartItem, CartItemCreate, Order, Pet, PetCreate, User
+from .models import CartItem, CartItemCreate, Order, Pet, PetCreate, Review, ReviewCreate, User
 from .tables import (
-    CartRow, KVRow, LikeRow, OrderRow, PetRow, ResultRow, UserCounterRow, UserRow,
+    CartRow, KVRow, LikeRow, OrderRow, PetRow, ResultRow, ReviewRow, UserCounterRow, UserRow,
 )
 
 # ── 인메모리(단기 생성 상태만) ──
@@ -185,6 +185,54 @@ def list_orders(user_id: int) -> List[Order]:
 def count_orders(user_id: int) -> int:
     with get_session() as s:
         return len(s.exec(select(OrderRow.id).where(OrderRow.user_id == user_id)).all())
+
+
+# ── 리뷰 ──
+def _reviews(s, rows: List[ReviewRow]) -> List[Review]:
+    """ReviewRow 목록 → 작성자 닉네임을 채운 Review 목록."""
+    uids = {r.user_id for r in rows}
+    nick = {}
+    if uids:
+        nick = {u.id: u.nickname for u in s.exec(select(UserRow).where(UserRow.id.in_(uids))).all()}
+    return [
+        Review(id=r.id, product_id=r.product_id, user_id=r.user_id,
+               nickname=nick.get(r.user_id, "익명"), rating=r.rating, text=r.text,
+               created_at=r.created_at)
+        for r in rows
+    ]
+
+
+def add_review(user_id: int, body: ReviewCreate) -> Review:
+    with get_session() as s:
+        r = ReviewRow(user_id=user_id, product_id=body.product_id,
+                      rating=body.rating, text=body.text.strip())
+        s.add(r); s.commit(); s.refresh(r)
+        return _reviews(s, [r])[0]
+
+
+def list_product_reviews(product_id: int) -> List[Review]:
+    with get_session() as s:
+        rows = s.exec(
+            select(ReviewRow).where(ReviewRow.product_id == product_id).order_by(ReviewRow.id.desc())
+        ).all()
+        return _reviews(s, rows)
+
+
+def list_my_reviews(user_id: int) -> List[Review]:
+    with get_session() as s:
+        rows = s.exec(
+            select(ReviewRow).where(ReviewRow.user_id == user_id).order_by(ReviewRow.id.desc())
+        ).all()
+        return _reviews(s, rows)
+
+
+def product_rating(product_id: int) -> Tuple[int, float]:
+    """(리뷰 수, 평균 별점)."""
+    with get_session() as s:
+        ratings = s.exec(select(ReviewRow.rating).where(ReviewRow.product_id == product_id)).all()
+        if not ratings:
+            return 0, 0.0
+        return len(ratings), round(sum(ratings) / len(ratings), 1)
 
 
 # ── 카운터(피팅/quota) ──

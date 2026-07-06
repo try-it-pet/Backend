@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import get_current_user
 from ..data import PRODUCTS_BY_ID
-from ..models import CartItem, CartItemCreate, Order, Pet, PetCreate, Stats, User
+from ..models import CartItem, CartItemCreate, Order, Pet, PetCreate, Review, ReviewCreate, Stats, User
 from ..quota import grant_purchase, status as quota_status
 from ..store import (
-    add_cart, add_pet, count_likes, count_orders, create_order, get_cart, get_fittings,
-    list_likes, list_orders, list_pets, remove_cart, toggle_like,
+    add_cart, add_pet, add_review, count_likes, count_orders, create_order, get_cart, get_fittings,
+    list_likes, list_my_reviews, list_orders, list_pets, remove_cart, toggle_like,
 )
 
 router = APIRouter(prefix="/me", tags=["me"], dependencies=[Depends(get_current_user)])
@@ -68,6 +68,19 @@ def pets(user: User = Depends(get_current_user)) -> list[Pet]:
 @router.post("/pets", response_model=Pet, status_code=201)
 def create_pet(body: PetCreate, user: User = Depends(get_current_user)) -> Pet:
     return add_pet(user.id, body)
+
+
+# ── 리뷰 ──
+@router.get("/reviews", response_model=list[Review])
+def my_reviews(user: User = Depends(get_current_user)) -> list[Review]:
+    return list_my_reviews(user.id)
+
+
+@router.post("/reviews", response_model=Review, status_code=201)
+def write_review(body: ReviewCreate, user: User = Depends(get_current_user)) -> Review:
+    if body.product_id not in PRODUCTS_BY_ID:
+        raise HTTPException(status_code=404, detail="product not found")
+    return add_review(user.id, body)
 
 
 # ── AI 생성 잔여 횟수 ──

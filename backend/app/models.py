@@ -72,6 +72,28 @@ class Stats(BaseModel):
     fittings: int
 
 
+class ReviewCreate(BaseModel):
+    product_id: int
+    rating: int = Field(5, ge=1, le=5, description="별점 1~5")
+    text: str = ""
+
+
+class Review(BaseModel):
+    id: int
+    product_id: int
+    user_id: int
+    nickname: str
+    rating: int
+    text: str
+    created_at: str
+
+
+class ProductReviews(BaseModel):
+    count: int
+    average: float = Field(description="평균 별점(소수1자리)")
+    items: list[Review]
+
+
 class JobStatus(str, Enum):
     queued = "queued"
     processing = "processing"

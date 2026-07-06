@@ -3,7 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 
 from ..data import CATEGORIES, PRODUCTS, PRODUCTS_BY_ID
-from ..models import Product
+from ..models import Product, ProductReviews
+from ..store import list_product_reviews, product_rating
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -42,3 +43,12 @@ def get_product(product_id: int) -> Product:
     if product is None:
         raise HTTPException(status_code=404, detail="product not found")
     return product
+
+
+@router.get("/{product_id}/reviews", response_model=ProductReviews)
+def get_reviews(product_id: int) -> ProductReviews:
+    """상품 리뷰 목록 + 평균 별점/개수 (공개)."""
+    if product_id not in PRODUCTS_BY_ID:
+        raise HTTPException(status_code=404, detail="product not found")
+    count, average = product_rating(product_id)
+    return ProductReviews(count=count, average=average, items=list_product_reviews(product_id))

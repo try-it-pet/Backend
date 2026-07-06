@@ -56,6 +56,17 @@ class OrderRow(SQLModel, table=True):
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
+class ReviewRow(SQLModel, table=True):
+    """상품 리뷰(별점 + 텍스트). 유저↔상품별 작성."""
+    __tablename__ = "reviews"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    product_id: int = Field(index=True)
+    rating: int = 5
+    text: str = ""
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
 class UserCounterRow(SQLModel, table=True):
     """유저별 카운터: AI 생성 사용/보너스, 피팅 횟수."""
     __tablename__ = "user_counters"

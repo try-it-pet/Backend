@@ -5,6 +5,7 @@ import '../theme/tokens.dart';
 import 'pet_form_sheet.dart';
 import 'settings_screen.dart';
 import 'orders_screen.dart';
+import 'my_reviews_screen.dart';
 import 'coming_soon_screen.dart';
 
 class MyScreen extends StatelessWidget {
@@ -300,8 +301,13 @@ class MyScreen extends StatelessWidget {
           title: 'AI 피팅 기록',
           subtitle: '생성한 이미지를 모아보는 기능을 준비 중이에요',
           icon: Icons.auto_awesome))),
-      ('리뷰 관리', '', () => _push(context,
-          const ComingSoonScreen(title: '리뷰 관리', icon: Icons.rate_review_outlined))),
+      ('리뷰 관리', '', () {
+        if (!appState.loggedIn) {
+          _toast(context, '로그인하면 작성한 리뷰를 볼 수 있어요');
+          return;
+        }
+        _push(context, const MyReviewsScreen());
+      }),
       ('쿠폰 · 포인트', '', () => _push(context,
           const ComingSoonScreen(title: '쿠폰 · 포인트', icon: Icons.confirmation_number_outlined))),
       ('고객센터 · 설정', '', () => _push(context, const SettingsScreen())),

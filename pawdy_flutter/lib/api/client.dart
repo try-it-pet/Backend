@@ -5,6 +5,7 @@ import '../models/product.dart';
 import '../models/tryon.dart';
 import '../models/user.dart';
 import '../models/commerce.dart';
+import '../models/review.dart';
 
 /// Pawdy 백엔드(FastAPI) 클라이언트.
 /// 운영 = Railway. 빌드 시 --dart-define=API_BASE=... 로 재정의 가능.
@@ -125,6 +126,31 @@ class Api {
     return (jsonDecode(utf8.decode(r.bodyBytes)) as List)
         .map((e) => Order.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  // ── 리뷰 ──
+  static Future<ProductReviews> fetchProductReviews(int productId) async {
+    final r = await http.get(Uri.parse('$apiBase/products/$productId/reviews'));
+    if (r.statusCode != 200) throw _apiError(r, 'reviews 실패');
+    return ProductReviews.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
+  }
+
+  static Future<List<Review>> fetchMyReviews() async {
+    final r = await http.get(Uri.parse('$apiBase/me/reviews'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '내 리뷰 실패');
+    return (jsonDecode(utf8.decode(r.bodyBytes)) as List)
+        .map((e) => Review.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Future<Review> createReview(int productId, int rating, String text) async {
+    final r = await http.post(
+      Uri.parse('$apiBase/me/reviews'),
+      headers: {..._authHeaders(), 'Content-Type': 'application/json'},
+      body: jsonEncode({'product_id': productId, 'rating': rating, 'text': text}),
+    );
+    if (r.statusCode != 200 && r.statusCode != 201) throw _apiError(r, '리뷰 작성 실패');
+    return Review.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
 
   static Future<Generations?> fetchGenerations() async {
