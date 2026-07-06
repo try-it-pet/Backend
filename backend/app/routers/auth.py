@@ -65,13 +65,16 @@ async def kakao_callback(code: str, request: Request, state: Optional[str] = Non
     """카카오 콜백: code→토큰→프로필→유저 생성→우리 JWT 발급→프론트로 리다이렉트."""
     if not settings.kakao_rest_api_key:
         raise HTTPException(status_code=400, detail="카카오 키 미설정")
+    token_req = {
+        "grant_type": "authorization_code",
+        "client_id": settings.kakao_rest_api_key,
+        "redirect_uri": _kakao_redirect_uri(request),  # authorize 때와 동일해야 함
+        "code": code,
+    }
+    if settings.kakao_client_secret:  # 콘솔에서 클라이언트 시크릿 활성화 시 필수
+        token_req["client_secret"] = settings.kakao_client_secret
     async with httpx.AsyncClient(timeout=10) as client:
-        tok = await client.post(KAKAO_TOKEN, data={
-            "grant_type": "authorization_code",
-            "client_id": settings.kakao_rest_api_key,
-            "redirect_uri": _kakao_redirect_uri(request),  # authorize 때와 동일해야 함
-            "code": code,
-        })
+        tok = await client.post(KAKAO_TOKEN, data=token_req)
         tok.raise_for_status()
         access = tok.json()["access_token"]
         me = await client.get(KAKAO_ME, headers={"Authorization": f"Bearer {access}"})

@@ -65,6 +65,8 @@ class Settings:
     jwt_secret: str = os.getenv("PETFIT_JWT_SECRET", "dev-secret-change-me")
     jwt_expire_days: int = int(os.getenv("PETFIT_JWT_EXPIRE_DAYS", "30"))
     kakao_rest_api_key: str = os.getenv("PETFIT_KAKAO_REST_API_KEY", "")
+    # 신규 카카오 콘솔은 REST API 키 발급 시 클라이언트 시크릿 기본 활성화 — 토큰 교환 시 함께 전송
+    kakao_client_secret: str = os.getenv("PETFIT_KAKAO_CLIENT_SECRET", "")
     kakao_redirect_uri: str = os.getenv(
         "PETFIT_KAKAO_REDIRECT_URI", "http://localhost:8000/auth/kakao/callback"
     )
