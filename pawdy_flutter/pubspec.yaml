@@ -38,6 +38,9 @@ dependencies:
   # 백엔드(FastAPI) 연동용 HTTP 클라이언트 — 웹/모바일 공용
   http: ^1.2.2
 
+  # AI 피팅: 펫 사진 선택(갤러리/카메라) — 웹/모바일 공용
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -59,6 +62,20 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.otf
+          weight: 400
+        - asset: assets/fonts/Pretendard-Medium.otf
+          weight: 500
+        - asset: assets/fonts/Pretendard-SemiBold.otf
+          weight: 600
+        - asset: assets/fonts/Pretendard-Bold.otf
+          weight: 700
+        - asset: assets/fonts/Pretendard-ExtraBold.otf
+          weight: 800
 
   # To add assets to your application, add an assets section, like this:
   # assets:

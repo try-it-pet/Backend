@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../api/client.dart';
 import '../models/product.dart';
+import '../state/app_state.dart';
 import '../theme/tokens.dart';
 import '../widgets/product_card.dart';
+import 'detail_screen.dart';
 
 class _Cat {
   final String key;
@@ -10,7 +11,7 @@ class _Cat {
   const _Cat(this.key, this.label);
 }
 
-const _cats = [
+const cats = [
   _Cat('all', '전체'),
   _Cat('care', '데일리케어'),
   _Cat('fashion', '패션·스타일'),
@@ -30,18 +31,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const petName = '초코';
   String _chip = 'all';
-  final Set<int> _liked = {};
-  late Future<List<Product>> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = Api.fetchProducts();
-  }
 
   List<Product> _homeSelection(List<Product> all) {
     if (_chip == 'all') {
-      // React 홈 큐레이션과 동일한 상품 id 우선, 없으면 앞에서 채움
       const ids = [0, 8, 15, 13, 2, 9];
       final byId = {for (final p in all) p.id: p};
       final picked = [for (final id in ids) if (byId[id] != null) byId[id]!];
@@ -61,20 +53,15 @@ class _HomeScreenState extends State<HomeScreen> {
             _header(),
             _search(),
             Expanded(
-              child: FutureBuilder<List<Product>>(
-                future: _future,
-                builder: (context, snap) {
-                  return ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      _chips(),
-                      _hero(),
-                      _sectionHeader(),
-                      _grid(snap),
-                      const SizedBox(height: 24),
-                    ],
-                  );
-                },
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _chips(),
+                  _hero(),
+                  _sectionHeader(),
+                  _grid(),
+                  const SizedBox(height: 24),
+                ],
               ),
             ),
           ],
@@ -109,7 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              // 프로필: 비로그인/미동의 시 중립 실루엣 (카카오 로그인 붙으면 사진으로 교체)
               Container(
                 width: 36,
                 height: 36,
@@ -132,11 +118,11 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: T.line),
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const Icon(Icons.search, size: 20, color: T.muted2),
-              const SizedBox(width: 10),
-              const Expanded(
+              Icon(Icons.search, size: 20, color: T.muted2),
+              SizedBox(width: 10),
+              Expanded(
                 child: Text('우리 아이 옷 찾기',
                     style: TextStyle(
                         fontSize: 14.5,
@@ -144,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w500,
                         letterSpacing: -0.3)),
               ),
-              const Icon(Icons.photo_camera_outlined, size: 20, color: T.ink),
+              Icon(Icons.photo_camera_outlined, size: 20, color: T.ink),
             ],
           ),
         ),
@@ -155,10 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 22),
-          itemCount: _cats.length,
+          itemCount: cats.length,
           separatorBuilder: (_, __) => const SizedBox(width: 8),
           itemBuilder: (_, i) {
-            final c = _cats[i];
+            final c = cats[i];
             final on = _chip == c.key;
             return GestureDetector(
               onTap: () => setState(() => _chip = c.key),
@@ -284,24 +270,23 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
-  Widget _grid(AsyncSnapshot<List<Product>> snap) {
-    if (snap.connectionState == ConnectionState.waiting) {
+  Widget _grid() {
+    if (appState.loading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 60),
         child: Center(
             child: CircularProgressIndicator(color: T.accent, strokeWidth: 3)),
       );
     }
-    if (snap.hasError || !snap.hasData) {
+    if (appState.error || appState.products.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 60, horizontal: 22),
         child: Center(
-          child: Text('상품을 불러오지 못했어요',
-              style: TextStyle(color: T.muted, fontWeight: FontWeight.w600)),
-        ),
+            child: Text('상품을 불러오지 못했어요',
+                style: TextStyle(color: T.muted, fontWeight: FontWeight.w600))),
       );
     }
-    final items = _homeSelection(snap.data!);
+    final items = _homeSelection(appState.products);
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 0),
       shrinkWrap: true,
@@ -313,15 +298,19 @@ class _HomeScreenState extends State<HomeScreen> {
         childAspectRatio: 0.72,
       ),
       itemCount: items.length,
-      itemBuilder: (_, i) {
-        final p = items[i];
-        return ProductCard(
-          product: p,
-          liked: _liked.contains(p.id),
-          onLike: () => setState(() =>
-              _liked.contains(p.id) ? _liked.remove(p.id) : _liked.add(p.id)),
-        );
-      },
+      itemBuilder: (_, i) => productCardWithNav(context, items[i]),
     );
   }
+}
+
+/// 공용: 카드 + 찜 토글 + 상세 이동.
+Widget productCardWithNav(BuildContext context, Product p, {bool badge = true}) {
+  return ProductCard(
+    product: p,
+    liked: appState.isLiked(p.id),
+    showBadge: badge,
+    onLike: () => appState.toggleLike(p.id),
+    onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => DetailScreen(product: p))),
+  );
 }

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'theme/tokens.dart';
+import 'state/app_state.dart';
 import 'screens/intro_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/fit_screen.dart';
+import 'screens/category_screen.dart';
+import 'screens/likes_screen.dart';
+import 'screens/my_screen.dart';
 
 void main() => runApp(const PawdyApp());
 
@@ -15,6 +20,7 @@ class PawdyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'Pretendard',
         scaffoldBackgroundColor: T.paper,
         colorScheme: ColorScheme.fromSeed(
             seedColor: T.accent, primary: T.accent, surface: T.paper),
@@ -35,21 +41,31 @@ class _RootShellState extends State<RootShell> {
   int _tab = 0;
   bool _intro = true;
 
+  @override
+  void initState() {
+    super.initState();
+    appState.load(); // 상품 카탈로그 1회 로드
+  }
+
   void _go(int i) => setState(() => _tab = i);
 
   @override
   Widget build(BuildContext context) {
     final screens = [
       HomeScreen(onOpenFit: () => _go(2)),
-      const _Placeholder('카테고리'),
-      const _Placeholder('AI 피팅'),
-      const _Placeholder('찜'),
-      const _Placeholder('마이'),
+      const CategoryScreen(),
+      const FitScreen(),
+      const LikesScreen(),
+      const MyScreen(),
     ];
     return Stack(
       children: [
         Scaffold(
-          body: IndexedStack(index: _tab, children: screens),
+          // 찜/좋아요 등 공유 상태 변화 시 탭 내용 갱신
+          body: AnimatedBuilder(
+            animation: appState,
+            builder: (_, __) => IndexedStack(index: _tab, children: screens),
+          ),
           bottomNavigationBar: _BottomBar(current: _tab, onTap: _go),
         ),
         if (_intro)
@@ -59,22 +75,6 @@ class _RootShellState extends State<RootShell> {
       ],
     );
   }
-}
-
-class _Placeholder extends StatelessWidget {
-  final String label;
-  const _Placeholder(this.label);
-  @override
-  Widget build(BuildContext context) => Container(
-        color: T.paper,
-        child: SafeArea(
-          child: Center(
-            child: Text('$label 화면 준비 중',
-                style: const TextStyle(
-                    color: T.muted, fontWeight: FontWeight.w600, fontSize: 14)),
-          ),
-        ),
-      );
 }
 
 /// 하단 탭바 — 홈 / 카테고리 / AI피팅(가운데 코랄) / 찜 / 마이.
