@@ -418,8 +418,10 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
   ).filter((i) => i < products.length).slice(0, 6);
   const selectedCat = CATEGORIES.find((c) => c.key === st.catChip);
 
-  // 웹 데모 = 아이폰 목업 프레임 / 실제 앱 = 풀스크린 (가짜 상태바·홈 인디케이터 없음)
-  const statusH = isNativeApp ? 10 : 44;
+  // 웹 데모 = 아이폰 목업 프레임(상태바 44px 고정) / 실제 앱 = 노치·다이내믹아일랜드 safe-area 반영
+  // (safe-area-inset은 index.html viewport-fit=cover 필요. 최소값으로 상태바 없는 기기도 여백 확보)
+  const statusH: number | string = isNativeApp ? "max(env(safe-area-inset-top), 14px)" : 44;
+  const safeBottom = isNativeApp ? "env(safe-area-inset-bottom)" : "0px";
   const frame: React.CSSProperties = isNativeApp
     ? {
         width: "100%", height: "100dvh", background: T.paper,
@@ -456,7 +458,15 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: T.accent, marginLeft: 2, alignSelf: "flex-end", marginBottom: 5 }} />
               </div>
               <div onClick={() => go("my")} style={{ width: 36, height: 36, cursor: "pointer" }}>
-                <ImageSlot label="펫" circle src={petImg(7)} />
+                {user?.profile_image ? (
+                  // 카카오 프로필 사진(동의됨)
+                  <ImageSlot label={user.nickname?.[0] ?? ""} circle src={user.profile_image} />
+                ) : (
+                  // 비로그인 또는 프로필 사진 미동의 → 중립 아바타(랜덤 더미 사진 X, 이모지 X)
+                  <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: T.soft, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.muted} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" /></svg>
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ padding: "6px 22px 14px" }} onClick={() => go("category")}>
@@ -808,7 +818,7 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
       {st.screen === "my" && (
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", background: T.paper }}>
           <div className="pf-scroll" style={{ flex: 1, overflowY: "auto" }}>
-            <div style={{ padding: "44px 22px 24px" }}>
+            <div style={{ paddingTop: statusH, paddingLeft: 22, paddingRight: 22, paddingBottom: 24 }}>
               <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-.5px" }}>마이</span>
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" /></svg>
@@ -895,7 +905,7 @@ export function PetFitApp({ petName: defaultPetName = "초코" }: { petName?: st
 
       {/* ===== bottom tab ===== */}
       {showTab && (
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 30, height: 82, background: "rgba(250,248,245,.94)", backdropFilter: "blur(14px)", borderTop: `1px solid ${T.line}`, display: "flex", alignItems: "flex-start", paddingTop: 11 }}>
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 30, height: 82, background: "rgba(250,248,245,.94)", backdropFilter: "blur(14px)", borderTop: `1px solid ${T.line}`, display: "flex", alignItems: "flex-start", paddingTop: 11, paddingBottom: safeBottom, boxSizing: "content-box" }}>
           {([["home", "홈"], ["category", "카테고리"]] as [Screen, string][]).map(([key, label]) => (
             <div key={key} onClick={() => go(key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: "-.2px", color: st.screen === key ? T.accent : "#B3ABA1" }}>
               {key === "home" ? (
