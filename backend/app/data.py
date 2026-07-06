@@ -9,35 +9,70 @@ CATEGORIES = [
     {"key": "home", "label": "홈·인테리어", "subs": ["캣타워", "숨숨집", "쿠션", "하우스", "스크래처", "터널", "급수기"]},
 ]
 
-# 펫 전문 멀티샵 더미 카탈로그. fittable=착용/배치 미리보기 가능(패션·홈 일부).
+# 해외직구 전문 펫샵 카탈로그 — 전부 실제 판매 상품 (2026-07 기준 실브랜드·실가격 환산).
+# price = 직구 예상가(KRW, 현지가+배송 감안). url = 원 판매처 상품 페이지.
+# image = 실상품컷(app/static/products/{id}.*, 원 판매처 CDN에서 수집).
+# fittable 패션 상품은 ref_image(옷 레퍼런스) = 실상품 플랫레이 컷 → AI 피팅이 이 옷을 입힘.
 PRODUCTS: list[Product] = [
-    # 패션·스타일 (착용 피팅) — ref_image: 실제 상품컷(정적 파일). AI 피팅이 이 옷을 입힘.
-    Product(id=0, brand="무무펫", name="코지 니트 스웨터", price=28000, fit=96, category="fashion", species="dog", fittable=True, ref_image="/static/garments/0.png"),
-    Product(id=1, brand="도그웨어", name="체크 하네스 세트", price=34000, fit=89, category="fashion", species="dog", fittable=True, ref_image="/static/garments/1.png"),
-    Product(id=2, brand="펫코", name="경량 패딩 베스트", price=42000, fit=94, category="fashion", species="dog", fittable=True, ref_image="/static/garments/2.png"),
-    Product(id=3, brand="모카독", name="데일리 후디", price=25000, fit=92, category="fashion", species="dog", fittable=True, ref_image="/static/garments/3.png"),
-    Product(id=4, brand="무무펫", name="윈터 울 코트", price=48000, fit=90, category="fashion", species="dog", fittable=True, ref_image="/static/garments/4.png"),
-    Product(id=5, brand="캣무드", name="니트 캣 코스튬", price=21000, fit=88, category="fashion", species="cat", fittable=True, ref_image="/static/garments/5.png"),
+    # 패션·스타일 (착용 피팅)
+    Product(id=0, brand="maxbone", name="스키 니트 점퍼", price=98000, fit=96, category="fashion", species="dog", fittable=True,
+            image="/static/products/0.jpg", ref_image="/static/products/0.jpg",
+            url="https://www.maxbone.com/products/ski-jumper"),
+    Product(id=1, brand="Ruffwear", name="프론트 레인지 하네스", price=89000, fit=93, category="fashion", species="dog", fittable=True,
+            image="/static/products/1.png", ref_image="/static/products/1.png",
+            url="https://ruffwear.com/products/front-range-everyday-dog-harness"),
+    Product(id=2, brand="Little Beast", name="빅 블랙 퍼퍼 재킷", price=112000, fit=94, category="fashion", species="dog", fittable=True,
+            image="/static/products/2.jpg", ref_image="/static/products/2.jpg",
+            url="https://littlebeast.co/products/the-super-duper-reversible-parka-vest-black"),
+    Product(id=3, brand="maxbone", name="스트레인저 씽스 시그니처 후디", price=92000, fit=92, category="fashion", species="dog", fittable=True,
+            image="/static/products/3.jpg", ref_image="/static/products/3.jpg",
+            url="https://www.maxbone.com/products/stranger-things-x-maxbone-hoodie"),
+    Product(id=4, brand="Ruffwear", name="파우더 하운드 윈터 재킷", price=119000, fit=90, category="fashion", species="dog", fittable=True,
+            image="/static/products/4.png", ref_image="/static/products/4.png",
+            url="https://ruffwear.com/products/powder-hound-jacket"),
+    Product(id=5, brand="Little Beast", name="다크 앤 스토미 스트라이프 원지", price=72000, fit=88, category="fashion", species="cat", fittable=True,
+            image="/static/products/5.jpg", ref_image="/static/products/5.jpg",
+            url="https://littlebeast.co/products/dark-and-stormy-onesie"),
     # 데일리케어
-    Product(id=6, brand="퓨어펫", name="약산성 저자극 샴푸", price=16000, fit=91, category="care", species="all", fittable=False),
-    Product(id=7, brand="치카독", name="덴탈케어 껌 30개입", price=9000, fit=87, category="care", species="dog", fittable=False),
-    Product(id=8, brand="네이처바울", name="자연식 연어 사료 2kg", price=38000, fit=95, category="care", species="all", fittable=False),
-    Product(id=9, brand="리얼바이트", name="동결건조 닭가슴살 간식", price=14000, fit=90, category="care", species="all", fittable=False),
+    Product(id=6, brand="earthbath", name="오트밀 & 알로에 저자극 샴푸 473ml", price=32000, fit=91, category="care", species="all", fittable=False,
+            image="/static/products/6.png",
+            url="https://earthbath.com/products/oatmeal-aloe-shampoo-fragrance-free"),
+    Product(id=7, brand="Greenies", name="오리지널 덴탈 트릿 레귤러 27개입", price=56000, fit=87, category="care", species="dog", fittable=False,
+            image="/static/products/7.png",
+            url="https://www.greenies.com/products/treats/adult-dental-dog-treats-regular-size-original"),
+    Product(id=8, brand="Open Farm", name="굿것 자연산 연어 키블 1.8kg", price=55000, fit=95, category="care", species="dog", fittable=False,
+            image="/static/products/8.png",
+            url="https://openfarmpet.com/products/goodgut-wild-caught-salmon-dog-kibble"),
+    Product(id=9, brand="PureBites", name="닭가슴살 동결건조 트릿", price=12000, fit=90, category="care", species="dog", fittable=False,
+            image="/static/products/9.png",
+            url="https://purebites.com/products/chicken-freeze-dried-dog-treats"),
     # 액티브·아웃도어
-    Product(id=10, brand="워크업", name="가벼운 산책 리드줄", price=22000, fit=89, category="active", species="dog", fittable=False),
-    Product(id=11, brand="트래블펫", name="반려동물 4륜 유모차", price=159000, fit=92, category="active", species="all", fittable=True),
-    Product(id=12, brand="플레이펫", name="노즈워크 코끼리 장난감", price=18000, fit=88, category="active", species="dog", fittable=False),
+    Product(id=10, brand="Ruffwear", name="프론트 레인지 리드줄", price=42000, fit=89, category="active", species="dog", fittable=False,
+            image="/static/products/10.png",
+            url="https://ruffwear.com/products/front-range-lightweight-dog-leash"),
+    Product(id=11, brand="ibiyaya", name="트라보이스 3-in-1 폴딩 유모차 XL", price=320000, fit=92, category="active", species="all", fittable=True,
+            image="/static/products/11.jpg",
+            url="https://us.ibiyaya.com/products/ibiyaya%C2%AE-essential-travois-tri-fold-pet-travel-system-xl-pet-stroller-with-detachable-carrier"),
+    Product(id=12, brand="Outward Hound", name="하이드 어 스쿼럴 노즈워크 토이", price=24000, fit=88, category="active", species="dog", fittable=False,
+            image="/static/products/12.jpg",
+            url="https://outwardhound.com/hide-a-squirrel-plush-puzzle-toy/"),
     # 헬스·웰니스
-    Product(id=13, brand="헬스독", name="관절 글루코사민 영양제", price=32000, fit=93, category="wellness", species="dog", fittable=False),
-    Product(id=14, brand="스킨펫", name="피부 보습 미스트", price=15000, fit=86, category="wellness", species="all", fittable=False),
+    Product(id=13, brand="Zesty Paws", name="그린립 홍합 힙&조인트 츄 90정", price=33000, fit=93, category="wellness", species="dog", fittable=False,
+            image="/static/products/13.png",
+            url="https://zestypaws.com/products/green-lipped-mussel-bites"),
+    Product(id=14, brand="earthbath", name="시어버터 보습 스프레이", price=25000, fit=86, category="wellness", species="all", fittable=False,
+            image="/static/products/14.png",
+            url="https://earthbath.com/products/shea-butter-spray"),
     # 홈·인테리어 (배치 피팅)
-    Product(id=15, brand="코지캣", name="3단 원목 캣타워", price=89000, fit=94, category="home", species="cat", fittable=True),
-    Product(id=16, brand="하우스펫", name="포근 숨숨집 텐트", price=26000, fit=90, category="home", species="all", fittable=True),
-    Product(id=17, brand="워터펫", name="자동 순환 급수기", price=34000, fit=88, category="home", species="all", fittable=False),
+    Product(id=15, brand="Catit", name="베스퍼 하이베이스 캣타워", price=235000, fit=94, category="home", species="cat", fittable=True,
+            image="/static/products/15.jpg",
+            url="https://www.catit.com/help-advice/furniture/vesper-high-base/"),
+    Product(id=16, brand="MEOWFIA", name="프리미엄 펠트 캣 케이브", price=78000, fit=90, category="home", species="cat", fittable=True,
+            image="/static/products/16.jpg",
+            url="https://meowfia.us/products/premium-felt-cat-bed-cave-handmade-100-merino-wool-bed-for-cats-and-kittens"),
+    Product(id=17, brand="Catit", name="플라워 급수기 3L", price=49000, fit=88, category="home", species="cat", fittable=False,
+            image="/static/products/17.jpg",
+            url="https://www.catit.com/products/drinking-fountains/flower-fountain/"),
 ]
-
-# 모든 상품에 정적 상품컷 이미지 연결 (app/static/garments/{id}.png)
-for _p in PRODUCTS:
-    _p.image = f"/static/garments/{_p.id}.png"
 
 PRODUCTS_BY_ID = {p.id: p for p in PRODUCTS}

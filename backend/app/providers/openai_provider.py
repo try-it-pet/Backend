@@ -109,7 +109,9 @@ class OpenAIProvider(TryOnProvider):
                         data = httpx.get(ref, timeout=20, follow_redirects=True).content
                     if data:
                         g = io.BytesIO(data)
-                        g.name = "garment.png"
+                        # SDK가 파일명 확장자로 MIME을 정하므로 실제 포맷과 일치시킴
+                        ext = Path(ref.split("?")[0]).suffix.lower().lstrip(".") or "png"
+                        g.name = f"garment.{'jpg' if ext == 'jpeg' else ext}"
                         images.append(g)
                 except Exception:  # noqa: BLE001 (레퍼런스 실패 시 프롬프트만으로 진행)
                     pass

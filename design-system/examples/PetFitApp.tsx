@@ -27,7 +27,7 @@ const T = {
   heroLabel: "#A2693F",
 };
 
-type Product = { id: number; brand: string; name: string; price: number; fit: number; category: string; species: string; fittable: boolean; image?: string | null; ref_image?: string | null };
+type Product = { id: number; brand: string; name: string; price: number; fit: number; category: string; species: string; fittable: boolean; image?: string | null; ref_image?: string | null; url?: string | null };
 
 const CATEGORIES: { key: string; label: string; subs: string[] }[] = [
   { key: "care", label: "데일리케어", subs: ["샴푸", "브러쉬", "덴탈케어", "위생용품", "사료", "간식", "영양제"] },
@@ -38,37 +38,37 @@ const CATEGORIES: { key: string; label: string; subs: string[] }[] = [
 ];
 const CAT_LABEL: Record<string, string> = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.label]));
 
-// 백엔드 미연결 시 폴백 (실제 카탈로그는 GET /products). 펫 전문 멀티샵.
+// 백엔드 미연결 시 폴백 (실제 카탈로그는 GET /products). 해외직구 전문 펫샵 — 실브랜드 실상품.
 const PRODUCTS: Product[] = [
-  { id: 0, brand: "무무펫", name: "코지 니트 스웨터", price: 28000, fit: 96, category: "fashion", species: "dog", fittable: true },
-  { id: 1, brand: "도그웨어", name: "체크 하네스 세트", price: 34000, fit: 89, category: "fashion", species: "dog", fittable: true },
-  { id: 2, brand: "펫코", name: "경량 패딩 베스트", price: 42000, fit: 94, category: "fashion", species: "dog", fittable: true },
-  { id: 3, brand: "모카독", name: "데일리 후디", price: 25000, fit: 92, category: "fashion", species: "dog", fittable: true },
-  { id: 4, brand: "무무펫", name: "윈터 울 코트", price: 48000, fit: 90, category: "fashion", species: "dog", fittable: true },
-  { id: 5, brand: "캣무드", name: "니트 캣 코스튬", price: 21000, fit: 88, category: "fashion", species: "cat", fittable: true },
-  { id: 6, brand: "퓨어펫", name: "약산성 저자극 샴푸", price: 16000, fit: 91, category: "care", species: "all", fittable: false },
-  { id: 7, brand: "치카독", name: "덴탈케어 껌 30개입", price: 9000, fit: 87, category: "care", species: "dog", fittable: false },
-  { id: 8, brand: "네이처바울", name: "자연식 연어 사료 2kg", price: 38000, fit: 95, category: "care", species: "all", fittable: false },
-  { id: 9, brand: "리얼바이트", name: "동결건조 닭가슴살 간식", price: 14000, fit: 90, category: "care", species: "all", fittable: false },
-  { id: 10, brand: "워크업", name: "가벼운 산책 리드줄", price: 22000, fit: 89, category: "active", species: "dog", fittable: false },
-  { id: 11, brand: "트래블펫", name: "반려동물 4륜 유모차", price: 159000, fit: 92, category: "active", species: "all", fittable: true },
-  { id: 12, brand: "플레이펫", name: "노즈워크 코끼리 장난감", price: 18000, fit: 88, category: "active", species: "dog", fittable: false },
-  { id: 13, brand: "헬스독", name: "관절 글루코사민 영양제", price: 32000, fit: 93, category: "wellness", species: "dog", fittable: false },
-  { id: 14, brand: "스킨펫", name: "피부 보습 미스트", price: 15000, fit: 86, category: "wellness", species: "all", fittable: false },
-  { id: 15, brand: "코지캣", name: "3단 원목 캣타워", price: 89000, fit: 94, category: "home", species: "cat", fittable: true },
-  { id: 16, brand: "하우스펫", name: "포근 숨숨집 텐트", price: 26000, fit: 90, category: "home", species: "all", fittable: true },
-  { id: 17, brand: "워터펫", name: "자동 순환 급수기", price: 34000, fit: 88, category: "home", species: "all", fittable: false },
+  { id: 0, brand: "maxbone", name: "스키 니트 점퍼", price: 98000, fit: 96, category: "fashion", species: "dog", fittable: true },
+  { id: 1, brand: "Ruffwear", name: "프론트 레인지 하네스", price: 89000, fit: 93, category: "fashion", species: "dog", fittable: true },
+  { id: 2, brand: "Little Beast", name: "빅 블랙 퍼퍼 재킷", price: 112000, fit: 94, category: "fashion", species: "dog", fittable: true },
+  { id: 3, brand: "maxbone", name: "스트레인저 씽스 시그니처 후디", price: 92000, fit: 92, category: "fashion", species: "dog", fittable: true },
+  { id: 4, brand: "Ruffwear", name: "파우더 하운드 윈터 재킷", price: 119000, fit: 90, category: "fashion", species: "dog", fittable: true },
+  { id: 5, brand: "Little Beast", name: "다크 앤 스토미 스트라이프 원지", price: 72000, fit: 88, category: "fashion", species: "cat", fittable: true },
+  { id: 6, brand: "earthbath", name: "오트밀 & 알로에 저자극 샴푸 473ml", price: 32000, fit: 91, category: "care", species: "all", fittable: false },
+  { id: 7, brand: "Greenies", name: "오리지널 덴탈 트릿 레귤러 27개입", price: 56000, fit: 87, category: "care", species: "dog", fittable: false },
+  { id: 8, brand: "Open Farm", name: "굿것 자연산 연어 키블 1.8kg", price: 55000, fit: 95, category: "care", species: "dog", fittable: false },
+  { id: 9, brand: "PureBites", name: "닭가슴살 동결건조 트릿", price: 12000, fit: 90, category: "care", species: "dog", fittable: false },
+  { id: 10, brand: "Ruffwear", name: "프론트 레인지 리드줄", price: 42000, fit: 89, category: "active", species: "dog", fittable: false },
+  { id: 11, brand: "ibiyaya", name: "트라보이스 3-in-1 폴딩 유모차 XL", price: 320000, fit: 92, category: "active", species: "all", fittable: true },
+  { id: 12, brand: "Outward Hound", name: "하이드 어 스쿼럴 노즈워크 토이", price: 24000, fit: 88, category: "active", species: "dog", fittable: false },
+  { id: 13, brand: "Zesty Paws", name: "그린립 홍합 힙&조인트 츄 90정", price: 33000, fit: 93, category: "wellness", species: "dog", fittable: false },
+  { id: 14, brand: "earthbath", name: "시어버터 보습 스프레이", price: 25000, fit: 86, category: "wellness", species: "all", fittable: false },
+  { id: 15, brand: "Catit", name: "베스퍼 하이베이스 캣타워", price: 235000, fit: 94, category: "home", species: "cat", fittable: true },
+  { id: 16, brand: "MEOWFIA", name: "프리미엄 펠트 캣 케이브", price: 78000, fit: 90, category: "home", species: "cat", fittable: true },
+  { id: 17, brand: "Catit", name: "플라워 급수기 3L", price: 49000, fit: 88, category: "home", species: "cat", fittable: false },
 ];
 const won = (n: number) => n.toLocaleString("ko-KR");
 
 // 목업 이미지: 상품은 이름에 맞는 키워드로 Flickr 검색(loremflickr), 펫은 placedog(강아지).
 // 로드 실패 시 라벨 박스로 폴백.
 const PROD_KW: Record<number, string> = {
-  0: "dog,sweater", 1: "dog,harness", 2: "dog,coat", 3: "dog,hoodie", 4: "dog,coat", 5: "cat,costume",
+  0: "dog,sweater", 1: "dog,harness", 2: "dog,coat", 3: "dog,hoodie", 4: "dog,coat", 5: "cat,clothes",
   6: "dog,bath", 7: "dog,chewing", 8: "dog,food", 9: "dog,treat",
   10: "dog,leash", 11: "dog,stroller", 12: "dog,toy",
   13: "dog,vitamins", 14: "dog,grooming",
-  15: "cat,tree", 16: "dog,bed", 17: "cat,fountain",
+  15: "cat,tree", 16: "cat,bed", 17: "cat,fountain",
 };
 const prodImg = (id: number, w = 600, h = 600) =>
   `https://loremflickr.com/${w}/${h}/${PROD_KW[id] ?? "pet"}?lock=${id + 1}`;

@@ -15,6 +15,7 @@ class Product(BaseModel):
     fittable: bool = Field(True, description="AI 피팅(착용/배치) 가능 여부")
     image: Optional[str] = Field(None, description="상품 카드 이미지 URL/경로")
     ref_image: Optional[str] = Field(None, description="옷 레퍼런스 이미지 URL — AI 피팅이 이 옷을 입힘")
+    url: Optional[str] = Field(None, description="원 판매처(해외직구) 상품 페이지 링크")
 
 
 class PetCreate(BaseModel):
