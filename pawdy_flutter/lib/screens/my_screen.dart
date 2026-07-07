@@ -45,7 +45,8 @@ class MyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = appState.user;
     final pet = appState.firstPet;
-    final likes = appState.stats?.likes ?? appState.likedIds.length;
+    // 좋아요=찜 개수는 stats 스냅샷 대신 실시간 likedIds 사용(찜 토글 즉시 반영)
+    final likes = appState.likedIds.length;
     return Container(
       color: T.paper,
       child: SafeArea(
