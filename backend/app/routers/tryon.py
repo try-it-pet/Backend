@@ -100,7 +100,7 @@ async def _process_job(job_id: str, pet_image: Optional[bytes],
             analysis=out.analysis,
         )
         job.status = JobStatus.done
-        if user_id is not None:  # 성공한 생성만 라이브러리에 기록
+        if user_id is not None and provider.name != "mock":  # 실제 생성만 기록(mock 데모 제외)
             add_fitting(user_id, job.product_id, image_url, kind="tryon", style=job.style)
     except Exception as exc:  # noqa: BLE001
         job.status = JobStatus.failed
@@ -192,7 +192,7 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
             analysis=f"{pet.name if pet else '우리 아이'}의 인생네컷이 완성됐어요! ({made}/4컷)",
         )
         job.status = JobStatus.done
-        if user_id is not None:
+        if user_id is not None and provider.name != "mock":  # 실제 생성만 기록(mock 데모 제외)
             add_fitting(user_id, job.product_id, result_url, kind="fourcut", style=job.style)
     except Exception as exc:  # noqa: BLE001
         job.status = JobStatus.failed

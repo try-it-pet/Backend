@@ -37,7 +37,9 @@ class _FittingHistoryScreenState extends State<FittingHistoryScreen> {
                         child: CircularProgressIndicator(
                             color: T.accent, strokeWidth: 3));
                   }
-                  final items = snap.data ?? [];
+                  // mock(데모 SVG)은 갤러리에서 제외 — 실제 생성만 표시
+                  final items =
+                      (snap.data ?? []).where((f) => !f.isSvg).toList();
                   if (snap.hasError || items.isEmpty) return _empty();
                   return GridView.builder(
                     padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
