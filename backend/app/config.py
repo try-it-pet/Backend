@@ -18,8 +18,9 @@ class Settings:
     # OpenAI (gpt-image-2, 2026-04 출시 — 편집·지시이해·2K 향상)
     openai_api_key: str = os.getenv("PETFIT_OPENAI_API_KEY", "")
     openai_model: str = os.getenv("PETFIT_OPENAI_MODEL", "gpt-image-2")
-    # 펫(강아지/고양이) 판별용 비전 모델 — 생성 전 사진 사전 검증
-    vision_model: str = os.getenv("PETFIT_VISION_MODEL", "gpt-4o-mini")
+    # 펫(강아지/고양이) 판별용 비전 모델 — 생성 전 사진 사전 검증.
+    # OpenAI 탈피 → Replicate 경량 VLM(moondream2)로 주체를 설명받아 강아지/고양이 키워드 판별.
+    pet_detect_model: str = os.getenv("PETFIT_PET_DETECT_MODEL", "lucataco/moondream2")
     # size: 양 변 16의 배수, 최대 변 3840px, 총 픽셀 655,360~8,294,400
     openai_size: str = os.getenv("PETFIT_OPENAI_SIZE", "1024x1024")
 

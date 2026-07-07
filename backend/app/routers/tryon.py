@@ -69,8 +69,8 @@ async def _process_job(job_id: str, pet_image: Optional[bytes],
         if provider.name != "mock" and pet_image is not None:
             pet_image = await asyncio.to_thread(prepare_pet_image, pet_image)
 
-        # 실제 모델: 강아지/고양이 사진인지 사전 검증 → 아니면 이유를 담아 친절히 실패
-        if provider.name != "mock" and pet_image is not None and settings.openai_api_key:
+        # 실제 모델: 강아지/고양이 사진인지 사전 검증(Replicate 비전) → 아니면 이유를 담아 친절히 실패
+        if provider.name != "mock" and pet_image is not None and settings.replicate_token:
             check = await detect_pet(pet_image)
             if not check.get("pet"):
                 subj = check.get("subject")
@@ -150,7 +150,7 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
                 job.error = "인생네컷은 펫 사진이 필요해요. 사진을 추가해주세요."
                 return
             pet_image = await asyncio.to_thread(prepare_pet_image, pet_image)  # 입력 전처리
-            if settings.openai_api_key:  # 강아지/고양이 사전 검증
+            if settings.replicate_token:  # 강아지/고양이 사전 검증(Replicate 비전)
                 check = await detect_pet(pet_image)
                 if not check.get("pet"):
                     subj = check.get("subject")
