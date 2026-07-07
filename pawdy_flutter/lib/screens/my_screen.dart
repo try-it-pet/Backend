@@ -55,7 +55,7 @@ class MyScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('마이',
+                const Text('마이페이지',
                     style: TextStyle(
                         fontSize: 21,
                         fontWeight: FontWeight.w800,
