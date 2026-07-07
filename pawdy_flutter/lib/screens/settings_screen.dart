@@ -5,6 +5,9 @@ import '../state/app_state.dart';
 import '../theme/tokens.dart';
 import 'coming_soon_screen.dart' show PawdyBar;
 
+// 빌드 식별 태그 — 빌드 시 --dart-define=BUILD_TAG=... 로 주입. 최신 APK 설치 확인용.
+const String _buildTag = String.fromEnvironment('BUILD_TAG', defaultValue: 'dev');
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -57,7 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _card([
                     _tap('문의하기', () => _toast('문의 기능은 준비 중이에요')),
                     _tap('이용약관 · 개인정보', () => _toast('준비 중이에요')),
-                    _row('앱 버전', '1.0.0'),
+                    _row('앱 버전', '1.0.0 ($_buildTag)'),
                   ]),
                   const SizedBox(height: 14),
                   if (user != null)
