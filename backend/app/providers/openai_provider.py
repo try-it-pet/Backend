@@ -16,8 +16,10 @@ from .mock import recommend_size
 from .looks import (  # noqa: E402
     BACKGROUND_PRESETS,
     COMPOSITION_PRESETS,
+    IDENTITY_LOCK,
     ILLUSTRATION_LOOKS,
     LOOK_PROMPTS as STYLE_PRESETS,
+    QUALITY_BOOST,
     SCENE_LOOKS,
     is_illustration,
 )
@@ -36,19 +38,18 @@ def _build_prompt(
         p = ILLUSTRATION_LOOKS[style]
         if composition in COMPOSITION_PRESETS:
             p += f" Pose: {COMPOSITION_PRESETS[composition]}."
-        return p
+        return p + " " + QUALITY_BOOST
     pet_desc = f"{pet.species}" if pet else "pet"
     if has_ref:
         base = (
             f"Dress the {pet_desc} in the FIRST image with the exact clothing item shown in the "
-            f"SECOND image (the product '{product.name}'). Photorealistic result. Keep the pet's "
-            f"identity, fur pattern, face and pose unchanged; fit the garment naturally on its body."
+            f"SECOND image (the product '{product.name}'). Photorealistic result. Fit the garment "
+            f"naturally on its body. {IDENTITY_LOCK}"
         )
     else:
         base = (
             f"Dress this {pet_desc} in a '{product.name}' by {product.brand}, a piece of pet clothing. "
-            f"Photorealistic. Keep the pet's identity, fur, face, and pose unchanged — only add the "
-            f"garment so it fits naturally on the body."
+            f"Photorealistic. Fit the garment naturally on the body. {IDENTITY_LOCK}"
         )
     extras: list[str] = []
     if style in STYLE_PRESETS:
@@ -58,6 +59,7 @@ def _build_prompt(
     # 감성 룩(winter 등)은 배경까지 룩이 정하므로 studio/keep 배경 지시를 생략
     if style not in SCENE_LOOKS:
         extras.append(BACKGROUND_PRESETS.get(background or "studio", BACKGROUND_PRESETS["studio"]))
+    extras.append(QUALITY_BOOST)
     return base + " " + " ".join(extras)
 
 

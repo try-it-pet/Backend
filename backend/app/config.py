@@ -43,6 +43,11 @@ class Settings:
     kontext_lora_model: str = os.getenv(
         "PETFIT_KONTEXT_LORA_MODEL", "black-forest-labs/flux-kontext-dev-lora"
     )
+    # 출력 업스케일 후처리(Real-ESRGAN 등, Replicate). 해상도·디테일 ↑. 생성 비용/시간 증가로
+    # 기본 off. 켜려면 PETFIT_UPSCALE=1 + PETFIT_REPLICATE_TOKEN 필요.
+    upscale_enabled: bool = os.getenv("PETFIT_UPSCALE", "0") in ("1", "true", "True")
+    upscale_model: str = os.getenv("PETFIT_UPSCALE_MODEL", "nightmareai/real-esrgan")
+    upscale_factor: int = int(os.getenv("PETFIT_UPSCALE_FACTOR", "2"))
     # LoRA 학습 대상(Kontext 편집 트레이너) — scripts/train_lora.py 에서 사용
     replicate_trainer: str = os.getenv(
         "PETFIT_REPLICATE_TRAINER",

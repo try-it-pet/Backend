@@ -9,8 +9,10 @@ from .base import ProviderOutput, TryOnProvider
 from .looks import (
     BACKGROUND_PRESETS,
     COMPOSITION_PRESETS,
+    IDENTITY_LOCK,
     ILLUSTRATION_LOOKS,
     LOOK_PROMPTS,
+    QUALITY_BOOST,
     SCENE_LOOKS,
     is_illustration,
     look_lora,
@@ -32,11 +34,11 @@ def _build_prompt(
         p = ILLUSTRATION_LOOKS[style]
         if composition in COMPOSITION_PRESETS:
             p += f" Pose: {COMPOSITION_PRESETS[composition]}."
-        return p
+        return p + " " + QUALITY_BOOST
     pet_desc = f"{pet.species}" if pet else "pet"
     base = (
         f"Dress this {pet_desc} in a {product.name} ({product.brand}), a piece of pet clothing. "
-        f"Photorealistic, keep the pet's identity, fur, face and pose; the garment fits naturally."
+        f"Photorealistic, the garment fits naturally. {IDENTITY_LOCK}"
     )
     extras: list[str] = []
     if trigger:  # LoRA 트리거(예: PAWDYWINTER) — 학습된 감성이 발동됨
@@ -47,6 +49,7 @@ def _build_prompt(
         extras.append(f"Composition: {COMPOSITION_PRESETS[composition]}.")
     if style not in SCENE_LOOKS:
         extras.append(BACKGROUND_PRESETS.get(background or "studio", BACKGROUND_PRESETS["studio"]))
+    extras.append(QUALITY_BOOST)
     return base + " " + " ".join(extras)
 
 

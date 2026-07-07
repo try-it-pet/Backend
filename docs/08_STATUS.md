@@ -11,6 +11,14 @@
 - **결과 퀄리티가 낮음** (예: replicate 지브리 룩 — 귀엽지만 시그니처 완성도 부족).
 - **인생네컷 4컷 중 일부만 생성**됨(2/4 등, 나머지 빈 셀) → 컷 실패/재시도 안정화 필요.
 
+## ✅ 이 세션 진행(2026-07-07, 코드 레버 #2~#5 착수)
+- **#4 입력 전처리**: `backend/app/imageprep.py` 신규 — EXIF 회전 보정·RGB 변환·장변 1536px 상한 축소·단변 768px 미만 업샘플(≤2배)·PNG 재인코딩. 실패 시 원본 폴백. tryon/fourcut 워커에서 `prepare_pet_image`를 `to_thread`로 호출(mock 제외).
+- **#5 인생네컷 안정화**: `_process_fourcut` 재작성 — 셀 단위 `_gen_cut`이 **모든 예외를 백오프 재시도**(429=6s, 그 외=2s)하고 예외 대신 None 반환. **1차 동시 생성(재시도 3회) → 2차 빈 셀만 순차 재생성(2회)** 패스 추가로 4/4 성공률 개선.
+- **#2 프롬프트/추론 강화**: `looks.py`에 공용 `QUALITY_BOOST`(디테일·아티팩트 억제)·`IDENTITY_LOCK`(정체성 고정) 상수 추가, winter 룩 아트디렉션 보강. openai/replicate `_build_prompt` 둘 다 반영.
+- **#3 출력 업스케일**: `backend/app/upscale.py` 신규 — Replicate Real-ESRGAN 후처리(`maybe_upscale`), env 게이트. 단일 tryon 결과에만 적용(인생네컷 제외=비용). **기본 off**, 켜려면 `PETFIT_UPSCALE=1`(+토큰). `PETFIT_UPSCALE_MODEL`/`PETFIT_UPSCALE_FACTOR` 조정.
+- 검증: py_compile + import 스모크 + 전처리 리사이즈/폴백 케이스 통과. **실키(openai/replicate)로 실제 생성 A/B 육안 확인은 다음 단계.**
+- 남은 레버: **#1 LoRA 재학습(대박 컷 큐레이션→학습→R2 호스팅→env 등록)** = 최우선, 이 세션 미착수.
+
 ## 품질 개선 레버 (우선순위)
 1. **학습 데이터 = 품질의 8할** (제일 중요): 시그니처 룩 **LoRA 재학습**. "적지만 완벽하게 일관된" 15~30장(조명·색보정·구도·분위기 통일). **Kontext before/after 20쌍** 방식이 펫 정체성 보존에 유리. 지금 gpt-image-2로 뽑은 "대박 컷"만 큐레이션해 시드로.
    - 학습 파이프라인 이미 있음: `backend/scripts/{train_lora.py, train_lora_fal.py, build_dataset.py, rehost_lora.py}` + 가이드 `backend/scripts/README.md`.

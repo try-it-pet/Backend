@@ -10,9 +10,11 @@ from ..auth import get_optional_user
 from ..config import settings
 from ..data import PRODUCTS_BY_ID
 from ..fourcut import compose_2x2
+from ..imageprep import prepare_pet_image
 from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
 from ..providers.looks import FOURCUT_POSES
+from ..upscale import maybe_upscale
 from ..quota import can_generate, consume, daily_cap_reached, ip_allowed, limits_active, refund, settle
 from ..store import (
     JOBS, add_fitting, find_pet, get_result, inc_fitting, prune_jobs, save_result, track_job,
@@ -62,6 +64,10 @@ async def _process_job(job_id: str, pet_image: Optional[bytes],
         pet = find_pet(job.pet_id)
         provider = get_provider(job.provider)
 
+        # 입력 전처리(EXIF 회전·RGB·리사이즈) — bad input=bad output 방어. mock 은 이미지 미사용.
+        if provider.name != "mock" and pet_image is not None:
+            pet_image = await asyncio.to_thread(prepare_pet_image, pet_image)
+
         # 실제 모델: 강아지/고양이 사진인지 사전 검증 → 아니면 이유를 담아 친절히 실패
         if provider.name != "mock" and pet_image is not None and settings.openai_api_key:
             check = await detect_pet(pet_image)
@@ -84,12 +90,19 @@ async def _process_job(job_id: str, pet_image: Optional[bytes],
             style=job.style, composition=job.composition, background=job.background,
         )
 
+        # 결과를 바이트로 정규화(openai=직접, replicate=임시 URL을 지금 받아 영구 저장) →
+        # 업스케일 후처리(env 게이트) → 우리 저장소(DB/R2)에 저장.
+        result_bytes: Optional[bytes] = None
         if out.image_bytes is not None:
-            image_url = save_result(job_id, out.image_bytes, out.image_mime or "image/png")
+            result_bytes = out.image_bytes
         elif out.image_url:
-            # Replicate 출력 URL 은 임시(~1h) → 지금 받아서 우리 저장소(DB/R2)에 영구 저장
-            data = await _fetch_bytes(out.image_url)
-            image_url = save_result(job_id, data, "image/png") if data else out.image_url
+            result_bytes = await _fetch_bytes(out.image_url)
+
+        if result_bytes is not None:
+            result_bytes = await maybe_upscale(result_bytes)
+            image_url = save_result(job_id, result_bytes, out.image_mime or "image/png")
+        elif out.image_url:
+            image_url = out.image_url  # 다운로드 실패 시 임시 URL 폴백
         else:
             image_url = f"/tryon/{job_id}/preview.svg"  # mock
 
@@ -135,6 +148,7 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
                 job.status = JobStatus.failed
                 job.error = "인생네컷은 펫 사진이 필요해요. 사진을 추가해주세요."
                 return
+            pet_image = await asyncio.to_thread(prepare_pet_image, pet_image)  # 입력 전처리
             if settings.openai_api_key:  # 강아지/고양이 사전 검증
                 check = await detect_pet(pet_image)
                 if not check.get("pet"):
@@ -147,38 +161,45 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
                     )
                     return
 
-        # 4컷 생성(포즈/표정만 다르게, 같은 감성 룩·옷). Replicate 429(rate limit) 방지를 위해
-        # 동시성을 제한하고 429 는 백오프 재시도한다. mock 은 즉시 반환.
+        # 4컷 생성(포즈/표정만 다르게, 같은 감성 룩·옷). Replicate 429(rate limit)·일시 오류를
+        # 방지/흡수하기 위해 동시성을 제한하고 모든 예외를 백오프 재시도한다. mock 은 즉시 반환.
         sem = asyncio.Semaphore(2)
 
-        async def _one_cut(pose_key: str):
+        async def _gen_cut(pose_key: str, attempts: int) -> Optional[bytes]:
+            """한 컷 생성 → 바이트(실패해도 예외 대신 None). 429 는 길게, 그 외는 짧게 백오프."""
             async with sem:
-                for attempt in range(3):
+                for attempt in range(attempts):
                     try:
-                        return await provider.generate(
+                        out = await provider.generate(
                             product=product, size=job.size, pet=pet, pet_image=pet_image,
                             style=job.style, composition=pose_key,
                         )
-                    except Exception as exc:  # noqa: BLE001
-                        if "429" in str(exc) and attempt < 2:
-                            await asyncio.sleep(6)
-                            continue
-                        raise
+                        if out is None:
+                            raise RuntimeError("빈 결과")
+                        if out.image_bytes is not None:
+                            return out.image_bytes
+                        if out.image_url:
+                            data = await _fetch_bytes(out.image_url)
+                            if data:
+                                return data
+                            raise RuntimeError("결과 이미지 다운로드 실패")
+                        raise RuntimeError("이미지 없음")
+                    except Exception as exc:  # noqa: BLE001 — 셀 단위 복원력(전체 실패 방지)
+                        if attempt >= attempts - 1:
+                            return None
+                        await asyncio.sleep(6 if "429" in str(exc) else 2)
+            return None
 
-        outs = await asyncio.gather(
-            *[_one_cut(pk) for pk, _ in FOURCUT_POSES], return_exceptions=True
-        )
+        # 1차: 동시 생성(재시도 3회). mock 은 실패 없음.
+        cells: list[Optional[bytes]] = list(await asyncio.gather(
+            *[_gen_cut(pk, 3) for pk, _ in FOURCUT_POSES]
+        ))
 
-        cells: list[Optional[bytes]] = []
-        for out in outs:
-            if isinstance(out, BaseException) or out is None:
-                cells.append(None)
-            elif out.image_bytes is not None:
-                cells.append(out.image_bytes)
-            elif out.image_url:
-                cells.append(await _fetch_bytes(out.image_url))
-            else:
-                cells.append(None)
+        # 2차: 아직 빈 셀만 순차 재생성(레이트리밋 회피). 여기서도 실패하면 플레이스홀더.
+        if provider.name != "mock":
+            for i, (pk, _) in enumerate(FOURCUT_POSES):
+                if cells[i] is None:
+                    cells[i] = await _gen_cut(pk, 2)
 
         labels = [ko for _, ko in FOURCUT_POSES]
         png = await asyncio.to_thread(compose_2x2, cells, labels)

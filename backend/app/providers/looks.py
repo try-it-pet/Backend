@@ -12,14 +12,28 @@ import json
 
 from ..config import settings
 
+# 모든 결과물에 공통으로 붙는 품질 지시(사진·일러스트 공용). 편집 모델이 디테일을 뭉개거나
+# 왜곡·아티팩트를 내는 것을 억제한다. 프롬프트 맨 끝에 한 번만 붙인다.
+QUALITY_BOOST = (
+    "Ultra high detail, crisp and sharp focus, clean edges, professional quality, "
+    "flattering natural lighting, no visual artifacts, no distortion, no extra limbs, "
+    "no warped anatomy, no text or watermark."
+)
+
+# 착장(옷 입히기) 결과의 정체성 고정 — 같은 아이임이 한눈에 보이도록 강하게 지시.
+IDENTITY_LOCK = (
+    "Preserve the exact same pet: identity, breed, fur colors and markings, face and eyes, "
+    "body proportions and pose must stay unchanged. Only add or change the garment."
+)
+
 # 사진풍/감성 룩 — 프론트 칩과 1:1 대응. 'winter' 같은 감성 룩은 장면(배경)까지 연출.
 LOOK_PROMPTS = {
     "winter": (
         "Reimagine as a cinematic, emotional Korean 'winter feels' photo for social media: "
         "soft falling snow, a dreamy snowy forest or frozen-lake background, cool blue tones with a "
-        "warm key light gently lit on the pet, soft film grain, shallow depth of field with bokeh, "
-        "delicate rim backlight and a faint breath of cold air, soft pastel color grade. "
-        "Keep it cozy, wistful and share-worthy"
+        "warm golden key light gently lit on the pet, subtle film grain, shallow depth of field with "
+        "creamy bokeh, delicate rim backlight and a faint visible breath of cold air, soft pastel "
+        "color grade, tack-sharp eyes catching the light. Cozy, wistful, magazine-cover worthy."
     ),
     "studio": "clean catalog studio photo, even soft lighting, crisp focus",
     "lifestyle": "lifestyle photo at home or on a walk, natural ambient light, shallow depth of field",
