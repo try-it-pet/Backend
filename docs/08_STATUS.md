@@ -42,6 +42,11 @@
 - **⚠️ 비용**: 호출 2회 + max=프리미엄 → 생성당 비용 2배+. quota 정책에 반영 검토(현재 tryon 1회 소모).
 - **커밋 5개 푸시 완료**(7527e82→9eaf221). Railway Variables 갱신 필요: `PETFIT_LOOK_LORAS`=R2 URL, `PETFIT_LOOK_TRIGGERS` 유효JSON, (선택)`PETFIT_UPSCALE=1`.
 
+## ✅ 이 세션 5차 진행(2026-07-07, 새 룩 '벚꽃' + 2단계 비용 quota)
+- **새 감성룩 '벚꽃(sakura)'**(커밋 0a5a825): `looks.py` LOOK_PROMPTS+SCENE_LOOKS, `fit_screen.dart` 칩('벚꽃 감성'). **LoRA 없이 프롬프트 폴백(kontext-pro)으로 즉시 동작** — 검증됨(벚꽃 가로수·꽃잎·핑크 무드). 나중에 sakura LoRA 학습→env 등록하면 코드 변경 없이 승격+2단계 자동. `scripts/README` '새 룩 추가'를 Flutter 기준으로 갱신.
+- **2단계 비용 quota 정책**(커밋 58135d5): `PETFIT_TWO_STAGE_COST`(기본 2). `looks.two_stage_garment()` 공용 술어로 provider(실행)·tryon 라우터(비용) 일치. replicate+2단계 대상만 2회 차감, 그 외 1(mock 0). ⚠️현재 `gen_limit` off라 집계만 → 켜면 즉시 적용.
+- **룩 추가 = 2단계 진화 패턴 확립**: (1) 코드 등록→프롬프트 폴백 즉시, (2) LoRA 학습→env 등록으로 승격. 신규 룩은 이 패턴 따르면 됨.
+
 ## 품질 개선 레버 (우선순위)
 1. **학습 데이터 = 품질의 8할** (제일 중요): 시그니처 룩 **LoRA 재학습**. "적지만 완벽하게 일관된" 15~30장(조명·색보정·구도·분위기 통일). **Kontext before/after 20쌍** 방식이 펫 정체성 보존에 유리. 지금 gpt-image-2로 뽑은 "대박 컷"만 큐레이션해 시드로.
    - 학습 파이프라인 이미 있음: `backend/scripts/{train_lora.py, train_lora_fal.py, build_dataset.py, rehost_lora.py}` + 가이드 `backend/scripts/README.md`.
