@@ -6,6 +6,7 @@ import 'pet_form_sheet.dart';
 import 'settings_screen.dart';
 import 'orders_screen.dart';
 import 'my_reviews_screen.dart';
+import 'fitting_history_screen.dart';
 import 'coming_soon_screen.dart';
 
 class MyScreen extends StatelessWidget {
@@ -297,10 +298,13 @@ class MyScreen extends StatelessWidget {
       ('주문 내역', orders > 0 ? '$orders건' : '', () => _openOrders(context)),
       ('배송 현황', '', () => _push(context,
           const ComingSoonScreen(title: '배송 현황', icon: Icons.local_shipping_outlined))),
-      ('AI 피팅 기록', '$fittings회', () => _push(context, const ComingSoonScreen(
-          title: 'AI 피팅 기록',
-          subtitle: '생성한 이미지를 모아보는 기능을 준비 중이에요',
-          icon: Icons.auto_awesome))),
+      ('AI 피팅 기록', '$fittings회', () {
+        if (!appState.loggedIn) {
+          _toast(context, '로그인하면 AI 피팅 기록을 볼 수 있어요');
+          return;
+        }
+        _push(context, const FittingHistoryScreen());
+      }),
       ('리뷰 관리', '', () {
         if (!appState.loggedIn) {
           _toast(context, '로그인하면 작성한 리뷰를 볼 수 있어요');

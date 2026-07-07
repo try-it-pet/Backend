@@ -67,6 +67,18 @@ class ReviewRow(SQLModel, table=True):
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
+class FittingRow(SQLModel, table=True):
+    """AI 피팅 생성 이력(라이브러리). 성공한 생성만 유저별로 기록."""
+    __tablename__ = "fittings"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    product_id: int
+    image_url: str
+    kind: str = "tryon"  # tryon | fourcut
+    style: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
 class UserCounterRow(SQLModel, table=True):
     """유저별 카운터: AI 생성 사용/보너스, 피팅 횟수."""
     __tablename__ = "user_counters"

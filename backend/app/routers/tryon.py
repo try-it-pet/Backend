@@ -14,7 +14,9 @@ from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
 from ..providers.looks import FOURCUT_POSES
 from ..quota import can_generate, consume, daily_cap_reached, ip_allowed, limits_active, refund, settle
-from ..store import JOBS, find_pet, get_result, inc_fitting, prune_jobs, save_result, track_job
+from ..store import (
+    JOBS, add_fitting, find_pet, get_result, inc_fitting, prune_jobs, save_result, track_job,
+)
 from ..vision import detect_pet
 
 router = APIRouter(prefix="/tryon", tags=["tryon"])
@@ -50,7 +52,8 @@ def _quota_precheck(provider: Optional[str], user: Optional[User], cost: int,
     return cost
 
 
-async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
+async def _process_job(job_id: str, pet_image: Optional[bytes],
+                       user_id: Optional[int] = None) -> None:
     """비동기 워커 시뮬레이션. 실제로는 Celery/BullMQ 큐로 분리."""
     job = JOBS[job_id]
     job.status = JobStatus.processing
@@ -97,6 +100,8 @@ async def _process_job(job_id: str, pet_image: Optional[bytes]) -> None:
             analysis=out.analysis,
         )
         job.status = JobStatus.done
+        if user_id is not None:  # 성공한 생성만 라이브러리에 기록
+            add_fitting(user_id, job.product_id, image_url, kind="tryon", style=job.style)
     except Exception as exc:  # noqa: BLE001
         job.status = JobStatus.failed
         job.error = str(exc)
@@ -115,7 +120,8 @@ async def _fetch_bytes(url: str) -> Optional[bytes]:
         return None
 
 
-async def _process_fourcut(job_id: str, pet_image: Optional[bytes]) -> None:
+async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
+                           user_id: Optional[int] = None) -> None:
     """인생네컷: 한 장의 펫 사진 → 4가지 포즈/표정 컷 생성 → 2x2 합성."""
     job = JOBS[job_id]
     job.status = JobStatus.processing
@@ -186,6 +192,8 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes]) -> None:
             analysis=f"{pet.name if pet else '우리 아이'}의 인생네컷이 완성됐어요! ({made}/4컷)",
         )
         job.status = JobStatus.done
+        if user_id is not None:
+            add_fitting(user_id, job.product_id, result_url, kind="fourcut", style=job.style)
     except Exception as exc:  # noqa: BLE001
         job.status = JobStatus.failed
         job.error = str(exc)
@@ -229,7 +237,7 @@ async def create_tryon(
     prune_jobs()
     if cost:
         consume(job_id, user.id if user else None, cost)
-    asyncio.create_task(_process_job(job_id, image_bytes))
+    asyncio.create_task(_process_job(job_id, image_bytes, user.id if user else None))
     return job
 
 
@@ -265,7 +273,7 @@ async def create_fourcut(
     prune_jobs()
     if cost:
         consume(job_id, user.id if user else None, cost)
-    asyncio.create_task(_process_fourcut(job_id, image_bytes))
+    asyncio.create_task(_process_fourcut(job_id, image_bytes, user.id if user else None))
     return job
 
 

@@ -6,6 +6,7 @@ import '../models/tryon.dart';
 import '../models/user.dart';
 import '../models/commerce.dart';
 import '../models/review.dart';
+import '../models/fitting.dart';
 
 /// Pawdy 백엔드(FastAPI) 클라이언트.
 /// 운영 = Railway. 빌드 시 --dart-define=API_BASE=... 로 재정의 가능.
@@ -178,6 +179,15 @@ class Api {
     );
     if (r.statusCode != 200 && r.statusCode != 201) throw _apiError(r, '리뷰 작성 실패');
     return Review.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
+  }
+
+  // ── AI 피팅 이력 ──
+  static Future<List<Fitting>> fetchFittings() async {
+    final r = await http.get(Uri.parse('$apiBase/me/fittings'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '피팅 기록 실패');
+    return (jsonDecode(utf8.decode(r.bodyBytes)) as List)
+        .map((e) => Fitting.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   static Future<Generations?> fetchGenerations() async {

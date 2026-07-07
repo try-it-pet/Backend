@@ -2,11 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import get_current_user
 from ..data import PRODUCTS_BY_ID
-from ..models import CartItem, CartItemCreate, Order, Pet, PetCreate, Review, ReviewCreate, Stats, User
+from ..models import (
+    CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, ReviewCreate, Stats, User,
+)
 from ..quota import grant_purchase, status as quota_status
 from ..store import (
     add_cart, add_pet, add_review, count_likes, count_orders, create_order, get_cart, get_fittings,
-    list_likes, list_my_reviews, list_orders, list_pets, remove_cart, toggle_like,
+    list_fittings, list_likes, list_my_reviews, list_orders, list_pets, remove_cart, toggle_like,
 )
 
 router = APIRouter(prefix="/me", tags=["me"], dependencies=[Depends(get_current_user)])
@@ -81,6 +83,12 @@ def write_review(body: ReviewCreate, user: User = Depends(get_current_user)) -> 
     if body.product_id not in PRODUCTS_BY_ID:
         raise HTTPException(status_code=404, detail="product not found")
     return add_review(user.id, body)
+
+
+# ── AI 피팅 이력(라이브러리) ──
+@router.get("/fittings", response_model=list[Fitting])
+def fittings(user: User = Depends(get_current_user)) -> list[Fitting]:
+    return list_fittings(user.id)
 
 
 # ── AI 생성 잔여 횟수 ──

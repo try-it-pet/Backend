@@ -3,8 +3,9 @@ import '../api/client.dart';
 import '../models/review.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
+import '../models/product.dart';
 import 'coming_soon_screen.dart' show PawdyBar;
-import 'detail_screen.dart' show Stars;
+import 'detail_screen.dart';
 
 class MyReviewsScreen extends StatefulWidget {
   const MyReviewsScreen({super.key});
@@ -54,7 +55,7 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
                     padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
                     itemCount: reviews.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _card(reviews[i]),
+                    itemBuilder: (ctx, i) => _card(ctx, reviews[i]),
                   );
                 },
               ),
@@ -65,7 +66,23 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
     );
   }
 
-  Widget _card(Review r) => Container(
+  Product? _findProduct(int id) {
+    for (final p in appState.products) {
+      if (p.id == id) return p;
+    }
+    return null;
+  }
+
+  Widget _card(BuildContext context, Review r) => GestureDetector(
+      onTap: () {
+        final p = _findProduct(r.productId);
+        if (p != null) {
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => DetailScreen(product: p)));
+        }
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -105,7 +122,8 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
             ],
           ],
         ),
-      );
+      ),
+    );
 
   Widget _empty() => Center(
         child: Column(

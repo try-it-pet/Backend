@@ -12,9 +12,12 @@ from sqlmodel import select
 
 from .data import PRODUCTS_BY_ID
 from .db import get_session
-from .models import CartItem, CartItemCreate, Order, Pet, PetCreate, Review, ReviewCreate, User
+from .models import (
+    CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, ReviewCreate, User,
+)
 from .tables import (
-    CartRow, KVRow, LikeRow, OrderRow, PetRow, ResultRow, ReviewRow, UserCounterRow, UserRow,
+    CartRow, FittingRow, KVRow, LikeRow, OrderRow, PetRow, ResultRow, ReviewRow,
+    UserCounterRow, UserRow,
 )
 
 # ── 인메모리(단기 생성 상태만) ──
@@ -233,6 +236,27 @@ def product_rating(product_id: int) -> Tuple[int, float]:
         if not ratings:
             return 0, 0.0
         return len(ratings), round(sum(ratings) / len(ratings), 1)
+
+
+# ── AI 피팅 이력(라이브러리) ──
+def add_fitting(user_id: int, product_id: int, image_url: str,
+                kind: str = "tryon", style: Optional[str] = None) -> None:
+    with get_session() as s:
+        s.add(FittingRow(user_id=user_id, product_id=product_id,
+                         image_url=image_url, kind=kind, style=style))
+        s.commit()
+
+
+def list_fittings(user_id: int) -> List[Fitting]:
+    with get_session() as s:
+        rows = s.exec(
+            select(FittingRow).where(FittingRow.user_id == user_id).order_by(FittingRow.id.desc())
+        ).all()
+        return [
+            Fitting(id=r.id, product_id=r.product_id, image_url=r.image_url,
+                    kind=r.kind, style=r.style, created_at=r.created_at)
+            for r in rows
+        ]
 
 
 # ── 카운터(피팅/quota) ──

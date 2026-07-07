@@ -94,6 +94,15 @@ class ProductReviews(BaseModel):
     items: list[Review]
 
 
+class Fitting(BaseModel):
+    id: int
+    product_id: int
+    image_url: str
+    kind: str = "tryon"  # tryon | fourcut
+    style: Optional[str] = None
+    created_at: str
+
+
 class JobStatus(str, Enum):
     queued = "queued"
     processing = "processing"
