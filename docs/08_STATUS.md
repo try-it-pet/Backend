@@ -27,6 +27,13 @@
 - **남은 상품 옷 정확도(②)**: 멀티이미지 kontext 모델(펫+옷 2장) 조사·교체 필요 = 다음 과제(우선순위: 룩 다음).
 - **인프라 TODO**: fal.media LoRA → R2 재호스팅(`scripts/rehost_lora.py`, 프로덕션 안정성). 업스케일(#3) LoRA 출력에도 적용(`PETFIT_UPSCALE=1`).
 
+## ✅ 이 세션 3차 진행(2026-07-07, winter '원본 그대로' 버그 근본 해결 + R2 재호스팅)
+- **R2 재호스팅 완료**: winter LoRA(306MB) fal.media → R2 (`.../loras/pawdy-winter.safetensors`, 공개 200). 로컬 `.env` `PETFIT_LOOK_LORAS`=R2 URL. ⚠️**Railway Variables도 R2 URL로 갱신 필요**.
+- **🐛 근본 원인 2개(커밋 0d3e66f) — R2는 무죄**: winter가 변환 없이 원본 그대로 나오던 문제 = ① **`.env` `PETFIT_LOOK_TRIGGERS` JSON 따옴표 손상**(`"`→`\`, Railway env 가져오며 깨짐) → `look_trigger`=None → 프롬프트에 트리거 누락 → LoRA 덜 활성화. ② **SCENE 룩에 IDENTITY_LOCK(장면 유지 강제)+긴 QUALITY_BOOST** → 장면 변환 억제.
+- **수정**: TRIGGERS 유효 JSON 복구 + `looks.py` **IDENTITY_LIGHT**(SCENE 룩용, 정체성만 유지·장면 재연출 허용) + `replicate_provider`가 SCENE 룩+LoRA면 **트리거 우선 짧은 프롬프트**로 특수 처리.
+- **검증**: dog.png(사용자 실제 반려견)로 프로바이더 경로 **3연속 모두 안정적 겨울 변환 + 정체성 보존**. 업스케일까지 태우면 매거진 퀄.
+- **⚠️ 재발 주의**: Railway env를 로컬로 가져올 때 **JSON 값(`{"winter":"..."}`) 따옴표가 깨질 수 있음** — 로컬/Railway 양쪽 유효 JSON 확인.
+
 ## 품질 개선 레버 (우선순위)
 1. **학습 데이터 = 품질의 8할** (제일 중요): 시그니처 룩 **LoRA 재학습**. "적지만 완벽하게 일관된" 15~30장(조명·색보정·구도·분위기 통일). **Kontext before/after 20쌍** 방식이 펫 정체성 보존에 유리. 지금 gpt-image-2로 뽑은 "대박 컷"만 큐레이션해 시드로.
    - 학습 파이프라인 이미 있음: `backend/scripts/{train_lora.py, train_lora_fal.py, build_dataset.py, rehost_lora.py}` + 가이드 `backend/scripts/README.md`.
