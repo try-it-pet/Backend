@@ -47,6 +47,12 @@
 - **2단계 비용 quota 정책**(커밋 58135d5): `PETFIT_TWO_STAGE_COST`(기본 2). `looks.two_stage_garment()` 공용 술어로 provider(실행)·tryon 라우터(비용) 일치. replicate+2단계 대상만 2회 차감, 그 외 1(mock 0). ⚠️현재 `gen_limit` off라 집계만 → 켜면 즉시 적용.
 - **룩 추가 = 2단계 진화 패턴 확립**: (1) 코드 등록→프롬프트 폴백 즉시, (2) LoRA 학습→env 등록으로 승격. 신규 룩은 이 패턴 따르면 됨.
 
+## ✅ 이 세션 6차 진행(2026-07-07, 인생네컷 품질 개선, 커밋 acc5b15)
+- **🐛 포즈 무시 버그**: SCENE 룩(winter) 짧은 프롬프트가 `composition`을 안 넣어 4컷이 정면/갸웃/활짝/얼빡 **구분 없이 동일 프롬프트**로 생성되던 문제 → `_build_prompt` SCENE 분기에 `COMPOSITION_PRESETS` 반영(포즈 복원).
+- **일관성**: 4컷이 각자 랜덤 seed라 배경/의상 제각각 → `generate(seed=)` 배선(base/mock/openai/replicate, dev-lora 스키마 seed 지원 확인) + `_process_fourcut`이 **공유 seed**로 4컷 생성 → 같은 눈밭·같은 옷, 포즈만 변화하는 **포토부스 스트립**.
+- **검증**: dog.png winter 4컷 = 4표정 뚜렷이 구분 + 배경/의상 응집 확인(compose_2x2 크림 프레임·Pawdy 워드마크).
+- 참고: 인생네컷은 2단계 제외(fc_* 포즈, 얼굴 클로즈업이라 옷 거의 안 보임) → 단일 단계·비용 그대로.
+
 ## 품질 개선 레버 (우선순위)
 1. **학습 데이터 = 품질의 8할** (제일 중요): 시그니처 룩 **LoRA 재학습**. "적지만 완벽하게 일관된" 15~30장(조명·색보정·구도·분위기 통일). **Kontext before/after 20쌍** 방식이 펫 정체성 보존에 유리. 지금 gpt-image-2로 뽑은 "대박 컷"만 큐레이션해 시드로.
    - 학습 파이프라인 이미 있음: `backend/scripts/{train_lora.py, train_lora_fal.py, build_dataset.py, rehost_lora.py}` + 가이드 `backend/scripts/README.md`.
