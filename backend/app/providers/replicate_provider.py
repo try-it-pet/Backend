@@ -73,12 +73,32 @@ def _build_prompt(
 
 # 2단계 피팅 1단계(multi-image) 프롬프트: 실제 상품 옷을 몸에 입히고 좌우합성/플랫레이를 금지.
 _WEAR_PROMPT = (
-    "Photorealistic full-body photo of ONLY the pet from the first image, now wearing the exact "
-    "clothing item shown in the second image — same colors, same pattern, same knit/fabric texture "
-    "and trims. The pet is wearing the item on its body. Keep the pet's identity, face, fur and pose. "
-    "Clean soft studio background. Do NOT show the item separately, no flat-lay, no side-by-side, "
-    "no collage — a single subject."
+    "Photorealistic full-body photo of ONLY the pet from the first image. Completely REMOVE any "
+    "clothing the pet is currently wearing, then dress it in the EXACT clothing item shown in the "
+    "second image — replace its outfit entirely with that item, matching its exact colors, pattern, "
+    "knit/fabric texture and every hood, collar, bandana and trim. Keep the pet's identity, face and "
+    "fur. Clean soft studio background. Do NOT show the item separately, no flat-lay, no side-by-side, "
+    "no collage, no mixing with the old outfit — a single subject wearing only the new item."
 )
+
+
+def _build_worn_prompt(
+    style: Optional[str], composition: Optional[str], trigger: Optional[str],
+) -> str:
+    """이미 실제 옷을 입은 펫에 룩(장면)·포즈만 적용. 펫·옷은 그대로 보존한다.
+
+    인생네컷: 실제 옷을 1번만 입히고(멀티이미지) 그 결과로 4컷을 파생시킬 때 각 컷의 프롬프트.
+    """
+    parts: list[str] = []
+    if trigger:  # 학습 LoRA 룩 — 트리거가 장면을 발동
+        parts.append(f"{trigger}.")
+    elif style in LOOK_PROMPTS:  # 폴백 — 룩 아트디렉션으로 장면 연출
+        parts.append(f"Style: {LOOK_PROMPTS[style]}.")
+    if composition in COMPOSITION_PRESETS:  # 포즈/표정(정면·갸웃·활짝·얼빡 등)
+        parts.append(f"{COMPOSITION_PRESETS[composition]}.")
+    parts.append("Keep the exact same pet and the exact same outfit it is wearing.")
+    parts.append(QUALITY_BOOST)
+    return " ".join(parts)
 
 
 def _rp_headers() -> tuple[str, dict]:
@@ -170,6 +190,7 @@ class ReplicateProvider(TryOnProvider):
         composition: Optional[str] = None,
         background: Optional[str] = None,
         seed: Optional[int] = None,
+        worn: bool = False,
     ) -> ProviderOutput:
         if not settings.replicate_token:
             raise RuntimeError("PETFIT_REPLICATE_TOKEN 가 설정되지 않았습니다.")
@@ -187,25 +208,32 @@ class ReplicateProvider(TryOnProvider):
         trained_model = look_model(style)  # 학습된 전체 모델 ref (LoRA 없을 때)
         trigger = look_trigger(style) if lora else None
 
-        # 2단계 피팅: 실제 상품 옷(ref_image) + LoRA 룩이면, 먼저 multi-image 로 그 옷을 입힌 뒤
-        # LoRA 로 시그니처 룩을 얹는다(무지옷 대신 실제 상품 반영). 없으면 단일 단계.
-        # 인생네컷 포즈(fc_*)는 얼굴 클로즈업이라 옷이 거의 안 보이고 컷당 호출이 2배가 되므로 제외.
-        is_fourcut = bool(composition) and composition.startswith("fc_")
-        garment = _load_garment(product) if (
-            two_stage_garment(style, bool(product.ref_image)) and not is_fourcut
-        ) else None
-        two_stage = garment is not None
-
-        if two_stage:
-            # 1단계에서 옷을 이미 입혔으므로 2단계는 펫+옷을 보존하며 룩만 연출.
-            stage2_prompt = (
-                f"{trigger}. Keep the exact same pet and the exact same outfit it is wearing."
-            )
+        if worn:
+            # 입력이 이미 실제 옷을 입은 상태(인생네컷: 옷을 1번만 입히고 컷을 파생) →
+            # 옷 착용 단계 생략, 룩(장면)·포즈만 적용하고 펫·옷을 보존.
+            garment = None
+            two_stage = False
+            stage2_prompt = _build_worn_prompt(style, composition, trigger)
         else:
-            stage2_prompt = _build_prompt(
-                product, pet, style, composition, background,
-                trigger=trigger, lora_active=bool(lora),
-            )
+            # 2단계 피팅: 실제 상품 옷(ref_image) + LoRA 룩이면, 먼저 multi-image 로 그 옷을 입힌 뒤
+            # LoRA 로 시그니처 룩을 얹는다(무지옷 대신 실제 상품 반영). 없으면 단일 단계.
+            # 인생네컷 포즈(fc_*)는 컷당 2배 호출이 되므로 여기선 제외(옷은 상위에서 1번만 입힘).
+            is_fourcut = bool(composition) and composition.startswith("fc_")
+            garment = _load_garment(product) if (
+                two_stage_garment(style, bool(product.ref_image)) and not is_fourcut
+            ) else None
+            two_stage = garment is not None
+
+            if two_stage:
+                # 1단계에서 옷을 이미 입혔으므로 2단계는 펫+옷을 보존하며 룩만 연출.
+                stage2_prompt = (
+                    f"{trigger}. Keep the exact same pet and the exact same outfit it is wearing."
+                )
+            else:
+                stage2_prompt = _build_prompt(
+                    product, pet, style, composition, background,
+                    trigger=trigger, lora_active=bool(lora),
+                )
 
         def _run() -> tuple[str, str, str]:
             # 1단계: 실제 상품 옷 착용(있을 때). 결과 바이트를 2단계 입력으로.
@@ -257,3 +285,31 @@ class ReplicateProvider(TryOnProvider):
             analysis=analysis,
             image_url=url,
         )
+
+    async def wear_garment(self, *, pet_image: bytes, product: Product) -> Optional[bytes]:
+        """멀티이미지 kontext 로 펫에 '실제 상품 옷'을 입힌 이미지 바이트를 반환.
+
+        인생네컷에서 옷 착용을 1번만 하고 그 결과로 여러 컷을 파생시키기 위한 사전 단계.
+        상품 옷(ref_image)이 없거나·기능 off·실패하면 None(호출부에서 원본 펫으로 폴백).
+        """
+        if not (settings.replicate_token and settings.two_stage_fitting) or pet_image is None:
+            return None
+        g = _load_garment(product)
+        if not g:
+            return None
+        g_bytes, g_mime = g
+
+        def _run() -> Optional[bytes]:
+            url = _predict(settings.multi_image_model, {
+                "input_image_1": _data_uri(pet_image),
+                "input_image_2": _data_uri(g_bytes, g_mime),
+                "prompt": _WEAR_PROMPT,
+                "aspect_ratio": "match_input_image",
+                "output_format": "png",
+            })
+            return _fetch_bytes(url)
+
+        try:
+            return await anyio.to_thread.run_sync(_run)
+        except Exception:  # noqa: BLE001 — 착용 실패 시 원본 펫으로 진행
+            return None

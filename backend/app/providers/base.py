@@ -44,10 +44,12 @@ class TryOnProvider(ABC):
         composition: Optional[str] = None,
         background: Optional[str] = None,
         seed: Optional[int] = None,
+        worn: bool = False,
     ) -> ProviderOutput:
         """펫 이미지 + 상품 → 옷 입힌 결과(이미지/핏 정보) 생성.
 
         style/composition/background 는 구도·사진풍 프리셋 키(프로바이더가 지원 시 반영).
-        seed 는 재현/일관성용(예: 인생네컷 4컷을 같은 배경으로 묶기). 지원 프로바이더만 사용.
+        seed 는 재현/일관성용. worn=True 면 pet_image 가 이미 대상 옷을 입은 상태(옷 착용 단계
+        생략, 룩·포즈만 적용) — 인생네컷에서 실제 옷을 1번만 입히고 컷을 파생시킬 때 쓴다.
         """
         raise NotImplementedError

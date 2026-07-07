@@ -83,6 +83,7 @@ class OpenAIProvider(TryOnProvider):
         composition: Optional[str] = None,
         background: Optional[str] = None,
         seed: Optional[int] = None,  # openai images.edit 은 seed 미지원 → 무시
+        worn: bool = False,  # openai 는 자체 멀티이미지 edit 사용 → 무시
     ) -> ProviderOutput:
         if not settings.openai_api_key:
             raise RuntimeError("PETFIT_OPENAI_API_KEY 가 설정되지 않았습니다.")

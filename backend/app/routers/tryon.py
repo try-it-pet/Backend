@@ -169,14 +169,23 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
         # (같은 seed 로 묶으면 4컷이 거의 똑같이 나옴). 같은 룩 프롬프트라 테마는 응집됨.
         base_seed = random.randint(1, 2_000_000_000)
 
+        # 실제 상품 옷을 1번만 입히고(멀티이미지) 그 결과로 4컷을 파생 → 옷은 실물·일관,
+        # 컷마다 포즈·배경만 변화. (컷마다 옷을 입히면 호출 2배 + 옷이 컷마다 달라짐.)
+        cut_input = pet_image
+        worn_flag = False
+        if provider.name == "replicate" and product.ref_image and pet_image is not None:
+            worn = await provider.wear_garment(pet_image=pet_image, product=product)
+            if worn:
+                cut_input, worn_flag = worn, True
+
         async def _gen_cut(pose_key: str, attempts: int, seed: int) -> Optional[bytes]:
             """한 컷 생성 → 바이트(실패해도 예외 대신 None). 429 는 길게, 그 외는 짧게 백오프."""
             async with sem:
                 for attempt in range(attempts):
                     try:
                         out = await provider.generate(
-                            product=product, size=job.size, pet=pet, pet_image=pet_image,
-                            style=job.style, composition=pose_key, seed=seed,
+                            product=product, size=job.size, pet=pet, pet_image=cut_input,
+                            style=job.style, composition=pose_key, seed=seed, worn=worn_flag,
                         )
                         if out is None:
                             raise RuntimeError("빈 결과")
