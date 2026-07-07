@@ -48,9 +48,13 @@ def _build_prompt(
             p += f" {COMPOSITION_PRESETS[composition]}."
         return p + f" {IDENTITY_LIGHT}"
 
+    # 장면을 재연출하는 SCENE 룩이거나 인생네컷 포즈(fc_*, 포즈/표정을 바꿔야 함)면 "pose 유지"
+    # 강제(IDENTITY_LOCK)를 쓰지 않는다 — 안 그러면 구도/표정이 안 바뀌어 4컷이 다 똑같아진다.
+    allow_variation = (style in SCENE_LOOKS) or bool(composition and composition.startswith("fc_"))
+    identity = IDENTITY_LIGHT if allow_variation else IDENTITY_LOCK
     base = (
         f"Dress this {pet_desc} in a {product.name} ({product.brand}), a piece of pet clothing. "
-        f"Photorealistic, the garment fits naturally. {IDENTITY_LOCK}"
+        f"Photorealistic, the garment fits naturally. {identity}"
     )
     extras: list[str] = []
     if trigger:  # LoRA 트리거 — 학습된 감성이 발동됨

@@ -165,17 +165,18 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
         # 4컷 생성(포즈/표정만 다르게, 같은 감성 룩·옷). Replicate 429(rate limit)·일시 오류를
         # 방지/흡수하기 위해 동시성을 제한하고 모든 예외를 백오프 재시도한다. mock 은 즉시 반환.
         sem = asyncio.Semaphore(2)
-        # 4컷을 같은 배경/조명으로 묶기 위해 공유 seed 사용(포즈/표정만 변화 → 응집된 스트립).
-        cut_seed = random.randint(1, 2_000_000_000)
+        # 컷마다 다른 seed → 같은 감성 룩·옷은 유지하되 구도/표정과 배경이 살짝씩 달라진다
+        # (같은 seed 로 묶으면 4컷이 거의 똑같이 나옴). 같은 룩 프롬프트라 테마는 응집됨.
+        base_seed = random.randint(1, 2_000_000_000)
 
-        async def _gen_cut(pose_key: str, attempts: int) -> Optional[bytes]:
+        async def _gen_cut(pose_key: str, attempts: int, seed: int) -> Optional[bytes]:
             """한 컷 생성 → 바이트(실패해도 예외 대신 None). 429 는 길게, 그 외는 짧게 백오프."""
             async with sem:
                 for attempt in range(attempts):
                     try:
                         out = await provider.generate(
                             product=product, size=job.size, pet=pet, pet_image=pet_image,
-                            style=job.style, composition=pose_key, seed=cut_seed,
+                            style=job.style, composition=pose_key, seed=seed,
                         )
                         if out is None:
                             raise RuntimeError("빈 결과")
@@ -193,16 +194,16 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
                         await asyncio.sleep(6 if "429" in str(exc) else 2)
             return None
 
-        # 1차: 동시 생성(재시도 3회). mock 은 실패 없음.
+        # 1차: 동시 생성(재시도 3회). 컷마다 seed 를 다르게(base_seed + i) → 구도·배경 변화.
         cells: list[Optional[bytes]] = list(await asyncio.gather(
-            *[_gen_cut(pk, 3) for pk, _ in FOURCUT_POSES]
+            *[_gen_cut(pk, 3, base_seed + i) for i, (pk, _) in enumerate(FOURCUT_POSES)]
         ))
 
         # 2차: 아직 빈 셀만 순차 재생성(레이트리밋 회피). 여기서도 실패하면 플레이스홀더.
         if provider.name != "mock":
             for i, (pk, _) in enumerate(FOURCUT_POSES):
                 if cells[i] is None:
-                    cells[i] = await _gen_cut(pk, 2)
+                    cells[i] = await _gen_cut(pk, 2, base_seed + i)
 
         labels = [ko for _, ko in FOURCUT_POSES]
         png = await asyncio.to_thread(compose_2x2, cells, labels)
