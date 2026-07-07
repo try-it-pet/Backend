@@ -101,6 +101,8 @@ class Settings:
     purchase_bonus: int = int(os.getenv("PETFIT_PURCHASE_BONUS", "5"))
     # 인생네컷(4컷)이 소모하는 횟수 — 원가는 4배지만 UX상 기본 1회로 침(정책은 env로 조정).
     fourcut_cost: int = int(os.getenv("PETFIT_FOURCUT_COST", "1"))
+    # 2단계 피팅(멀티이미지 착용 → LoRA 룩)이 소모하는 횟수 — 호출 2회+프리미엄이라 비용↑ → 기본 2회.
+    two_stage_cost: int = int(os.getenv("PETFIT_TWO_STAGE_COST", "2"))
     # 전역 극초반 무제한 상한(누적 생성 이 수치 미만이면 제한 무시). 0 = 미사용.
     global_free_cap: int = int(os.getenv("PETFIT_GLOBAL_FREE_CAP", "0"))
     # 생성비 방어(요금 폭탄 차단). daily_gen_cap: 하루 전체 생성 상한(0=무제한, 초과 시 전면 차단).

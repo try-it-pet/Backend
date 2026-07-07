@@ -81,6 +81,20 @@ ILLUSTRATION_LOOKS = {
 def is_illustration(style: str | None) -> bool:
     return bool(style) and style in ILLUSTRATION_LOOKS
 
+
+def two_stage_garment(style: str | None, has_ref_image: bool) -> bool:
+    """이 룩/상품이 2단계 피팅(멀티이미지 실제 옷 착용 → LoRA 룩)으로 처리되는지.
+
+    provider·router 가 공유(비용 산정과 실제 실행 판단이 어긋나지 않게). 실제 상품 옷(ref_image)
+    이 있고, 학습된 LoRA 룩이며(무지옷 방지 효과가 큼), 일러스트가 아닐 때만.
+    """
+    return (
+        settings.two_stage_fitting
+        and has_ref_image
+        and bool(look_lora(style))
+        and not is_illustration(style)
+    )
+
 COMPOSITION_PRESETS = {
     "front_full": "front-facing full-body framing with the whole pet visible",
     "side": "side profile, full body in frame",

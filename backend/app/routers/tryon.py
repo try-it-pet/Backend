@@ -13,7 +13,7 @@ from ..fourcut import compose_2x2
 from ..imageprep import prepare_pet_image
 from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
-from ..providers.looks import FOURCUT_POSES
+from ..providers.looks import FOURCUT_POSES, two_stage_garment
 from ..upscale import maybe_upscale
 from ..quota import can_generate, consume, daily_cap_reached, ip_allowed, limits_active, refund, settle
 from ..store import (
@@ -242,7 +242,13 @@ async def create_tryon(
     """
     if product_id not in PRODUCTS_BY_ID:
         raise HTTPException(status_code=404, detail="product not found")
-    cost = _quota_precheck(provider, user, 1, request)
+    product = PRODUCTS_BY_ID[product_id]
+    # 2단계 피팅(멀티이미지 착용 → LoRA 룩)은 replicate 경로에서만·호출 2회 → 비용 상향(two_stage_cost).
+    prov = (provider or settings.provider or "mock").lower()
+    unit = settings.two_stage_cost if (
+        prov == "replicate" and two_stage_garment(style, bool(product.ref_image))
+    ) else 1
+    cost = _quota_precheck(provider, user, unit, request)
     image_bytes = await pet_image.read() if pet_image is not None else None
     if user is not None:
         inc_fitting(user.id)

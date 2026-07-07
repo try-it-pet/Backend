@@ -18,6 +18,7 @@ from .looks import (
     look_lora,
     look_model,
     look_trigger,
+    two_stage_garment,
 )
 from .mock import recommend_size
 
@@ -186,8 +187,7 @@ class ReplicateProvider(TryOnProvider):
         # 인생네컷 포즈(fc_*)는 얼굴 클로즈업이라 옷이 거의 안 보이고 컷당 호출이 2배가 되므로 제외.
         is_fourcut = bool(composition) and composition.startswith("fc_")
         garment = _load_garment(product) if (
-            settings.two_stage_fitting and bool(lora)
-            and not is_illustration(style) and not is_fourcut
+            two_stage_garment(style, bool(product.ref_image)) and not is_fourcut
         ) else None
         two_stage = garment is not None
 
