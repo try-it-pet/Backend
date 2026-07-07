@@ -40,6 +40,13 @@ LOOK_PROMPTS = {
         "creamy bokeh, delicate rim backlight and a faint visible breath of cold air, soft pastel "
         "color grade, tack-sharp eyes catching the light. Cozy, wistful, magazine-cover worthy."
     ),
+    "sakura": (
+        "Reimagine as a cinematic, emotional Korean spring 'cherry blossom feels' photo for social "
+        "media: soft pink cherry blossom petals drifting in the air, a dreamy background of blooming "
+        "sakura trees, warm gentle daylight with a soft golden glow on the pet, dreamy pastel pink and "
+        "cream color grade, shallow depth of field with creamy bokeh, subtle film grain, a light spring "
+        "breeze, tack-sharp eyes catching the light. Romantic, tender, magazine-cover worthy."
+    ),
     "studio": "clean catalog studio photo, even soft lighting, crisp focus",
     "lifestyle": "lifestyle photo at home or on a walk, natural ambient light, shallow depth of field",
     "film": "warm analog film look, soft grain, gentle highlights",
@@ -47,7 +54,7 @@ LOOK_PROMPTS = {
 }
 
 # 자체 장면(배경)을 연출하는 감성 룩 — BACKGROUND_PRESETS(studio/keep)를 덮어쓴다.
-SCENE_LOOKS = {"winter"}
+SCENE_LOOKS = {"winter", "sakura"}
 
 # 일러스트/감성 룩 — 펫을 통째로 "다시 그림"(옷 착용 X). 프롬프트가 착장 base 를 대체.
 # gpt-image-2(openai)에서 검증된 20대 트렌디 그림체. 하트·반짝이 없이 무드 팔레트.

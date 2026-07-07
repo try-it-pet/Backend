@@ -63,6 +63,14 @@ PETFIT_LOOK_TRIGGERS={"winter": "PAWDYWINTER"}
 등록 안 한 룩은 자동으로 프롬프트 폴백.
 
 ## 5. 새 룩 추가
-같은 과정 반복(벚꽃 감성, 필름 데이트 등) → `PETFIT_LOOK_MODELS` 에 키만 추가.
-프론트 칩은 `design-system/examples/PetFitApp.tsx` 의 감성 룩 배열과 `api.ts` 의 `Style`
-타입에 키를 추가하면 노출된다.
+새 감성 룩(예: 벚꽃 `sakura`)은 **두 단계로 진화**한다(winter 와 동일 패턴):
+
+1) **즉시(프롬프트 폴백)** — 코드에 등록만 하면 LoRA 없이 바로 동작한다.
+   - 백엔드 `app/providers/looks.py`: `LOOK_PROMPTS` 에 아트디렉션 추가 + 장면(배경)을
+     연출하는 룩이면 `SCENE_LOOKS` 에도 키 추가.
+   - 프론트 `pawdy_flutter/lib/screens/fit_screen.dart` 의 `_styles` 에 `['sakura','벚꽃 감성']` 추가.
+   - 이 상태면 replicate 폴백(kontext-pro + 프롬프트)으로 렌더된다.
+
+2) **LoRA(선택, 고품질)** — 위 1~4 과정으로 그 룩 LoRA 를 학습 → `PETFIT_LOOK_LORAS`(가중치
+   URL)·`PETFIT_LOOK_TRIGGERS` 에 키만 추가하면 코드 변경 없이 학습 모델로 승격된다. 실제
+   상품 옷(ref_image)이 있는 상품이면 자동으로 **2단계 피팅**(multi-image 착용 → LoRA 룩)까지 적용.

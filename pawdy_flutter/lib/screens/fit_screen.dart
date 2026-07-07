@@ -37,6 +37,7 @@ class _FitScreenState extends State<FitScreen> {
   static const _providers = ['mock', 'openai', 'replicate'];
   static const _styles = [
     ['winter', '겨울 감성'],
+    ['sakura', '벚꽃 감성'],
     ['ghibli', '지브리'],
     ['riso', '리소'],
     ['mood', '무드'],
