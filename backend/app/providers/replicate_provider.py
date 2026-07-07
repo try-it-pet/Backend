@@ -9,6 +9,7 @@ from .base import ProviderOutput, TryOnProvider
 from .looks import (
     BACKGROUND_PRESETS,
     COMPOSITION_PRESETS,
+    IDENTITY_LIGHT,
     IDENTITY_LOCK,
     ILLUSTRATION_LOOKS,
     LOOK_PROMPTS,
@@ -37,15 +38,24 @@ def _build_prompt(
             p += f" Pose: {COMPOSITION_PRESETS[composition]}."
         return p + " " + QUALITY_BOOST
     pet_desc = f"{pet.species}" if pet else "pet"
+
+    # SCENE 룩 + 학습 LoRA(winter 등): 트리거가 학습된 '장면 전체 재연출'을 발동시키도록 프롬프트를
+    # 짧고 트리거 우선으로 둔다. 긴 품질/정체성 꼬리(QUALITY_BOOST·IDENTITY_LOCK)를 붙이면 트리거가
+    # 희석·매몰돼 장면 변환이 억제되고 원본이 거의 그대로 나온다(A/B로 확인). 선명도는 업스케일(#3)로 보완.
+    if lora_active and trigger and style in SCENE_LOOKS:
+        return (
+            f"{trigger}. Dress this {pet_desc} in a {product.name} ({product.brand}). "
+            f"{IDENTITY_LIGHT}"
+        )
+
     base = (
         f"Dress this {pet_desc} in a {product.name} ({product.brand}), a piece of pet clothing. "
         f"Photorealistic, the garment fits naturally. {IDENTITY_LOCK}"
     )
     extras: list[str] = []
-    if trigger:  # LoRA 트리거(예: apply Pawdy winter) — 학습된 감성이 발동됨
+    if trigger:  # LoRA 트리거 — 학습된 감성이 발동됨
         extras.append(f"{trigger} style.")
-    # 학습된 LoRA 가 활성일 때는 룩 아트디렉션 대문단을 생략한다. LoRA 가 이미 룩을 인코딩하므로
-    # 긴 지시문은 LoRA 와 충돌해 정체성 드리프트를 키운다(README: 과지시 방지). 폴백(LoRA 없음)일
+    # 학습된 LoRA 가 활성일 때는 룩 아트디렉션 대문단을 생략한다(과지시 방지). 폴백(LoRA 없음)일
     # 때만 프롬프트로 룩을 연출한다.
     if not lora_active and style in LOOK_PROMPTS:
         extras.append(f"Style: {LOOK_PROMPTS[style]}.")

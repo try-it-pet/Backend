@@ -21,10 +21,15 @@ QUALITY_BOOST = (
 )
 
 # 착장(옷 입히기) 결과의 정체성 고정 — 같은 아이임이 한눈에 보이도록 강하게 지시.
+# ⚠️ "pose/background unchanged, only garment" 는 배경 유지가 필요한 룩(studio 등)에만.
+# winter 같은 SCENE 룩(배경을 눈밭으로 재연출)에 쓰면 장면 변환을 억제해 원본이 거의 그대로 나온다.
 IDENTITY_LOCK = (
     "Preserve the exact same pet: identity, breed, fur colors and markings, face and eyes, "
     "body proportions and pose must stay unchanged. Only add or change the garment."
 )
+
+# SCENE 룩(winter 등)용 가벼운 정체성 유지 — 펫 정체성은 지키되 배경/장면 재연출은 허용한다.
+IDENTITY_LIGHT = "Keep the same pet — same fur colors, markings, face and breed."
 
 # 사진풍/감성 룩 — 프론트 칩과 1:1 대응. 'winter' 같은 감성 룩은 장면(배경)까지 연출.
 LOOK_PROMPTS = {
