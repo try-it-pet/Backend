@@ -47,6 +47,13 @@ class Settings:
     kontext_lora_model: str = os.getenv(
         "PETFIT_KONTEXT_LORA_MODEL", "black-forest-labs/flux-kontext-dev-lora"
     )
+    # 2단계 피팅: (1) multi-image 로 '실제 상품 옷' 착용 → (2) LoRA 로 시그니처 룩.
+    # 실제 상품 옷(ref_image)이 있고 LoRA 룩일 때만 발동. 호출 2회·프리미엄 모델이라 비용↑ →
+    # 끄려면 PETFIT_TWO_STAGE=0. multi-image 모델은 lora_weights 미지원(폐쇄형)이라 단계 분리.
+    two_stage_fitting: bool = os.getenv("PETFIT_TWO_STAGE", "1") not in ("0", "false", "False")
+    multi_image_model: str = os.getenv(
+        "PETFIT_MULTI_IMAGE_MODEL", "flux-kontext-apps/multi-image-kontext-max"
+    )
     # 출력 업스케일 후처리(Real-ESRGAN 등, Replicate). 해상도·디테일 ↑. 생성 비용/시간 증가로
     # 기본 off. 켜려면 PETFIT_UPSCALE=1 + PETFIT_REPLICATE_TOKEN 필요.
     upscale_enabled: bool = os.getenv("PETFIT_UPSCALE", "0") in ("1", "true", "True")

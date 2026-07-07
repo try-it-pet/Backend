@@ -1,4 +1,3 @@
-import io
 from typing import Optional
 
 import anyio
@@ -67,6 +66,83 @@ def _build_prompt(
     return base + " " + " ".join(extras)
 
 
+# 2단계 피팅 1단계(multi-image) 프롬프트: 실제 상품 옷을 몸에 입히고 좌우합성/플랫레이를 금지.
+_WEAR_PROMPT = (
+    "Photorealistic full-body photo of ONLY the pet from the first image, now wearing the exact "
+    "clothing item shown in the second image — same colors, same pattern, same knit/fabric texture "
+    "and trims. The pet is wearing the item on its body. Keep the pet's identity, face, fur and pose. "
+    "Clean soft studio background. Do NOT show the item separately, no flat-lay, no side-by-side, "
+    "no collage — a single subject."
+)
+
+
+def _rp_headers() -> tuple[str, dict]:
+    tok = settings.replicate_token
+    return tok, {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
+
+
+def _data_uri(data: bytes, mime: str = "image/png") -> str:
+    import base64
+    return f"data:{mime};base64," + base64.b64encode(data).decode()
+
+
+def _version_of(model: str, tok: str) -> str:
+    if ":" in model:  # owner/name:version
+        return model.split(":", 1)[1]
+    import replicate  # 공식 모델 슬러그 → 최신 버전
+    return replicate.Client(api_token=tok).models.get(model).latest_version.id
+
+
+def _predict(model: str, inp: dict, loops: int = 120) -> str:
+    """Replicate 예측 생성 + 자체 폴링 → 출력 URL. (동기 — to_thread 로 호출)."""
+    import time
+
+    import httpx as hx
+
+    tok, headers = _rp_headers()
+    version = _version_of(model, tok)
+    r = hx.post("https://api.replicate.com/v1/predictions", headers=headers,
+                json={"version": version, "input": inp}, timeout=60)
+    r.raise_for_status()
+    pid = r.json()["id"]
+    for _ in range(loops):  # 최대 ~6분 (콜드스타트 포함)
+        time.sleep(3)
+        s = hx.get(f"https://api.replicate.com/v1/predictions/{pid}",
+                   headers=headers, timeout=30).json()
+        st = s.get("status")
+        if st == "succeeded":
+            out = s.get("output")
+            return str(out[0] if isinstance(out, list) else out)
+        if st in ("failed", "canceled"):
+            raise RuntimeError(s.get("error") or f"replicate {st}")
+    raise RuntimeError("replicate 예측 시간 초과")
+
+
+def _fetch_bytes(url: str) -> bytes:
+    import httpx as hx
+    return hx.get(url, timeout=120, follow_redirects=True).content
+
+
+def _load_garment(product: Product) -> Optional[tuple[bytes, str]]:
+    """상품 레퍼런스 옷 이미지 → (bytes, mime). 로컬 /static 또는 외부 URL. 실패 시 None."""
+    from pathlib import Path
+    ref = product.ref_image
+    if not ref:
+        return None
+    try:
+        if ref.startswith("/static/"):
+            data = (Path(__file__).resolve().parent.parent / ref.lstrip("/")).read_bytes()
+        else:
+            import httpx as hx
+            data = hx.get(ref, timeout=20, follow_redirects=True).content
+        if not data:
+            return None
+        ext = Path(ref.split("?")[0]).suffix.lower().lstrip(".")
+        return data, ("image/jpeg" if ext in ("jpg", "jpeg") else "image/png")
+    except Exception:  # noqa: BLE001 — 옷 로드 실패 시 2단계 생략(펫만으로 진행)
+        return None
+
+
 class ReplicateProvider(TryOnProvider):
     """Replicate 호스팅 이미지 편집 모델(Flux Kontext)로 펫에 옷을 입힌다.
 
@@ -104,68 +180,65 @@ class ReplicateProvider(TryOnProvider):
         lora = look_lora(style)          # LoRA 가중치 URL (있으면 최우선)
         trained_model = look_model(style)  # 학습된 전체 모델 ref (LoRA 없을 때)
         trigger = look_trigger(style) if lora else None
-        prompt = _build_prompt(
-            product, pet, style, composition, background,
-            trigger=trigger, lora_active=bool(lora),
-        )
 
-        if lora:
-            model = settings.kontext_lora_model
-            # 린 프롬프트(과지시 제거) + 정체성 보존 파라미터. lora_strength 를 낮추면 입력 펫의
-            # 정체성이 더 보존되고, 높이면 학습된 룩이 강해진다(트레이드오프).
-            payload = {
-                "prompt": prompt,
-                "input_image": io.BytesIO(pet_image),
-                "lora_weights": lora,
-                "lora_strength": settings.lora_strength,
-                "aspect_ratio": "match_input_image",
-                "num_inference_steps": settings.lora_steps,
-                "output_format": "png",
-                "output_quality": settings.lora_output_quality,
-            }
-            if settings.lora_guidance > 0:  # 스키마 확실치 않은 노브 → 설정됐을 때만 전송
-                payload["guidance"] = settings.lora_guidance
-            tag = f"LoRA:{style}"
+        # 2단계 피팅: 실제 상품 옷(ref_image) + LoRA 룩이면, 먼저 multi-image 로 그 옷을 입힌 뒤
+        # LoRA 로 시그니처 룩을 얹는다(무지옷 대신 실제 상품 반영). 없으면 단일 단계.
+        # 인생네컷 포즈(fc_*)는 얼굴 클로즈업이라 옷이 거의 안 보이고 컷당 호출이 2배가 되므로 제외.
+        is_fourcut = bool(composition) and composition.startswith("fc_")
+        garment = _load_garment(product) if (
+            settings.two_stage_fitting and bool(lora)
+            and not is_illustration(style) and not is_fourcut
+        ) else None
+        two_stage = garment is not None
+
+        if two_stage:
+            # 1단계에서 옷을 이미 입혔으므로 2단계는 펫+옷을 보존하며 룩만 연출.
+            stage2_prompt = (
+                f"{trigger}. Keep the exact same pet and the exact same outfit it is wearing."
+            )
         else:
-            model = trained_model or settings.replicate_model
-            payload = {"prompt": prompt, "input_image": io.BytesIO(pet_image)}
-            tag = f"model:{style}" if trained_model else "prompt"
+            stage2_prompt = _build_prompt(
+                product, pet, style, composition, background,
+                trigger=trigger, lora_active=bool(lora),
+            )
 
-        def _call() -> str:
-            # client.run() 은 LoRA 콜드스타트 시 내부 타임아웃에 걸림 →
-            # 예측 API 직접 생성 + 자체 폴링(요청별 타임아웃만, 총 대기 길게)으로 안전하게.
-            import base64
-            import time
+        def _run() -> tuple[str, str, str]:
+            # 1단계: 실제 상품 옷 착용(있을 때). 결과 바이트를 2단계 입력으로.
+            input_uri = _data_uri(pet_image)
+            if two_stage:
+                g_bytes, g_mime = garment
+                worn_url = _predict(settings.multi_image_model, {
+                    "input_image_1": _data_uri(pet_image),
+                    "input_image_2": _data_uri(g_bytes, g_mime),
+                    "prompt": _WEAR_PROMPT,
+                    "aspect_ratio": "match_input_image",
+                    "output_format": "png",
+                })
+                input_uri = _data_uri(_fetch_bytes(worn_url))
 
-            import httpx as hx
+            # 2단계(또는 단일): LoRA > 학습모델 > 기본편집+프롬프트 폴백.
+            if lora:
+                m = settings.kontext_lora_model
+                pay = {
+                    "prompt": stage2_prompt,
+                    "input_image": input_uri,
+                    "lora_weights": lora,
+                    "lora_strength": settings.lora_strength,
+                    "aspect_ratio": "match_input_image",
+                    "num_inference_steps": settings.lora_steps,
+                    "output_format": "png",
+                    "output_quality": settings.lora_output_quality,
+                }
+                if settings.lora_guidance > 0:  # 스키마 확실치 않은 노브 → 설정됐을 때만
+                    pay["guidance"] = settings.lora_guidance
+                t = f"2stage+LoRA:{style}" if two_stage else f"LoRA:{style}"
+            else:
+                m = trained_model or settings.replicate_model
+                pay = {"prompt": stage2_prompt, "input_image": input_uri}
+                t = f"model:{style}" if trained_model else "prompt"
+            return _predict(m, pay), m, t
 
-            tok = settings.replicate_token
-            headers = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
-            inp = {k: v for k, v in payload.items() if k != "input_image"}
-            inp["input_image"] = "data:image/png;base64," + base64.b64encode(pet_image).decode()
-
-            if ":" in model:  # owner/name:version
-                version = model.split(":", 1)[1]
-            else:  # 공식 모델 슬러그 → 최신 버전 조회
-                version = replicate.Client(api_token=tok).models.get(model).latest_version.id
-
-            r = hx.post("https://api.replicate.com/v1/predictions", headers=headers,
-                        json={"version": version, "input": inp}, timeout=60)
-            r.raise_for_status()
-            pid = r.json()["id"]
-            for _ in range(120):  # 최대 ~6분 (콜드스타트 포함)
-                time.sleep(3)
-                s = hx.get(f"https://api.replicate.com/v1/predictions/{pid}",
-                           headers=headers, timeout=30).json()
-                st = s.get("status")
-                if st == "succeeded":
-                    out = s.get("output")
-                    return str(out[0] if isinstance(out, list) else out)
-                if st in ("failed", "canceled"):
-                    raise RuntimeError(s.get("error") or f"replicate {st}")
-            raise RuntimeError("replicate 예측 시간 초과")
-
-        url = await anyio.to_thread.run_sync(_call)
+        url, model, tag = await anyio.to_thread.run_sync(_run)
         if not url:
             raise RuntimeError("Replicate 출력이 비어 있습니다.")
         analysis = f"{pet_name}의 체형에는 {rec} 사이즈가 잘 맞아요. (Replicate {model} · {tag})"
