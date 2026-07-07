@@ -1,9 +1,65 @@
 # 08. 구현 현황 & 이어서 작업 (Status & Handoff)
 
-> 새 세션에서 이 문서만 읽으면 이어서 작업 가능. (브랜드: **PetFit → Pawdy** 로 변경됨)
-> 최종 업데이트: 2026-07-06 (상세 최신 이력은 세션 메모리 pawdy-launch-plan 참고)
+> 새 세션에서 이 문서 + 메모리(flutter-migration) 읽으면 이어서 작업 가능. (브랜드: PetFit → **Pawdy**)
+> 최종 업데이트: **2026-07-07** (아래 최신 섹션부터 읽을 것. 그 아래 2026-07-06 이하는 히스토리)
 
-## 🆕 2026-07-06 진행 (출시 D-7)
+---
+
+# 🔴 다음 작업 = AI 이미지 **품질 개선** (2026-07-07 이 세션에서 넘김)
+
+**현재 AI 피팅/인생네컷이 엔드투엔드로 완전히 동작함**(생성→R2 저장→앱 표시까지 OK). 그러나:
+- **결과 퀄리티가 낮음** (예: replicate 지브리 룩 — 귀엽지만 시그니처 완성도 부족).
+- **인생네컷 4컷 중 일부만 생성**됨(2/4 등, 나머지 빈 셀) → 컷 실패/재시도 안정화 필요.
+
+## 품질 개선 레버 (우선순위)
+1. **학습 데이터 = 품질의 8할** (제일 중요): 시그니처 룩 **LoRA 재학습**. "적지만 완벽하게 일관된" 15~30장(조명·색보정·구도·분위기 통일). **Kontext before/after 20쌍** 방식이 펫 정체성 보존에 유리. 지금 gpt-image-2로 뽑은 "대박 컷"만 큐레이션해 시드로.
+   - 학습 파이프라인 이미 있음: `backend/scripts/{train_lora.py, train_lora_fal.py, build_dataset.py, rehost_lora.py}` + 가이드 `backend/scripts/README.md`.
+   - 학습 후 → **R2에 호스팅**(`rehost_lora.py`, R2 이제 붙음) → env `PETFIT_LOOK_MODELS`/`PETFIT_LOOK_LORAS`/`PETFIT_LOOK_TRIGGERS` 등록 → replicate+해당 룩으로 활성화. (등록 안 하면 프롬프트 폴백.)
+2. **추론 env 튜닝**(학습 없이 즉시 체감): `PETFIT_LORA_STRENGTH`(0.9→0.7~1.1), `PETFIT_LORA_STEPS`(40↑=디테일), `PETFIT_LORA_OUTPUT_QUALITY`(100). 프롬프트는 `backend/app/providers/looks.py`.
+3. **출력 업스케일 단계 추가**(Real-ESRGAN 등) — 해상도/디테일 ↑.
+4. **입력 펫 사진 전처리**(리사이즈·크롭) — bad input=bad output.
+5. **인생네컷 4컷 안정화**: 일부 컷 실패 원인(429/생성실패) — `tryon.py _process_fourcut`의 동시성(Semaphore 2)·재시도 조정, 실패 셀 재생성.
+6. (장기) 좋아요·공유 많은 컷 자동 수집 → 다음 LoRA 학습 데이터 선순환.
+
+---
+
+# 🟢 현재 스택 (2026-07-07 대전환: React/Capacitor → Flutter)
+
+- **프론트 = Flutter 네이티브** (`pawdy_flutter/`). 기존 React/Vite(`design-system/`) + Capacitor(`App/`)에서 **전면 이관**. **웹 서비스는 접음**(Flutter 단일). 상세·이유는 메모리 `flutter-migration`.
+- **백엔드 = FastAPI** (`backend/`), Railway 배포, **Postgres** + **Cloudflare R2**(생성 이미지 영구저장).
+- **레거시**(패리티 확인 후 제거 예정, 지금은 유지): `design-system/`·`App/`·Vercel 웹.
+
+## Flutter 빌드/실행
+- Flutter SDK = `C:\src\flutter` (PATH 미등록 → **PowerShell로 `flutter.bat` 호출**). Android SDK/JBR(Java21) 있음.
+- 컴파일 검증(빠름): `cd pawdy_flutter && flutter build web`
+- APK: `flutter build apk --debug --dart-define=BUILD_TAG=<태그>` → `pawdy_flutter/build/app/outputs/flutter-apk/app-debug.apk`
+  - **BUILD_TAG**: 설치 후 앱 **마이>설정>앱 버전**에 `1.0.0 (태그)` 표시 → 최신 APK 설치됐는지 확인용.
+- (한글 경로 대응 `android.overridePathCheck=true` 이미 설정.)
+
+## Flutter 구현 완료
+- 화면: 인트로 스플래시 · 홈(카카오프로필·장바구니아이콘) · 카테고리(검색·종필터) · 상세(리뷰·별점·사이즈선택·AI피팅CTA) · **AI피팅**(프로바이더·감성룩·구도·사진선택·입혀보기·인생네컷·quota표시) · 찜 · 마이 · 설정(잔여횟수·로그아웃·빌드태그) · 주문내역 · 리뷰관리(카드→상품) · **AI피팅기록 갤러리**(탭→확대) · **장바구니+결제**
+- 인증: **카카오 네이티브 딥링크**(`pawdy://login`, 콜백 HTML 인터스티셜) + dev-login(둘러보기)
+- 공유상태 `AppState`(상품·찜·인증·장바구니), **Pretendard 폰트** 번들
+- 백엔드 신규(이 세션): **reviews**(테이블+`GET /products/{id}/reviews`·`/me/reviews`), **fittings 이력**(테이블+`GET /me/fittings`, mock 제외 저장), **R2 storage**, 카카오 콜백 인터스티셜, `pawdy://` 복귀 허용
+
+## 🌐 배포/설정 (2026-07-07)
+- 백엔드: https://pawdy-api-production.up.railway.app (`/health` → `storage:r2`, `db:postgresql`)
+- 레포: https://github.com/try-it-pet/Backend (main 에 backend+pawdy_flutter+design-system+docs)
+- **R2**: 버킷 `pawdy`, `PETFIT_R2_PUBLIC_BASE=https://pub-25ee006c84d843a0a749182747a5dd0b.r2.dev` **(⚠️ `pub-` 하이픈 필수! 빠지면 이미지 500)**. 엔드포인트/키 4개 Railway Variables.
+- ⚠️ 운영 `PETFIT_ALLOW_DEV_LOGIN=0` → QA 시 둘러보기·피팅 폴백 403. 필요 시 1로.
+
+## 🐛 이 세션에서 잡은 주요 버그 (재발 참고)
+- **생성 항상 실패**: 클라가 생성접수 `202`를 실패처리 → `200/202` 허용(`api/client.dart _createJob`).
+- **R2 이미지 500**: `PETFIT_R2_PUBLIC_BASE` 하이픈 누락(`pub25ee…`→`pub-25ee…`).
+- **로그인 후 마이/카테고리/찜 탭 갱신 안됨**: `const` 위젯이 canonical 단일 인스턴스라 리빌드 스킵 → non-const(`main.dart` IndexedStack).
+- **마이 좋아요 수 동기화**: `stats.likes` 스냅샷 → `likedIds.length` 실시간.
+- **텍스트 노란 밑줄**: Material 조상 없음(인트로·pushed FitScreen) → `Material`로 감쌈.
+- **오버플로우**: 상품카드 `childAspectRatio 0.72→0.66`, 하단탭 AI피팅 `Column→Stack(Clip.none)`.
+- **createPet 201 오처리**, 카카오 딥링크(크롬이 커스텀스킴 자동리다이렉트 차단→HTML 인터스티셜+버튼).
+
+---
+
+## 🆕 2026-07-06 진행 (히스토리, 당시 Capacitor 기준)
 - **실상품 카탈로그**: data.py 18종 전부 해외직구 실브랜드(maxbone·Ruffwear·Little Beast·earthbath·Greenies·Open Farm·PureBites·ibiyaya·Outward Hound·Zesty Paws·Catit·MEOWFIA)·실가격·실상품컷(`/static/products/`)·구매링크(`Product.url`). 패션 6종 ref_image=실상품 플랫레이(AI 피팅 반영).
 - **사이즈 분류**: `Product.sizes`(의류만 XS~XL, 그 외 null=Free 단일). 상세 화면 Free 칩·카테고리별 상품정보 문구.
 - **로그인 연결**: 찜/장바구니/펫등록/생성 401 → 로그인 바텀시트(카카오+둘러보기). 비로그인 가짜 찜 제거.
