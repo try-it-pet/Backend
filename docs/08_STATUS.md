@@ -34,6 +34,14 @@
 - **검증**: dog.png(사용자 실제 반려견)로 프로바이더 경로 **3연속 모두 안정적 겨울 변환 + 정체성 보존**. 업스케일까지 태우면 매거진 퀄.
 - **⚠️ 재발 주의**: Railway env를 로컬로 가져올 때 **JSON 값(`{"winter":"..."}`) 따옴표가 깨질 수 있음** — 로컬/Railway 양쪽 유효 JSON 확인.
 
+## ✅ 이 세션 4차 진행(2026-07-07, ② 상품 옷 정확도 = 2단계 피팅, 커밋 9eaf221)
+- **문제**: LoRA 경로(kontext-dev-lora)는 입력 1장(펫)만 받아 실제 상품 옷을 못 봄=무지옷. multi-image kontext(펫+옷 2장)는 lora_weights 미지원(폐쇄형) → **한 호출로 실상품+시그니처 불가**.
+- **해결 = 2단계**: (1) `flux-kontext-apps/multi-image-kontext-max`로 펫+상품 ref 옷 → 실제 옷 착용(좌우합성/플랫레이 금지 프롬프트 `_WEAR_PROMPT`). (2) `flux-kontext-dev-lora`+winter LoRA로 시그니처 장면(펫·옷 보존). `replicate_provider`가 **자동 발동**: ref_image 有 + LoRA룩 + (일러스트·인생네컷fc_* 아님).
+- **env**: `PETFIT_TWO_STAGE`(기본 1, 끄면 단일), `PETFIT_MULTI_IMAGE_MODEL`. 예측 로직 모듈 헬퍼로 정리(_predict/_load_garment 등).
+- **검증**: dog.png+상품0(SKI 니트) → 실제 SKI 눈송이 패턴 정확 착용 + 설산 시그니처 + 정체성(45s). 분기 게이팅 4케이스 모의검증(2단계/네컷제외/일러스트/ref없음).
+- **⚠️ 비용**: 호출 2회 + max=프리미엄 → 생성당 비용 2배+. quota 정책에 반영 검토(현재 tryon 1회 소모).
+- **커밋 5개 푸시 완료**(7527e82→9eaf221). Railway Variables 갱신 필요: `PETFIT_LOOK_LORAS`=R2 URL, `PETFIT_LOOK_TRIGGERS` 유효JSON, (선택)`PETFIT_UPSCALE=1`.
+
 ## 품질 개선 레버 (우선순위)
 1. **학습 데이터 = 품질의 8할** (제일 중요): 시그니처 룩 **LoRA 재학습**. "적지만 완벽하게 일관된" 15~30장(조명·색보정·구도·분위기 통일). **Kontext before/after 20쌍** 방식이 펫 정체성 보존에 유리. 지금 gpt-image-2로 뽑은 "대박 컷"만 큐레이션해 시드로.
    - 학습 파이프라인 이미 있음: `backend/scripts/{train_lora.py, train_lora_fal.py, build_dataset.py, rehost_lora.py}` + 가이드 `backend/scripts/README.md`.
