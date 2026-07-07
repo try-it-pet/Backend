@@ -223,7 +223,8 @@ class Api {
           filename: 'pet.jpg'));
     }
     final r = await http.Response.fromStream(await req.send());
-    if (r.statusCode != 200) throw _apiError(r, '생성 실패');
+    // 생성 잡 접수는 202 Accepted (비동기) — 200/202 둘 다 정상
+    if (r.statusCode != 200 && r.statusCode != 202) throw _apiError(r, '생성 실패');
     return TryOnJob.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
 
