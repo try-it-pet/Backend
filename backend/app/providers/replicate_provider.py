@@ -29,6 +29,7 @@ def _build_prompt(
     composition: Optional[str] = None,
     background: Optional[str] = None,
     trigger: Optional[str] = None,
+    lora_active: bool = False,
 ) -> str:
     if is_illustration(style):  # 일러스트 룩: 옷 없이 펫을 다시 그림
         p = ILLUSTRATION_LOOKS[style]
@@ -41,9 +42,12 @@ def _build_prompt(
         f"Photorealistic, the garment fits naturally. {IDENTITY_LOCK}"
     )
     extras: list[str] = []
-    if trigger:  # LoRA 트리거(예: PAWDYWINTER) — 학습된 감성이 발동됨
+    if trigger:  # LoRA 트리거(예: apply Pawdy winter) — 학습된 감성이 발동됨
         extras.append(f"{trigger} style.")
-    if style in LOOK_PROMPTS:  # 룩 아트디렉션(장면/색감) — Kontext 편집 지시
+    # 학습된 LoRA 가 활성일 때는 룩 아트디렉션 대문단을 생략한다. LoRA 가 이미 룩을 인코딩하므로
+    # 긴 지시문은 LoRA 와 충돌해 정체성 드리프트를 키운다(README: 과지시 방지). 폴백(LoRA 없음)일
+    # 때만 프롬프트로 룩을 연출한다.
+    if not lora_active and style in LOOK_PROMPTS:
         extras.append(f"Style: {LOOK_PROMPTS[style]}.")
     if composition in COMPOSITION_PRESETS:
         extras.append(f"Composition: {COMPOSITION_PRESETS[composition]}.")
@@ -90,17 +94,17 @@ class ReplicateProvider(TryOnProvider):
         lora = look_lora(style)          # LoRA 가중치 URL (있으면 최우선)
         trained_model = look_model(style)  # 학습된 전체 모델 ref (LoRA 없을 때)
         trigger = look_trigger(style) if lora else None
-        prompt = _build_prompt(product, pet, style, composition, background, trigger=trigger)
+        prompt = _build_prompt(
+            product, pet, style, composition, background,
+            trigger=trigger, lora_active=bool(lora),
+        )
 
         if lora:
             model = settings.kontext_lora_model
-            # 정체성 보존 강화(드리프트 방지) + 프로덕션 품질 파라미터.
-            fidelity = (
-                " Preserve the exact same pet: identity, fur colors, markings and pose; "
-                "do not change the breed."
-            )
+            # 린 프롬프트(과지시 제거) + 정체성 보존 파라미터. lora_strength 를 낮추면 입력 펫의
+            # 정체성이 더 보존되고, 높이면 학습된 룩이 강해진다(트레이드오프).
             payload = {
-                "prompt": prompt + fidelity,
+                "prompt": prompt,
                 "input_image": io.BytesIO(pet_image),
                 "lora_weights": lora,
                 "lora_strength": settings.lora_strength,
@@ -109,6 +113,8 @@ class ReplicateProvider(TryOnProvider):
                 "output_format": "png",
                 "output_quality": settings.lora_output_quality,
             }
+            if settings.lora_guidance > 0:  # 스키마 확실치 않은 노브 → 설정됐을 때만 전송
+                payload["guidance"] = settings.lora_guidance
             tag = f"LoRA:{style}"
         else:
             model = trained_model or settings.replicate_model

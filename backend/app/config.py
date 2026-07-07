@@ -35,10 +35,14 @@ class Settings:
     # 룩 → LoRA 가중치 URL 매핑(JSON). flux-kontext-dev-lora 추론에 얹음.
     #   예: {"winter":"https://replicate.delivery/.../trained_model.tar"}
     look_loras_json: str = os.getenv("PETFIT_LOOK_LORAS", "")
-    lora_strength: float = float(os.getenv("PETFIT_LORA_STRENGTH", "0.9"))
+    # 린 프롬프트(과지시 제거) 기준 튜닝값 1.0 — 학습된 시그니처 룩을 충분히 표현하면서도
+    # 입력 펫 정체성이 잘 보존되는 지점(A/B: 0.8=정체성↑무드↓, 1.0=둘 다 균형).
+    lora_strength: float = float(os.getenv("PETFIT_LORA_STRENGTH", "1.0"))
     # LoRA 추론 품질(프로덕션): 스텝·출력품질
     lora_steps: int = int(os.getenv("PETFIT_LORA_STEPS", "40"))
     lora_output_quality: int = int(os.getenv("PETFIT_LORA_OUTPUT_QUALITY", "100"))
+    # Kontext guidance(프롬프트 준수 강도). 0=미전송(모델 기본값). 스키마 확실한 환경에서만 조정.
+    lora_guidance: float = float(os.getenv("PETFIT_LORA_GUIDANCE", "0"))
     # LoRA 를 얹을 Kontext 편집 추론 모델
     kontext_lora_model: str = os.getenv(
         "PETFIT_KONTEXT_LORA_MODEL", "black-forest-labs/flux-kontext-dev-lora"

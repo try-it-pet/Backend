@@ -19,6 +19,14 @@
 - 검증: py_compile + import 스모크 + 전처리 리사이즈/폴백 케이스 통과. **실키(openai/replicate)로 실제 생성 A/B 육안 확인은 다음 단계.**
 - 남은 레버: **#1 LoRA 재학습(대박 컷 큐레이션→학습→R2 호스팅→env 등록)** = 최우선, 이 세션 미착수.
 
+## ✅ 이 세션 2차 진행(2026-07-07, 방향 전환 = Replicate 파인튜닝 고도화)
+- **방향 결정**: 런타임 생성 = **OpenAI(gpt-image-2) 안 씀 → Replicate 파인튜닝(Flux Kontext LoRA)로 고도화.** 메모리 `replicate-finetune-pivot`. 우선순위=**시그니처 룩 먼저**, 데이터=**재학습 없이 추론만 튜닝**.
+- **현황 확인**: winter Kontext LoRA 이미 학습·등록됨(fal.ai). `PETFIT_LOOK_LORAS`=fal.media URL(⚠️임시 CDN=만료 위험, **R2 재호스팅 TODO 그대로**), trigger="apply Pawdy winter". 추론=`flux-kontext-dev-lora`.
+- **A/B로 특정한 품질 갭**: ①정체성 드리프트 ②상품 옷 정확도(kontext-dev-lora=입력 1장만→상품 레퍼런스 못 봄=무지옷) ③선명도.
+- **추론 튜닝(적용/커밋)**: (a) **LoRA 활성 시 린 프롬프트** — winter 아트디렉션 대문단·중복 fidelity 제거(과지시가 LoRA와 충돌→드리프트). `replicate_provider._build_prompt(lora_active=)`. (b) **`lora_strength` 기본 0.9→1.0** (린 기준 A/B: 0.8=정체성↑무드↓, **1.0=정체성+시그니처 무드 균형=최적**). (c) **`PETFIT_LORA_GUIDANCE` 노브 추가**(0=미전송, 스키마 확실할 때만).
+- **남은 상품 옷 정확도(②)**: 멀티이미지 kontext 모델(펫+옷 2장) 조사·교체 필요 = 다음 과제(우선순위: 룩 다음).
+- **인프라 TODO**: fal.media LoRA → R2 재호스팅(`scripts/rehost_lora.py`, 프로덕션 안정성). 업스케일(#3) LoRA 출력에도 적용(`PETFIT_UPSCALE=1`).
+
 ## 품질 개선 레버 (우선순위)
 1. **학습 데이터 = 품질의 8할** (제일 중요): 시그니처 룩 **LoRA 재학습**. "적지만 완벽하게 일관된" 15~30장(조명·색보정·구도·분위기 통일). **Kontext before/after 20쌍** 방식이 펫 정체성 보존에 유리. 지금 gpt-image-2로 뽑은 "대박 컷"만 큐레이션해 시드로.
    - 학습 파이프라인 이미 있음: `backend/scripts/{train_lora.py, train_lora_fal.py, build_dataset.py, rehost_lora.py}` + 가이드 `backend/scripts/README.md`.
