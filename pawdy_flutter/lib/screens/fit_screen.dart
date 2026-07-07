@@ -20,7 +20,9 @@ class FitScreen extends StatefulWidget {
 class _FitScreenState extends State<FitScreen> {
   static const petName = '초코';
 
-  String _provider = 'mock'; // mock=키불필요 / openai / replicate
+  // 실제 생성 = replicate(winter LoRA 등). 사용자에겐 모델 선택을 노출하지 않는다.
+  // (개발 중 A/B 가 필요하면 아래 _providers + 'AI 모델' 칩을 임시로 되살려 쓸 것.)
+  final String _provider = 'replicate';
   String _style = 'winter';
   String _composition = 'front_full';
   String _size = 'M';
@@ -34,7 +36,6 @@ class _FitScreenState extends State<FitScreen> {
   String _msg = '';
   Generations? _gen; // AI 생성 잔여 횟수
 
-  static const _providers = ['mock', 'openai', 'replicate'];
   static const _styles = [
     ['winter', '겨울 감성'],
     ['sakura', '벚꽃 감성'],
@@ -209,13 +210,6 @@ class _FitScreenState extends State<FitScreen> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 24),
                 children: [
-                  _chipRow('AI 모델', _providers,
-                      (p) => p == 'openai' ? 'gpt-image-2' : p, _provider,
-                      (v) => setState(() {
-                            _provider = v;
-                            _result = null;
-                          }),
-                      dark: true),
                   _labeledChips('감성 룩', _styles, _style,
                       (v) => setState(() => _style = v)),
                   _labeledChips('구도', _comps, _composition,
