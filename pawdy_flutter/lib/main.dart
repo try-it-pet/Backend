@@ -52,20 +52,24 @@ class _RootShellState extends State<RootShell> {
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      HomeScreen(onOpenFit: () => _go(2)),
-      const CategoryScreen(),
-      const FitScreen(),
-      const LikesScreen(),
-      const MyScreen(),
-    ];
     return Stack(
       children: [
         Scaffold(
-          // 찜/좋아요 등 공유 상태 변화 시 탭 내용 갱신
+          // 공유 상태(로그인·찜·장바구니 등) 변화 시 탭 내용 갱신.
+          // ⚠️ const 위젯은 canonical 단일 인스턴스라 리빌드가 스킵됨 → non-const로 매 빌드 새 인스턴스 생성
+          // (StatefulWidget 의 State 는 위치·타입이 같아 그대로 유지됨).
           body: AnimatedBuilder(
             animation: appState,
-            builder: (_, __) => IndexedStack(index: _tab, children: screens),
+            builder: (_, __) => IndexedStack(
+              index: _tab,
+              children: [
+                HomeScreen(onOpenFit: () => _go(2)),
+                CategoryScreen(),
+                FitScreen(),
+                LikesScreen(),
+                MyScreen(),
+              ],
+            ),
           ),
           bottomNavigationBar: _BottomBar(current: _tab, onTap: _go),
         ),
