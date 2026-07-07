@@ -1,4 +1,5 @@
 import asyncio
+import random
 from typing import Optional
 from uuid import uuid4
 
@@ -164,6 +165,8 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
         # 4컷 생성(포즈/표정만 다르게, 같은 감성 룩·옷). Replicate 429(rate limit)·일시 오류를
         # 방지/흡수하기 위해 동시성을 제한하고 모든 예외를 백오프 재시도한다. mock 은 즉시 반환.
         sem = asyncio.Semaphore(2)
+        # 4컷을 같은 배경/조명으로 묶기 위해 공유 seed 사용(포즈/표정만 변화 → 응집된 스트립).
+        cut_seed = random.randint(1, 2_000_000_000)
 
         async def _gen_cut(pose_key: str, attempts: int) -> Optional[bytes]:
             """한 컷 생성 → 바이트(실패해도 예외 대신 None). 429 는 길게, 그 외는 짧게 백오프."""
@@ -172,7 +175,7 @@ async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
                     try:
                         out = await provider.generate(
                             product=product, size=job.size, pet=pet, pet_image=pet_image,
-                            style=job.style, composition=pose_key,
+                            style=job.style, composition=pose_key, seed=cut_seed,
                         )
                         if out is None:
                             raise RuntimeError("빈 결과")

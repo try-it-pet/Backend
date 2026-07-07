@@ -43,10 +43,10 @@ def _build_prompt(
     # 짧고 트리거 우선으로 둔다. 긴 품질/정체성 꼬리(QUALITY_BOOST·IDENTITY_LOCK)를 붙이면 트리거가
     # 희석·매몰돼 장면 변환이 억제되고 원본이 거의 그대로 나온다(A/B로 확인). 선명도는 업스케일(#3)로 보완.
     if lora_active and trigger and style in SCENE_LOOKS:
-        return (
-            f"{trigger}. Dress this {pet_desc} in a {product.name} ({product.brand}). "
-            f"{IDENTITY_LIGHT}"
-        )
+        p = f"{trigger}. Dress this {pet_desc} in a {product.name} ({product.brand})."
+        if composition in COMPOSITION_PRESETS:  # 인생네컷 포즈/표정 반영(정면·갸웃·활짝·얼빡)
+            p += f" {COMPOSITION_PRESETS[composition]}."
+        return p + f" {IDENTITY_LIGHT}"
 
     base = (
         f"Dress this {pet_desc} in a {product.name} ({product.brand}), a piece of pet clothing. "
@@ -165,6 +165,7 @@ class ReplicateProvider(TryOnProvider):
         style: Optional[str] = None,
         composition: Optional[str] = None,
         background: Optional[str] = None,
+        seed: Optional[int] = None,
     ) -> ProviderOutput:
         if not settings.replicate_token:
             raise RuntimeError("PETFIT_REPLICATE_TOKEN 가 설정되지 않았습니다.")
@@ -231,10 +232,14 @@ class ReplicateProvider(TryOnProvider):
                 }
                 if settings.lora_guidance > 0:  # 스키마 확실치 않은 노브 → 설정됐을 때만
                     pay["guidance"] = settings.lora_guidance
+                if seed is not None:  # 인생네컷 4컷을 같은 배경/조명으로 묶기(포즈만 변화)
+                    pay["seed"] = seed
                 t = f"2stage+LoRA:{style}" if two_stage else f"LoRA:{style}"
             else:
                 m = trained_model or settings.replicate_model
                 pay = {"prompt": stage2_prompt, "input_image": input_uri}
+                if seed is not None:
+                    pay["seed"] = seed
                 t = f"model:{style}" if trained_model else "prompt"
             return _predict(m, pay), m, t
 
