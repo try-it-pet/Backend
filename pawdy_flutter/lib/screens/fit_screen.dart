@@ -79,15 +79,23 @@ class _FitScreenState extends State<FitScreen> {
     return _fittable.isNotEmpty ? _fittable.first : null;
   }
 
+  void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(m), duration: const Duration(milliseconds: 1800)));
+
   Future<void> _pickPhoto() async {
-    final x = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (x == null) return;
-    final bytes = await x.readAsBytes();
-    setState(() {
-      _photo = bytes;
-      _result = null;
-      _msg = '';
-    });
+    try {
+      final x = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (x == null) return; // 사용자가 취소
+      final bytes = await x.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _photo = bytes;
+        _result = null;
+        _msg = '';
+      });
+    } catch (e) {
+      if (mounted) _snack('사진을 불러오지 못했어요: $e');
+    }
   }
 
   Future<void> _run({required bool fourcut}) async {
@@ -135,12 +143,20 @@ class _FitScreenState extends State<FitScreen> {
         setState(() => _result = job.result);
         _loadGen(); // 생성 후 잔여 횟수 갱신
       } else {
-        setState(() => _msg = job.error ?? '생성 실패');
+        final e = job.error ?? '생성에 실패했어요. 잠시 후 다시 시도해주세요.';
+        setState(() => _msg = e);
+        _snack(e);
       }
     } on ApiException catch (e) {
-      if (mounted) setState(() => _msg = e.message);
+      if (mounted) {
+        setState(() => _msg = e.message);
+        _snack(e.message); // 402(횟수)·401(로그인) 등 서버 메시지 노출
+      }
     } catch (e) {
-      if (mounted) setState(() => _msg = '백엔드 연결이 필요해요');
+      if (mounted) {
+        setState(() => _msg = '생성 중 오류가 났어요');
+        _snack('생성 중 오류: $e');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -149,7 +165,7 @@ class _FitScreenState extends State<FitScreen> {
   @override
   Widget build(BuildContext context) {
     final product = _selected;
-    return Container(
+    return Material(
       color: T.paper,
       child: SafeArea(
         bottom: false,
@@ -157,6 +173,7 @@ class _FitScreenState extends State<FitScreen> {
           children: [
             const SizedBox(height: 6),
             SizedBox(
+              width: double.infinity,
               height: 30,
               child: Stack(
                 alignment: Alignment.center,
