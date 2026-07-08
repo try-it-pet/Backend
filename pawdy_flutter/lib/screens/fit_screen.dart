@@ -283,6 +283,7 @@ class _FitScreenState extends State<FitScreen> {
       );
 
   Widget _preview() {
+    final hasPhoto = _photo != null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 0),
       child: AspectRatio(
@@ -294,7 +295,45 @@ class _FitScreenState extends State<FitScreen> {
             border: Border.all(color: T.line),
           ),
           clipBehavior: Clip.antiAlias,
-          child: _loading
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _previewContent(),
+              // 사진을 올렸으면(결과 유무 무관) 언제든 다시 고를 수 있게 '사진 변경' 버튼.
+              if (hasPhoto && !_loading)
+                Positioned(top: 10, right: 10, child: _changePhotoBtn()),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _changePhotoBtn() => GestureDetector(
+        onTap: _pickPhoto,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.refresh, color: Colors.white, size: 14),
+              SizedBox(width: 4),
+              Text('사진 변경',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      );
+
+  Widget _previewContent() {
+    return _loading
               ? const Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -314,10 +353,7 @@ class _FitScreenState extends State<FitScreen> {
                       fit: BoxFit.cover)
                   : _photo != null
                       ? Image.memory(_photo!, fit: BoxFit.cover)
-                      : _addPhotoButton(),
-        ),
-      ),
-    );
+                      : _addPhotoButton();
   }
 
   Widget _addPhotoButton() => Center(
