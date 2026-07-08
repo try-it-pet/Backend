@@ -134,32 +134,93 @@ async def _fetch_bytes(url: str) -> Optional[bytes]:
         return None
 
 
-async def _process_fourcut(job_id: str, pet_image: Optional[bytes],
+def _not_pet_error(subj: Optional[str]) -> str:
+    return (
+        "사진에서 강아지나 고양이를 찾지 못했어요"
+        + (f" ({subj})" if subj else "")
+        + ". 반려동물이 또렷하게 나온 정면 사진으로 다시 시도해주세요."
+    )
+
+
+async def _process_fourcut(job_id: str, images: list[bytes],
                            user_id: Optional[int] = None) -> None:
-    """인생네컷: 한 장의 펫 사진 → 4가지 포즈/표정 컷 생성 → 2x2 합성."""
+    """인생네컷 2x2. images 2~4장이면 각 사진에 룩·옷을 입혀 컷 구성(진짜 여러 포즈),
+    1장이면 그 사진으로 AI 가 4포즈/표정을 생성한다."""
     job = JOBS[job_id]
     job.status = JobStatus.processing
     try:
         product = PRODUCTS_BY_ID[job.product_id]
         pet = find_pet(job.pet_id)
         provider = get_provider(job.provider)
+        multi = [im for im in images if im][:4]
 
+        if provider.name != "mock" and not multi:
+            job.status = JobStatus.failed
+            job.error = "인생네컷은 펫 사진이 필요해요. 사진을 추가해주세요."
+            return
+
+        # ── 멀티 사진 모드(2~4장): 각 사진에 감성 룩·상품 옷을 입혀 컷으로 구성 ──
+        if provider.name != "mock" and len(multi) >= 2:
+            prepped = [await asyncio.to_thread(prepare_pet_image, im) for im in multi]
+            if settings.replicate_token:  # 첫 장만 강아지/고양이 검증(비용 절약)
+                check = await detect_pet(prepped[0])
+                if not check.get("pet"):
+                    job.status = JobStatus.failed
+                    job.error = _not_pet_error(check.get("subject"))
+                    return
+            sem = asyncio.Semaphore(2)
+
+            async def _styled(img: bytes) -> Optional[bytes]:
+                async with sem:
+                    for attempt in range(3):
+                        try:
+                            out = await provider.generate(
+                                product=product, size=job.size, pet=pet,
+                                pet_image=img, style=job.style,
+                            )
+                            if out is None:
+                                raise RuntimeError("빈 결과")
+                            if out.image_bytes is not None:
+                                return out.image_bytes
+                            if out.image_url:
+                                data = await _fetch_bytes(out.image_url)
+                                if data:
+                                    return data
+                                raise RuntimeError("결과 이미지 다운로드 실패")
+                            raise RuntimeError("이미지 없음")
+                        except Exception as exc:  # noqa: BLE001
+                            if attempt >= 2:
+                                return None
+                            await asyncio.sleep(6 if "429" in str(exc) else 2)
+                    return None
+
+            styled = list(await asyncio.gather(*[_styled(im) for im in prepped]))
+            for i in range(len(styled)):  # 실패 셀 순차 재생성
+                if styled[i] is None:
+                    styled[i] = await _styled(prepped[i])
+            cells: list[Optional[bytes]] = (styled + [None, None, None, None])[:4]
+            png = await asyncio.to_thread(compose_2x2, cells, ["", "", "", ""])
+            result_url = save_result(job_id, png, "image/png")
+            made = sum(1 for c in cells if c)
+            job.result = TryOnResult(
+                image_url=result_url, fit_score=product.fit,
+                recommended_size=job.size or "M",
+                analysis=f"{pet.name if pet else '우리 아이'}의 인생네컷이 완성됐어요! ({made}/{len(multi)}컷)",
+            )
+            job.status = JobStatus.done
+            if user_id is not None:
+                add_fitting(user_id, job.product_id, result_url, kind="fourcut", style=job.style)
+            return
+
+        # ── 단일 사진 모드(1장): AI 가 4포즈/표정 생성 ──
+        pet_image = multi[0] if multi else None
         if provider.name != "mock":
-            if pet_image is None:
-                job.status = JobStatus.failed
-                job.error = "인생네컷은 펫 사진이 필요해요. 사진을 추가해주세요."
-                return
             pet_image = await asyncio.to_thread(prepare_pet_image, pet_image)  # 입력 전처리
             if settings.replicate_token:  # 강아지/고양이 사전 검증(Replicate 비전)
                 check = await detect_pet(pet_image)
                 if not check.get("pet"):
-                    subj = check.get("subject")
                     job.status = JobStatus.failed
-                    job.error = (
-                        "사진에서 강아지나 고양이를 찾지 못했어요"
-                        + (f" ({subj})" if subj else "")
-                        + ". 반려동물이 또렷하게 나온 정면 사진으로 다시 시도해주세요."
-                    )
+                    job.error = _not_pet_error(check.get("subject"))
                     return
 
         # 4컷 생성(포즈/표정만 다르게, 같은 감성 룩·옷). Replicate 429(rate limit)·일시 오류를
@@ -290,16 +351,21 @@ async def create_fourcut(
     provider: Optional[str] = Form(None, description="mock | openai | replicate"),
     style: Optional[str] = Form(None, description="감성 룩 (winter 등)"),
     pet_image: Optional[UploadFile] = File(None),
+    pet_images: Optional[list[UploadFile]] = File(None),
     user: Optional[User] = Depends(get_optional_user),
 ) -> TryOnJob:
-    """인생네컷(2x2): 한 장의 펫 사진 → 4포즈/표정 컷 생성 → 2x2 합성. GET /tryon/{id} 폴링.
+    """인생네컷(2x2): 펫 사진 → 4컷 → 2x2 합성. GET /tryon/{id} 폴링.
 
-    구도는 고정 4컷(정면·갸웃·활짝·얼빡)이며 `style`(감성 룩)·상품 옷은 함께 반영된다.
+    `pet_images` 로 **2~4장**을 올리면 각 사진에 감성 룩·상품 옷을 입혀 컷으로 구성한다
+    (실제 여러 포즈 → 자연스러운 4컷). 1장(`pet_image`)만 올리면 AI 가 4포즈를 생성한다.
     """
     if product_id not in PRODUCTS_BY_ID:
         raise HTTPException(status_code=404, detail="product not found")
     cost = _quota_precheck(provider, user, settings.fourcut_cost, request)
-    image_bytes = await pet_image.read() if pet_image is not None else None
+    files = list(pet_images or [])
+    if pet_image is not None:
+        files.append(pet_image)
+    images = [await f.read() for f in files][:4]  # 최대 4장
     if user is not None:
         inc_fitting(user.id)
 
@@ -313,7 +379,7 @@ async def create_fourcut(
     prune_jobs()
     if cost:
         consume(job_id, user.id if user else None, cost)
-    asyncio.create_task(_process_fourcut(job_id, image_bytes, user.id if user else None))
+    asyncio.create_task(_process_fourcut(job_id, images, user.id if user else None))
     return job
 
 

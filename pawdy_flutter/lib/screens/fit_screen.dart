@@ -31,6 +31,7 @@ class _FitScreenState extends State<FitScreen> {
   int? _fitId; // 선택된 옷 상품 id
 
   Uint8List? _photo;
+  final List<Uint8List?> _four = [null, null, null, null]; // 인생네컷 4장
   bool _loading = false;
   TryOnResult? _result;
   String _msg = '';
@@ -100,13 +101,36 @@ class _FitScreenState extends State<FitScreen> {
     }
   }
 
+  Future<void> _pickFour(int idx) async {
+    try {
+      final x = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (x == null) return;
+      final bytes = await x.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _four[idx] = bytes;
+        _result = null;
+        _msg = '';
+      });
+    } catch (e) {
+      if (mounted) _snack('사진을 불러오지 못했어요: $e');
+    }
+  }
+
   Future<void> _run({required bool fourcut}) async {
     final product = _selected;
     if (_loading || product == null) return;
-    if (_provider != 'mock' && _photo == null) {
-      setState(() =>
-          _msg = fourcut ? '펫 사진을 추가하면 인생네컷을 만들어드려요' : '펫 사진을 추가하면 AI가 입혀드려요');
-      return;
+    final fourPhotos = _four.whereType<Uint8List>().toList();
+    if (_provider != 'mock') {
+      if (fourcut && fourPhotos.length < 4) {
+        setState(() => _msg = '인생네컷은 사진 4장을 모두 올려주세요');
+        _snack('인생네컷은 사진 4장을 모두 올려주세요');
+        return;
+      }
+      if (!fourcut && _photo == null) {
+        setState(() => _msg = '펫 사진을 추가하면 AI가 입혀드려요');
+        return;
+      }
     }
     setState(() {
       _loading = true;
@@ -128,7 +152,7 @@ class _FitScreenState extends State<FitScreen> {
               provider: _provider,
               petId: petId,
               style: _style,
-              petImageBytes: _photo,
+              petImagesBytes: fourPhotos,
             )
           : await Api.runTryOn(
               productId: product.id,
@@ -217,6 +241,7 @@ class _FitScreenState extends State<FitScreen> {
                   _preview(),
                   _scoreCards(product),
                   _garmentPicker(),
+                  _fourcutSlots(),
                   _runButtons(),
                   _analysis(),
                 ],
@@ -478,6 +503,60 @@ class _FitScreenState extends State<FitScreen> {
                 ),
               );
             },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _fourcutSlots() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(22, 24, 22, 0),
+          child: Text('인생네컷 사진 (4장)',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                  color: T.ink)),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(22, 3, 22, 0),
+          child: Text('네 장을 올리면 각 사진에 감성 룩·옷을 입혀 4컷으로 만들어드려요',
+              style: TextStyle(fontSize: 11.5, color: T.muted)),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
+          child: Row(
+            children: List.generate(4, (i) {
+              final img = _four[i];
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: i < 3 ? 8 : 0),
+                  child: GestureDetector(
+                    onTap: () => _pickFour(i),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: T.soft,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: img == null ? T.line : T.accent,
+                              width: img == null ? 1 : 1.5),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: img == null
+                            ? const Icon(Icons.add, color: T.muted2, size: 22)
+                            : Image.memory(img, fit: BoxFit.cover),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
           ),
         ),
       ],

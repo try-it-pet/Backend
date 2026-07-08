@@ -208,6 +208,7 @@ class Api {
     String? composition,
     String? background,
     Uint8List? petImageBytes,
+    List<Uint8List>? petImagesBytes,
   }) async {
     final req = http.MultipartRequest('POST', Uri.parse('$apiBase$path'))
       ..headers.addAll(_authHeaders())
@@ -221,6 +222,12 @@ class Api {
     if (petImageBytes != null) {
       req.files.add(http.MultipartFile.fromBytes('pet_image', petImageBytes,
           filename: 'pet.jpg'));
+    }
+    if (petImagesBytes != null) {
+      for (var i = 0; i < petImagesBytes.length; i++) {
+        req.files.add(http.MultipartFile.fromBytes('pet_images', petImagesBytes[i],
+            filename: 'pet$i.jpg'));
+      }
     }
     final r = await http.Response.fromStream(await req.send());
     // 생성 잡 접수는 202 Accepted (비동기) — 200/202 둘 다 정상
@@ -271,6 +278,7 @@ class Api {
     int? petId,
     String? style,
     Uint8List? petImageBytes,
+    List<Uint8List>? petImagesBytes,
   }) =>
       _createJob('/tryon/fourcut',
               productId: productId,
@@ -278,7 +286,8 @@ class Api {
               provider: provider,
               petId: petId,
               style: style,
-              petImageBytes: petImageBytes)
+              petImageBytes: petImageBytes,
+              petImagesBytes: petImagesBytes)
           .then(_poll);
 
   static ApiException _apiError(http.Response r, String fallback) {
