@@ -317,9 +317,9 @@ class MyScreen extends StatelessWidget {
 
     final items = <(String, String, VoidCallback)>[
       ('주문 내역', orders > 0 ? '$orders건' : '', () => _openOrders(context)),
-      ('배송 현황', '', () => _push(context,
-          const ComingSoonScreen(title: '배송 현황', icon: Icons.local_shipping_outlined))),
+      ('배송 현황', '', () => _openOrders(context)),
       ('AI 피팅 기록', '$fittings회', () {
+
         if (!appState.loggedIn) {
           _toast(context, '로그인하면 AI 피팅 기록을 볼 수 있어요');
           return;

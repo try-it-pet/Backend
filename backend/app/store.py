@@ -54,8 +54,10 @@ def _product(r: ProductRow) -> Product:
         image=r.image,
         ref_image=r.ref_image,
         url=r.url,
-        sizes=sizes
+        sizes=sizes,
+        stock=r.stock
     )
+
 
 
 def _shop(r: ShopRow) -> Shop:
