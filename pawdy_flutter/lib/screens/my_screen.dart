@@ -10,6 +10,8 @@ import 'fitting_history_screen.dart';
 import 'coming_soon_screen.dart';
 import 'shop_register_screen.dart';
 import 'seller_dashboard_screen.dart';
+import 'shipping_status_screen.dart';
+
 
 
 
@@ -317,8 +319,15 @@ class MyScreen extends StatelessWidget {
 
     final items = <(String, String, VoidCallback)>[
       ('주문 내역', orders > 0 ? '$orders건' : '', () => _openOrders(context)),
-      ('배송 현황', '', () => _openOrders(context)),
+      ('배송 현황', '', () {
+        if (!appState.loggedIn) {
+          _toast(context, '로그인하면 배송 현황을 볼 수 있어요');
+          return;
+        }
+        _push(context, const ShippingStatusScreen());
+      }),
       ('AI 피팅 기록', '$fittings회', () {
+
 
         if (!appState.loggedIn) {
           _toast(context, '로그인하면 AI 피팅 기록을 볼 수 있어요');
