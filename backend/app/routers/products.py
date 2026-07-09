@@ -53,12 +53,8 @@ def register_shop(body: ShopCreate, user: User = Depends(get_current_user)) -> S
     existing = get_shop_by_owner(user.id)
     if existing:
         raise HTTPException(status_code=400, detail="User already owns a shop")
-    try:
-        return create_shop(user.id, body)
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        raise HTTPException(status_code=500, detail=f"Shop creation error: {str(e)}\n{tb}")
+    return create_shop(user.id, body)
+
 
 
 
@@ -128,18 +124,14 @@ def register_product(
         stock=stock
     )
 
-    try:
-        return create_product(
-            shop_id=shop.id,
-            brand=brand,
-            body=product_create,
-            image_url=image_url,
-            ref_image_url=ref_image_url
-        )
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}\n{tb}")
+    return create_product(
+        shop_id=shop.id,
+        brand=brand,
+        body=product_create,
+        image_url=image_url,
+        ref_image_url=ref_image_url
+    )
+
 
 
 
