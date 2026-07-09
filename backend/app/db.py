@@ -36,16 +36,17 @@ def init_db() -> None:
 
     # 기존 products 테이블에 신규 컬럼(shop_id, stock)이 없을 경우를 대비한 동적 마이그레이션
     from sqlalchemy import text
-    with engine.begin() as conn:
-        for col_name, col_type in [
-            ("shop_id", "INTEGER"),
-            ("stock", "INTEGER DEFAULT 99")
-        ]:
-            try:
+    for col_name, col_type in [
+        ("shop_id", "INTEGER"),
+        ("stock", "INTEGER DEFAULT 99")
+    ]:
+        try:
+            with engine.begin() as conn:
                 conn.execute(text(f"ALTER TABLE products ADD COLUMN {col_name} {col_type}"))
-            except Exception:
-                # 컬럼이 이미 존재하거나 DB 상태에 따른 오류 발생 시 안전하게 스킵
-                pass
+        except Exception:
+            # 컬럼이 이미 존재하거나 DB 상태에 따른 오류 발생 시 개별적으로 안전하게 스킵
+            pass
+
 
 
     with Session(engine) as s:
