@@ -62,6 +62,14 @@ def init_db() -> None:
         except Exception:
             pass
 
+    # orders 테이블에 payment_key 컬럼 동적 추가
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE orders ADD COLUMN payment_key VARCHAR(255)"))
+    except Exception:
+        pass
+
+
     # reviews 테이블에 image 컬럼 동적 추가
     try:
         with engine.begin() as conn:
