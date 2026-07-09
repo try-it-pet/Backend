@@ -53,7 +53,13 @@ def register_shop(body: ShopCreate, user: User = Depends(get_current_user)) -> S
     existing = get_shop_by_owner(user.id)
     if existing:
         raise HTTPException(status_code=400, detail="User already owns a shop")
-    return create_shop(user.id, body)
+    try:
+        return create_shop(user.id, body)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=f"Shop creation error: {str(e)}\n{tb}")
+
 
 
 @router.get("/shops/me", response_model=Optional[Shop])
