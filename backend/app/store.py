@@ -37,7 +37,8 @@ def _user(r: UserRow) -> User:
 
 def _pet(r: PetRow) -> Pet:
     return Pet(id=r.id, name=r.name, species=r.species, breed=r.breed, weight_kg=r.weight_kg,
-               age=r.age, chest_cm=r.chest_cm, neck_cm=r.neck_cm, back_cm=r.back_cm)
+               age=r.age, chest_cm=r.chest_cm, neck_cm=r.neck_cm, back_cm=r.back_cm, image=r.image)
+
 
 
 def _product(r: ProductRow) -> Product:

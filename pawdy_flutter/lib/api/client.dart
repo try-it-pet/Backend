@@ -143,15 +143,44 @@ class Api {
         .toList();
   }
 
-  static Future<Pet?> createPet(Map<String, dynamic> body) async {
-    final r = await http.post(
-      Uri.parse('$apiBase/me/pets'),
-      headers: {..._authHeaders(), 'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
+  static Future<Pet?> createPet({
+    required String name,
+    required String species,
+    double? weightKg,
+    double? chestCm,
+    double? neckCm,
+    double? backCm,
+    Uint8List? imageBytes,
+    String? imageName,
+  }) async {
+    if (_token == null) return null;
+    final uri = Uri.parse('$apiBase/me/pets');
+    final req = http.MultipartRequest('POST', uri);
+    req.headers.addAll(_authHeaders());
+
+    req.fields['name'] = name;
+    req.fields['species'] = species;
+    if (weightKg != null) req.fields['weight_kg'] = weightKg.toString();
+    if (chestCm != null) req.fields['chest_cm'] = chestCm.toString();
+    if (neckCm != null) req.fields['neck_cm'] = neckCm.toString();
+    if (backCm != null) req.fields['back_cm'] = backCm.toString();
+
+    if (imageBytes != null && imageName != null) {
+      final multipartFile = http.MultipartFile.fromBytes(
+        'image_file',
+        imageBytes,
+        filename: imageName,
+      );
+      req.files.add(multipartFile);
+    }
+
+    final streamRes = await req.send();
+    final r = await http.Response.fromStream(streamRes);
+
     if (r.statusCode != 200 && r.statusCode != 201) throw _apiError(r, '펫 등록 실패');
     return Pet.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
+
 
   // ── 주문 / AI 생성 잔여 횟수 ──
   static Future<List<Order>> fetchOrders() async {

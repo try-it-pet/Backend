@@ -73,8 +73,42 @@ def pets(user: User = Depends(get_current_user)) -> list[Pet]:
 
 
 @router.post("/pets", response_model=Pet, status_code=201)
-def create_pet(body: PetCreate, user: User = Depends(get_current_user)) -> Pet:
+def create_pet(
+    name: str = Form(...),
+    species: str = Form("dog"),
+    breed: Optional[str] = Form(None),
+    weight_kg: Optional[float] = Form(None),
+    age: Optional[str] = Form(None),
+    chest_cm: Optional[float] = Form(None),
+    neck_cm: Optional[float] = Form(None),
+    back_cm: Optional[float] = Form(None),
+    image_file: Optional[UploadFile] = File(None),
+    user: User = Depends(get_current_user)
+) -> Pet:
+    image_url = None
+    if image_file:
+        import uuid
+        from ..storage import put_bytes
+        image_data = image_file.file.read()
+        image_ext = image_file.filename.split(".")[-1] if "." in image_file.filename else "jpg"
+        image_key = f"pets/{uuid.uuid4()}.{image_ext}"
+        image_url = put_bytes(image_key, image_data, image_file.content_type)
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Failed to upload pet profile image")
+
+    body = PetCreate(
+        name=name,
+        species=species,
+        breed=breed,
+        weight_kg=weight_kg,
+        age=age,
+        chest_cm=chest_cm,
+        neck_cm=neck_cm,
+        back_cm=back_cm,
+        image=image_url
+    )
     return add_pet(user.id, body)
+
 
 
 # ── 리뷰 ──

@@ -30,6 +30,7 @@ class Pet {
   final double? chestCm;
   final double? neckCm;
   final double? backCm;
+  final String? image;
 
   const Pet({
     required this.id,
@@ -40,6 +41,7 @@ class Pet {
     this.chestCm,
     this.neckCm,
     this.backCm,
+    this.image,
   });
 
   factory Pet.fromJson(Map<String, dynamic> j) => Pet(
@@ -51,8 +53,10 @@ class Pet {
         chestCm: (j['chest_cm'] as num?)?.toDouble(),
         neckCm: (j['neck_cm'] as num?)?.toDouble(),
         backCm: (j['back_cm'] as num?)?.toDouble(),
+        image: j['image'] as String?,
       );
 }
+
 
 class Stats {
   final int orders;

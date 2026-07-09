@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
+import '../api/client.dart';
+
 import 'pet_form_sheet.dart';
 import 'settings_screen.dart';
 import 'orders_screen.dart';
@@ -49,59 +51,64 @@ class MyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = appState.user;
-    final pet = appState.firstPet;
-    // 좋아요=찜 개수는 stats 스냅샷 대신 실시간 likedIds 사용(찜 토글 즉시 반영)
-    final likes = appState.likedIds.length;
-    return Container(
-      color: T.paper,
-      child: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final user = appState.user;
+        final pet = appState.firstPet;
+        final likes = appState.likedIds.length;
+        return Container(
+          color: T.paper,
+          child: SafeArea(
+            bottom: false,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
               children: [
-                const Text('마이페이지',
-                    style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: T.ink)),
-                GestureDetector(
-                  onTap: () => _push(context, const SettingsScreen()),
-                  behavior: HitTestBehavior.opaque,
-                  child: const Icon(Icons.settings_outlined,
-                      size: 21, color: T.ink),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('마이페이지',
+                        style: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                            color: T.ink)),
+                    GestureDetector(
+                      onTap: () => _push(context, const SettingsScreen()),
+                      behavior: HitTestBehavior.opaque,
+                      child: const Icon(Icons.settings_outlined,
+                          size: 21, color: T.ink),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 14),
+                if (user != null)
+                  _loggedInRow(context, user)
+                else
+                  _loginButtons(context),
+                const SizedBox(height: 16),
+                if (pet != null)
+                  _petRow(context, pet)
+                else
+                  GestureDetector(
+                    onTap: () => _openPetForm(context),
+                    child: _dashedCard(user != null
+                        ? '+ 우리 아이 프로필 등록하기'
+                        : '로그인하면 우리 아이를 등록할 수 있어요'),
+                  ),
+                const SizedBox(height: 16),
+                _statsCard(appState.stats?.orders ?? 0, likes,
+                    appState.stats?.fittings ?? 0),
+                const SizedBox(height: 14),
+                _menuCard(context),
               ],
             ),
-            const SizedBox(height: 14),
-            if (user != null)
-              _loggedInRow(context, user)
-            else
-              _loginButtons(context),
-            const SizedBox(height: 16),
-            if (pet != null)
-              _petRow(context, pet)
-            else
-              GestureDetector(
-                onTap: () => _openPetForm(context),
-                child: _dashedCard(user != null
-                    ? '+ 우리 아이 프로필 등록하기'
-                    : '로그인하면 우리 아이를 등록할 수 있어요'),
-              ),
-            const SizedBox(height: 16),
-            _statsCard(appState.stats?.orders ?? 0, likes,
-                appState.stats?.fittings ?? 0),
-            const SizedBox(height: 14),
-            _menuCard(context),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
+
 
   Widget _loggedInRow(BuildContext context, User user) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -170,71 +177,90 @@ class MyScreen extends StatelessWidget {
         ],
       );
 
-  Widget _petRow(BuildContext context, Pet pet) => Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration:
-                const BoxDecoration(color: T.soft, shape: BoxShape.circle),
-            alignment: Alignment.center,
-            child: Text(pet.name.isNotEmpty ? pet.name.substring(0, 1) : '펫',
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w800, color: T.sub)),
+  Widget _petRow(BuildContext context, Pet pet) {
+    final hasImage = pet.image != null && pet.image!.isNotEmpty;
+    final imageUrl = hasImage ? (pet.image!.startsWith('http') ? pet.image! : '$apiBase${pet.image!}') : null;
+
+
+    return Row(
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          decoration: const BoxDecoration(color: T.soft, shape: BoxShape.circle),
+          child: ClipOval(
+            child: imageUrl != null
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _fallbackAvatar(pet),
+                  )
+                : _fallbackAvatar(pet),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Text(pet.name,
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                          color: T.ink)),
-                  const SizedBox(width: 7),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                    decoration: BoxDecoration(
-                        color: T.soft, borderRadius: BorderRadius.circular(999)),
-                    child: Text(
-                        [
-                          _speciesKo(pet.species),
-                          if (pet.weightKg != null) '${pet.weightKg}kg'
-                        ].join(' · '),
-                        style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: T.sub)),
-                  ),
-                ]),
-                const SizedBox(height: 5),
-                Text(_measure(pet),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text(pet.name,
                     style: const TextStyle(
-                        fontSize: 12.5,
-                        color: T.muted,
-                        fontWeight: FontWeight.w500)),
-              ],
-            ),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: T.ink)),
+                const SizedBox(width: 7),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: T.soft, borderRadius: BorderRadius.circular(999)),
+                  child: Text(
+                      [
+                        _speciesKo(pet.species),
+                        if (pet.weightKg != null) '${pet.weightKg}kg'
+                      ].join(' · '),
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: T.sub)),
+                ),
+              ]),
+              const SizedBox(height: 5),
+              Text(_measure(pet),
+                  style: const TextStyle(
+                      fontSize: 12.5,
+                      color: T.muted,
+                      fontWeight: FontWeight.w500)),
+            ],
           ),
-          GestureDetector(
-            onTap: () => _openPetForm(context),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: T.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: T.line),
-              ),
-              child: const Icon(Icons.add, size: 16, color: T.sub),
+        ),
+        GestureDetector(
+          onTap: () => _openPetForm(context),
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: T.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: T.line),
             ),
+            child: const Icon(Icons.add, size: 16, color: T.sub),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _fallbackAvatar(Pet pet) => Container(
+        alignment: Alignment.center,
+        color: T.soft,
+        child: Text(pet.name.isNotEmpty ? pet.name.substring(0, 1) : '펫',
+            style: const TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w800, color: T.sub)),
       );
+
 
   Widget _dashedCard(String text) => Container(
         width: double.infinity,

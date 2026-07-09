@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
+
 
 /// 우리 아이 등록 폼 — 이름·종·체중·체형 치수(사이즈 추천용).
 class PetFormSheet extends StatefulWidget {
@@ -20,12 +23,38 @@ class _PetFormSheetState extends State<PetFormSheet> {
   String _species = 'dog';
   bool _saving = false;
 
+  Uint8List? _imageBytes;
+  String? _imageName;
+
   @override
   void dispose() {
     for (final c in [_name, _weight, _chest, _neck, _back]) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        setState(() {
+          _imageBytes = bytes;
+          _imageName = file.name;
+        });
+      }
+    } catch (e) {
+      _toast('이미지 선택에 실패했습니다: $e');
+    }
+  }
+
+  void _clearImage() {
+    setState(() {
+      _imageBytes = null;
+      _imageName = null;
+    });
   }
 
   double? _num(TextEditingController c) =>
@@ -39,14 +68,16 @@ class _PetFormSheetState extends State<PetFormSheet> {
     }
     setState(() => _saving = true);
     try {
-      await appState.registerPet({
-        'name': name,
-        'species': _species,
-        'weight_kg': _num(_weight),
-        'chest_cm': _num(_chest),
-        'neck_cm': _num(_neck),
-        'back_cm': _num(_back),
-      });
+      await appState.registerPet(
+        name: name,
+        species: _species,
+        weightKg: _num(_weight),
+        chestCm: _num(_chest),
+        neckCm: _num(_neck),
+        backCm: _num(_back),
+        imageBytes: _imageBytes,
+        imageName: _imageName,
+      );
       if (mounted) {
         Navigator.of(context).pop();
         _toast('$name 등록됐어요');
@@ -57,6 +88,7 @@ class _PetFormSheetState extends State<PetFormSheet> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
 
   void _toast(String m) => ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(m), duration: const Duration(milliseconds: 1400)));
@@ -96,7 +128,60 @@ class _PetFormSheetState extends State<PetFormSheet> {
                 style: TextStyle(
                     fontSize: 12.5, color: T.muted, fontWeight: FontWeight.w500)),
             const SizedBox(height: 16),
+            const SizedBox(height: 16),
+            Center(
+              child: Stack(
+                children: [
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        color: T.soft,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: T.line, width: 1.5),
+                      ),
+                      child: ClipOval(
+                        child: _imageBytes != null
+                            ? Image.memory(
+                                _imageBytes!,
+                                fit: BoxFit.cover,
+                              )
+                            : const Icon(
+                                Icons.camera_alt_outlined,
+                                size: 28,
+                                color: T.muted,
+                              ),
+                      ),
+                    ),
+                  ),
+                  if (_imageBytes != null)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: _clearImage,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             _field(_name, '이름'),
+
             const SizedBox(height: 10),
             Row(
               children: [

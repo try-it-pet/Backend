@@ -29,6 +29,8 @@ class PetRow(SQLModel, table=True):
     chest_cm: Optional[float] = None
     neck_cm: Optional[float] = None
     back_cm: Optional[float] = None
+    image: Optional[str] = Field(default=None, description="펫 프로필 이미지 URL")
+
 
 
 class LikeRow(SQLModel, table=True):

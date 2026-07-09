@@ -69,6 +69,14 @@ def init_db() -> None:
     except Exception:
         pass
 
+    # pets 테이블에 image 컬럼 동적 추가
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE pets ADD COLUMN image VARCHAR(255)"))
+    except Exception:
+        pass
+
+
 
 
 

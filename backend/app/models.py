@@ -57,10 +57,12 @@ class PetCreate(BaseModel):
     chest_cm: Optional[float] = None
     neck_cm: Optional[float] = None
     back_cm: Optional[float] = None
+    image: Optional[str] = None
 
 
 class Pet(PetCreate):
     id: int
+
 
 
 class User(BaseModel):

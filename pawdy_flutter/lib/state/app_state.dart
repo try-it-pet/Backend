@@ -214,13 +214,32 @@ class AppState extends ChangeNotifier {
 
 
   // ── 펫 ──
-  Future<void> registerPet(Map<String, dynamic> body) async {
-    final p = await Api.createPet(body);
+  Future<void> registerPet({
+    required String name,
+    required String species,
+    double? weightKg,
+    double? chestCm,
+    double? neckCm,
+    double? backCm,
+    Uint8List? imageBytes,
+    String? imageName,
+  }) async {
+    final p = await Api.createPet(
+      name: name,
+      species: species,
+      weightKg: weightKg,
+      chestCm: chestCm,
+      neckCm: neckCm,
+      backCm: backCm,
+      imageBytes: imageBytes,
+      imageName: imageName,
+    );
     if (p != null) {
       pets = [...pets, p];
       notifyListeners();
     }
   }
+
 
   Pet? get firstPet => pets.isNotEmpty ? pets.first : null;
 
