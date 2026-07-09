@@ -25,6 +25,8 @@ class Order {
   final String createdAt;
   final List<CartItem> items;
   final String status;
+  final String? carrier;
+  final String? trackingNo;
 
   const Order({
     required this.id,
@@ -32,6 +34,8 @@ class Order {
     required this.createdAt,
     required this.items,
     required this.status,
+    this.carrier,
+    this.trackingNo,
   });
 
   factory Order.fromJson(Map<String, dynamic> j) => Order(
@@ -42,7 +46,10 @@ class Order {
             .map((e) => CartItem.fromJson(e as Map<String, dynamic>))
             .toList(),
         status: j['status'] as String? ?? '결제완료',
+        carrier: j['carrier'] as String?,
+        trackingNo: j['tracking_no'] as String?,
       );
+
 
 
   String get summary {

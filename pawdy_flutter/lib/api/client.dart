@@ -299,15 +299,20 @@ class Api {
     return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  static Future<Order> updateOrderStatus(int orderId, String status) async {
+  static Future<Order> updateOrderStatus(int orderId, String status, {String? carrier, String? trackingNo}) async {
     final r = await http.patch(
       Uri.parse('$apiBase/products/seller/orders/$orderId/status'),
       headers: _authHeaders(),
-      body: {'status': status},
+      body: {
+        'status': status,
+        if (carrier != null) 'carrier': carrier,
+        if (trackingNo != null) 'tracking_no': trackingNo,
+      },
     );
     if (r.statusCode != 200) throw _apiError(r, '배송 상태 수정 실패');
     return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>);
   }
+
 
 
 

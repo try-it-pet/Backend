@@ -93,6 +93,9 @@ class Order(BaseModel):
     total: int
     created_at: str
     status: str = "결제완료"
+    carrier: Optional[str] = None
+    tracking_no: Optional[str] = None
+
 
 
 class ProductUpdate(BaseModel):

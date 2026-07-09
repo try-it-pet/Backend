@@ -128,7 +128,9 @@ class _ShippingStatusScreenState extends State<ShippingStatusScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isShippingOrDone ? 'CJ대한통운 배송' : '배송 준비 안내',
+                        (o.carrier != null && o.carrier!.isNotEmpty)
+                            ? '${o.carrier} 배송'
+                            : (isShippingOrDone ? '배송중' : '배송 준비 안내'),
                         style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.bold,
@@ -136,14 +138,17 @@ class _ShippingStatusScreenState extends State<ShippingStatusScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isShippingOrDone
-                            ? '송장번호: 58120309${o.id}'
-                            : '판매자가 상품 공급을 준비하고 있습니다.',
+                        (o.trackingNo != null && o.trackingNo!.isNotEmpty)
+                            ? '송장번호: ${o.trackingNo}'
+                            : (isShippingOrDone
+                                ? '택배 발송 대기 중입니다.'
+                                : '판매자가 상품 공급을 준비하고 있습니다.'),
                         style: const TextStyle(
                             fontSize: 11.5,
                             color: T.sub,
                             fontWeight: FontWeight.w500),
                       ),
+
                     ],
                   ),
                 ),

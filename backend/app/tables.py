@@ -55,6 +55,9 @@ class OrderRow(SQLModel, table=True):
     total: int
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     status: str = Field(default="결제완료")
+    carrier: Optional[str] = Field(default=None, description="택배사")
+    tracking_no: Optional[str] = Field(default=None, description="송장번호")
+
 
 
 

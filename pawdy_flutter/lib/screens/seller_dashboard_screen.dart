@@ -60,6 +60,85 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
     );
   }
 
+  void _showShippingInputDialog(Order o, String targetStatus) {
+    String selectedCarrier = 'CJ대한통운';
+    final trackingCtrl = TextEditingController(text: o.trackingNo ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: Text('$targetStatus 처리', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('배송 택배사', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: T.sub)),
+              const SizedBox(height: 6),
+              DropdownButton<String>(
+                value: selectedCarrier,
+                isExpanded: true,
+                items: const [
+                  DropdownMenuItem(value: 'CJ대한통운', child: Text('CJ대한통운')),
+                  DropdownMenuItem(value: '우체국택배', child: Text('우체국택배')),
+                  DropdownMenuItem(value: '한진택배', child: Text('한진택배')),
+                  DropdownMenuItem(value: '롯데택배', child: Text('롯데택배')),
+                  DropdownMenuItem(value: '로젠택배', child: Text('로젠택배')),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setDlgState(() => selectedCarrier = val);
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text('송장번호', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: T.sub)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: trackingCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  hintText: '숫자만 입력',
+                  isDense: true,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('취소', style: TextStyle(color: T.sub)),
+            ),
+            TextButton(
+              onPressed: () async {
+                final trackingNo = trackingCtrl.text.trim();
+                if (trackingNo.isEmpty) {
+                  _toast('송장번호를 입력해 주세요');
+                  return;
+                }
+                Navigator.of(ctx).pop();
+                try {
+                  await Api.updateOrderStatus(
+                    o.id,
+                    targetStatus,
+                    carrier: selectedCarrier,
+                    trackingNo: trackingNo,
+                  );
+                  _toast('배송 정보가 등록되어 [$targetStatus] 처리되었습니다');
+                  _loadOrders();
+                } catch (e) {
+                  _toast('배송 처리 실패: $e');
+                }
+              },
+              child: const Text('저장', style: TextStyle(color: T.accent, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
   void _openEditDialog(Product p) {
     final nameCtrl = TextEditingController(text: p.name);
     final priceCtrl = TextEditingController(text: p.price.toString());
@@ -350,18 +429,46 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
                 ],
                 onChanged: (val) async {
                   if (val != null && val != o.status) {
-                    try {
-                      await Api.updateOrderStatus(o.id, val);
-                      _toast('배송 상태가 [$val](으)로 변경되었습니다');
-                      _loadOrders();
-                    } catch (e) {
-                      _toast('상태 변경 실패: $e');
+                    if (val == '배송중' || val == '배송완료') {
+                      _showShippingInputDialog(o, val);
+                    } else {
+                      try {
+                        await Api.updateOrderStatus(o.id, val);
+                        _toast('배송 상태가 [$val](으)로 변경되었습니다');
+                        _loadOrders();
+                      } catch (e) {
+                        _toast('상태 변경 실패: $e');
+                      }
                     }
                   }
                 },
               ),
             ],
           ),
+          if (o.carrier != null && o.carrier!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: T.soft,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    o.carrier!,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: T.sub),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '송장: ${o.trackingNo ?? ''}',
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: T.sub),
+                ),
+              ],
+            ),
+          ],
+
           const SizedBox(height: 8),
           Text(o.summary, style: const TextStyle(fontSize: 13, color: T.sub, fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),

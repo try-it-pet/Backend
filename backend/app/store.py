@@ -225,7 +225,16 @@ def _order(s, r: OrderRow) -> Order:
             product = _product(p_row)
             items.append(CartItem(id=0, product=product, product_id=it["product_id"],
                                   size=it["size"], qty=it["qty"]))
-    return Order(id=r.id, items=items, total=r.total, created_at=r.created_at, status=r.status)
+    return Order(
+        id=r.id,
+        items=items,
+        total=r.total,
+        created_at=r.created_at,
+        status=r.status,
+        carrier=r.carrier,
+        tracking_no=r.tracking_no
+    )
+
 
 
 
@@ -527,13 +536,23 @@ def list_seller_orders(shop_id: int) -> List[Order]:
         return seller_orders
 
 
-def update_order_status(order_id: int, status: str) -> Optional[Order]:
+def update_order_status(order_id: int, status: str, carrier: Optional[str] = None, tracking_no: Optional[str] = None) -> Optional[Order]:
     with get_session() as s:
         r = s.get(OrderRow, order_id)
         if not r:
             return None
         r.status = status
+        # 상태에 따라 배송 정보를 업데이트하거나 초기화(결제완료, 배송준비 상태)
+        if status in ("결제완료", "배송준비중"):
+            r.carrier = None
+            r.tracking_no = None
+        else:
+            if carrier is not None:
+                r.carrier = carrier
+            if tracking_no is not None:
+                r.tracking_no = tracking_no
         s.add(r); s.commit(); s.refresh(r)
         return _order(s, r)
+
 
 

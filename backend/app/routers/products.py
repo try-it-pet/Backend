@@ -185,7 +185,13 @@ def get_seller_orders(user: User = Depends(get_current_user)) -> list[Order]:
 
 
 @router.patch("/seller/orders/{order_id}/status", response_model=Order)
-def patch_seller_order_status(order_id: int, status: str = Form(...), user: User = Depends(get_current_user)) -> Order:
+def patch_seller_order_status(
+    order_id: int,
+    status: str = Form(...),
+    carrier: Optional[str] = Form(None),
+    tracking_no: Optional[str] = Form(None),
+    user: User = Depends(get_current_user)
+) -> Order:
     """주문의 배송 상태 변경"""
     shop = get_shop_by_owner(user.id)
     if not shop:
@@ -194,10 +200,11 @@ def patch_seller_order_status(order_id: int, status: str = Form(...), user: User
     my_orders = list_seller_orders(shop.id)
     if not any(o.id == order_id for o in my_orders):
         raise HTTPException(status_code=404, detail="Order not found or contains no products from this shop")
-    updated = update_order_status(order_id, status)
+    updated = update_order_status(order_id, status, carrier=carrier, tracking_no=tracking_no)
     if not updated:
         raise HTTPException(status_code=500, detail="Failed to update order status")
     return updated
+
 
 
 @router.get("/{product_id}", response_model=Product)

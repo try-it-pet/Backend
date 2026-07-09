@@ -54,6 +54,15 @@ def init_db() -> None:
     except Exception:
         pass
 
+    # orders 테이블에 carrier 및 tracking_no 컬럼 동적 추가
+    for col in [("carrier", "VARCHAR(100)"), ("tracking_no", "VARCHAR(100)")]:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE orders ADD COLUMN {col[0]} {col[1]}"))
+        except Exception:
+            pass
+
+
 
 
 
