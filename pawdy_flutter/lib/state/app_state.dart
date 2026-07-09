@@ -7,6 +7,8 @@ import '../models/product.dart';
 import '../models/user.dart';
 import '../models/commerce.dart';
 import '../models/shop.dart';
+import '../services/notification_service.dart';
+
 
 
 /// 화면 간 공유 상태: 상품·찜·인증(카카오 딥링크)·펫·통계. 전역 ChangeNotifier 싱글턴.
@@ -27,6 +29,7 @@ class AppState extends ChangeNotifier {
   Stats? stats;
   List<CartItem> cart = [];
   int unreadNotificationsCount = 0;
+  int? _lastMaxNotifId;
   bool get loggedIn => user != null;
   int get cartCount => cart.fold(0, (n, it) => n + it.qty);
 
@@ -51,15 +54,29 @@ class AppState extends ChangeNotifier {
   Future<void> fetchUnreadNotificationsCount() async {
     if (!loggedIn) {
       unreadNotificationsCount = 0;
+      _lastMaxNotifId = null;
       notifyListeners();
       return;
     }
     try {
       final notifs = await Api.fetchNotifications();
       unreadNotificationsCount = notifs.where((n) => !n.isRead).length;
+
+      if (notifs.isNotEmpty) {
+        final currentMaxId = notifs.map((n) => n.id).fold(0, (max, id) => id > max ? id : max);
+        if (_lastMaxNotifId != null && currentMaxId > _lastMaxNotifId!) {
+          // 새 알림 존재! 읽지 않은 새로운 알림을 시스템 팝업 노출
+          final newUnreads = notifs.where((n) => !n.isRead && n.id > _lastMaxNotifId!);
+          for (final n in newUnreads) {
+            await NotificationService.showNotification(title: n.title, body: n.content);
+          }
+        }
+        _lastMaxNotifId = currentMaxId;
+      }
       notifyListeners();
     } catch (_) {}
   }
+
   
   
   /// 앱 시작 시 딥링크 리스너 등록(카카오 로그인 후 pawdy://login?token= 수신).

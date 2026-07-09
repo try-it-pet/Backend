@@ -4,6 +4,8 @@ import '../models/product.dart';
 import '../models/commerce.dart';
 import '../theme/tokens.dart';
 import 'product_register_screen.dart';
+import '../state/app_state.dart';
+
 
 class SellerDashboardScreen extends StatefulWidget {
   const SellerDashboardScreen({super.key});
@@ -126,10 +128,12 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
                   );
                   _toast('배송 정보가 등록되어 [$targetStatus] 처리되었습니다');
                   _loadOrders();
+                  appState.fetchUnreadNotificationsCount();
                 } catch (e) {
                   _toast('배송 처리 실패: $e');
                 }
               },
+
               child: const Text('저장', style: TextStyle(color: T.accent, fontWeight: FontWeight.bold)),
             ),
           ],
@@ -436,12 +440,14 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
                         await Api.updateOrderStatus(o.id, val);
                         _toast('배송 상태가 [$val](으)로 변경되었습니다');
                         _loadOrders();
+                        appState.fetchUnreadNotificationsCount();
                       } catch (e) {
                         _toast('상태 변경 실패: $e');
                       }
                     }
                   }
                 },
+
               ),
             ],
           ),

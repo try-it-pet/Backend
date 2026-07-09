@@ -7,8 +7,14 @@ import 'screens/fit_screen.dart';
 import 'screens/category_screen.dart';
 import 'screens/likes_screen.dart';
 import 'screens/my_screen.dart';
+import 'services/notification_service.dart';
 
-void main() => runApp(const PawdyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init();
+  runApp(const PawdyApp());
+}
+
 
 class PawdyApp extends StatelessWidget {
   const PawdyApp({super.key});
