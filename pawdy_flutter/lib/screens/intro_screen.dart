@@ -64,21 +64,26 @@ class _IntroScreenState extends State<IntroScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 78,
-                  height: 78,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-                    color: T.accent,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                          color: T.accent.withValues(alpha: 0.34),
-                          blurRadius: 34,
-                          offset: const Offset(0, 12)),
+                          color: T.accent.withValues(alpha: 0.15),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8)),
                     ],
                   ),
-                  child: const Icon(Icons.image_outlined,
-                      color: Colors.white, size: 40),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset(
+                      'assets/images/app_icon.jpg',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
+
                 const SizedBox(height: 22),
                 Row(
                   mainAxisSize: MainAxisSize.min,
