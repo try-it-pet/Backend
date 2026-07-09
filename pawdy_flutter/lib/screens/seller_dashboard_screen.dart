@@ -22,6 +22,8 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
   
   bool _loadingProducts = true;
   bool _loadingOrders = true;
+  String _ordersSubTab = 'pending'; // 'pending' | 'shipping' | 'completed'
+
 
   @override
   void initState() {
@@ -376,34 +378,141 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
     if (_loadingOrders) {
       return const Center(child: CircularProgressIndicator(color: T.accent, strokeWidth: 3));
     }
+
+    // 1. 상태별 그룹 분리
+    final pendingOrders = _orders.where((o) => o.status == '결제완료' || o.status == '배송준비중').toList();
+    final shippingOrders = _orders.where((o) => o.status == '배송중').toList();
+    final completedOrders = _orders.where((o) => o.status == '배송완료').toList();
+
+    // 2. 현재 선택된 서브 탭에 맞는 목록 선택
+    List<Order> displayOrders;
+    if (_ordersSubTab == 'pending') {
+      displayOrders = pendingOrders;
+    } else if (_ordersSubTab == 'shipping') {
+      displayOrders = shippingOrders;
+    } else {
+      displayOrders = completedOrders;
+    }
+
     return Column(
       children: [
+        // 새로고침 헤더
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 16, 22, 10),
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('주문건 ${_orders.length}개', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: T.sub)),
+              const Text('주문/배송 관리', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: T.ink)),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 18, color: T.sub),
                 onPressed: _loadOrders,
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
               ),
             ],
           ),
         ),
+
+        // 세그먼트 탭 필터 바 (디자인 시스템 반영)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: T.soft,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: T.line),
+            ),
+            child: Row(
+              children: [
+                _subTabButton('pending', '배송대기', pendingOrders.length),
+                _subTabButton('shipping', '배송중', shippingOrders.length),
+                _subTabButton('completed', '배송완료', completedOrders.length),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 6),
+
+        // 필터링된 주문 리스트 출력
         Expanded(
-          child: _orders.isEmpty
-              ? _emptyState('들어온 주문이 없습니다')
+          child: displayOrders.isEmpty
+              ? _emptyState(
+                  _ordersSubTab == 'pending'
+                      ? '배송 대기 중인 주문이 없습니다'
+                      : _ordersSubTab == 'shipping'
+                          ? '배송 진행 중인 주문이 없습니다'
+                          : '완료된 주문 내역이 없습니다',
+                )
               : ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-                  itemCount: _orders.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => _orderItem(_orders[i]),
+                  padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
+                  itemCount: displayOrders.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) => _orderItem(displayOrders[i]),
                 ),
         ),
       ],
     );
   }
+
+  Widget _subTabButton(String tabKey, String label, int count) {
+    final isSelected = _ordersSubTab == tabKey;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _ordersSubTab = tabKey),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          margin: const EdgeInsets.all(4),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    )
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.0,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? T.ink : T.sub,
+                ),
+              ),
+              const SizedBox(width: 4),
+              // 건수 동그라미 배지 표시
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isSelected ? T.accent : T.muted2.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? Colors.white : T.sub,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   Widget _orderItem(Order o) {
     return Container(
