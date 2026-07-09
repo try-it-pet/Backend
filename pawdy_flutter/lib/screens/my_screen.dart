@@ -192,62 +192,99 @@ class MyScreen extends StatelessWidget {
   Widget _petRow(BuildContext context, Pet pet) {
     final hasImage = pet.image != null && pet.image!.isNotEmpty;
     final imageUrl = hasImage ? (pet.image!.startsWith('http') ? pet.image! : '$apiBase${pet.image!}') : null;
-
+    final isActive = appState.activePet?.id == pet.id;
 
     return Row(
       children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: const BoxDecoration(color: T.soft, shape: BoxShape.circle),
-          child: ClipOval(
-            child: imageUrl != null
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _fallbackAvatar(pet),
-                  )
-                : _fallbackAvatar(pet),
-          ),
-        ),
-        const SizedBox(width: 14),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Text(pet.name,
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                        color: T.ink)),
-                const SizedBox(width: 7),
+          child: GestureDetector(
+            onTap: () => appState.activePetId = pet.id,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
-                      color: T.soft, borderRadius: BorderRadius.circular(999)),
-                  child: Text(
-                      [
-                        _speciesKo(pet.species),
-                        if (pet.weightKg != null) '${pet.weightKg}kg'
-                      ].join(' · '),
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: T.sub)),
+                    color: T.soft,
+                    shape: BoxShape.circle,
+                    border: isActive
+                        ? Border.all(color: T.accent, width: 2)
+                        : null,
+                  ),
+                  child: ClipOval(
+                    child: imageUrl != null
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _fallbackAvatar(pet),
+                          )
+                        : _fallbackAvatar(pet),
+                  ),
                 ),
-              ]),
-              const SizedBox(height: 5),
-              Text(_measure(pet),
-                  style: const TextStyle(
-                      fontSize: 12.5,
-                      color: T.muted,
-                      fontWeight: FontWeight.w500)),
-            ],
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(pet.name,
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.4,
+                                  color: T.ink)),
+                          const SizedBox(width: 7),
+                          if (isActive)
+                            Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: T.accentSoft,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: T.accent.withOpacity(0.3)),
+                              ),
+                              child: const Text(
+                                '대표',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: T.accent,
+                                ),
+                              ),
+                            ),
+                          Container(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                            decoration: BoxDecoration(
+                                color: T.soft, borderRadius: BorderRadius.circular(999)),
+                            child: Text(
+                                [
+                                  _speciesKo(pet.species),
+                                  if (pet.weightKg != null) '${pet.weightKg}kg'
+                                ].join(' · '),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: T.sub)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Text(_measure(pet),
+                          style: const TextStyle(
+                              fontSize: 12.5,
+                              color: T.muted,
+                              fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
+
         GestureDetector(
           onTap: () async {
             final confirm = await showDialog<bool>(

@@ -144,7 +144,8 @@ class _FitScreenState extends State<FitScreen> {
       setState(() => _loading = true);
     }
     try {
-      final petId = appState.firstPet?.id;
+      final petId = appState.activePet?.id;
+
       final job = fourcut
           ? await Api.runFourcut(
               productId: product.id,

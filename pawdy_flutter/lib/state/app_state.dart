@@ -236,17 +236,36 @@ class AppState extends ChangeNotifier {
     );
     if (p != null) {
       pets = [...pets, p];
+      _activePetId = p.id;
       notifyListeners();
     }
+  }
+
+  int? _activePetId;
+  int? get activePetId => _activePetId;
+  set activePetId(int? id) {
+    _activePetId = id;
+    notifyListeners();
+  }
+
+  Pet? get activePet {
+    if (pets.isEmpty) return null;
+    final found = pets.where((p) => p.id == _activePetId);
+    if (found.isNotEmpty) return found.first;
+    return pets.first;
   }
 
   Future<void> removePet(int petId) async {
     await Api.deletePet(petId);
     pets = pets.where((p) => p.id != petId).toList();
+    if (_activePetId == petId) {
+      _activePetId = pets.isNotEmpty ? pets.first.id : null;
+    }
     notifyListeners();
   }
 
-  Pet? get firstPet => pets.isNotEmpty ? pets.first : null;
+  Pet? get firstPet => activePet;
+
 
 
   @override
