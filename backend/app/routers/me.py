@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import get_current_user
-from ..data import PRODUCTS_BY_ID
 from ..models import (
     CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, ReviewCreate, Stats, User,
 )
@@ -9,6 +8,7 @@ from ..quota import grant_purchase, status as quota_status
 from ..store import (
     add_cart, add_pet, add_review, count_likes, count_orders, create_order, get_cart, get_fittings,
     list_fittings, list_likes, list_my_reviews, list_orders, list_pets, remove_cart, toggle_like,
+    get_product,
 )
 
 router = APIRouter(prefix="/me", tags=["me"], dependencies=[Depends(get_current_user)])
@@ -22,7 +22,7 @@ def get_likes(user: User = Depends(get_current_user)) -> list[int]:
 
 @router.post("/likes/{product_id}")
 def like(product_id: int, user: User = Depends(get_current_user)) -> dict:
-    if product_id not in PRODUCTS_BY_ID:
+    if get_product(product_id) is None:
         raise HTTPException(status_code=404, detail="product not found")
     liked, ids = toggle_like(user.id, product_id)
     return {"liked": liked, "likedIds": ids}
@@ -36,7 +36,7 @@ def cart(user: User = Depends(get_current_user)) -> list[CartItem]:
 
 @router.post("/cart", response_model=list[CartItem])
 def cart_add(body: CartItemCreate, user: User = Depends(get_current_user)) -> list[CartItem]:
-    if body.product_id not in PRODUCTS_BY_ID:
+    if get_product(body.product_id) is None:
         raise HTTPException(status_code=404, detail="product not found")
     return add_cart(user.id, body)
 
@@ -80,7 +80,7 @@ def my_reviews(user: User = Depends(get_current_user)) -> list[Review]:
 
 @router.post("/reviews", response_model=Review, status_code=201)
 def write_review(body: ReviewCreate, user: User = Depends(get_current_user)) -> Review:
-    if body.product_id not in PRODUCTS_BY_ID:
+    if get_product(body.product_id) is None:
         raise HTTPException(status_code=404, detail="product not found")
     return add_review(user.id, body)
 

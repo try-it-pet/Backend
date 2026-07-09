@@ -6,18 +6,19 @@
 
 import json
 import time
+import json
 from typing import Dict, List, Optional, Tuple
 
 from sqlmodel import select
 
-from .data import PRODUCTS_BY_ID
 from .db import get_session
 from .models import (
     CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, ReviewCreate, User,
+    Product, Shop, ShopCreate, ProductCreate,
 )
 from .tables import (
     CartRow, FittingRow, KVRow, LikeRow, OrderRow, PetRow, ResultRow, ReviewRow,
-    UserCounterRow, UserRow,
+    UserCounterRow, UserRow, ProductRow, ShopRow,
 )
 
 # ── 인메모리(단기 생성 상태만) ──
@@ -35,6 +36,37 @@ def _user(r: UserRow) -> User:
 def _pet(r: PetRow) -> Pet:
     return Pet(id=r.id, name=r.name, species=r.species, breed=r.breed, weight_kg=r.weight_kg,
                age=r.age, chest_cm=r.chest_cm, neck_cm=r.neck_cm, back_cm=r.back_cm)
+
+
+def _product(r: ProductRow) -> Product:
+    sizes = json.loads(r.sizes_json) if r.sizes_json else None
+    return Product(
+        id=r.id,
+        shop_id=r.shop_id,
+        brand=r.brand,
+        name=r.name,
+        price=r.price,
+        fit=r.fit,
+        category=r.category,
+        species=r.species,
+        fittable=r.fittable,
+        image=r.image,
+        ref_image=r.ref_image,
+        url=r.url,
+        sizes=sizes
+    )
+
+
+def _shop(r: ShopRow) -> Shop:
+    return Shop(
+        id=r.id,
+        name=r.name,
+        description=r.description,
+        logo_url=r.logo_url,
+        owner_id=r.owner_id,
+        created_at=r.created_at
+    )
+
 
 
 def _counter(s, user_id: int) -> UserCounterRow:
@@ -121,8 +153,9 @@ def _cart_items(s, user_id: int) -> List[CartItem]:
     rows = s.exec(select(CartRow).where(CartRow.user_id == user_id)).all()
     out = []
     for r in rows:
-        product = PRODUCTS_BY_ID.get(r.product_id)
-        if product:
+        p_row = s.get(ProductRow, r.product_id)
+        if p_row:
+            product = _product(p_row)
             out.append(CartItem(id=r.id, product=product, product_id=r.product_id, size=r.size, qty=r.qty))
     return out
 
@@ -166,14 +199,15 @@ def create_order(user_id: int) -> Optional[Order]:
         for cr in s.exec(select(CartRow).where(CartRow.user_id == user_id)).all():
             s.delete(cr)  # 주문 후 장바구니 비움
         s.commit(); s.refresh(row)
-        return _order(row)
+        return _order(s, row)
 
 
-def _order(r: OrderRow) -> Order:
+def _order(s, r: OrderRow) -> Order:
     items = []
     for it in json.loads(r.items_json):
-        product = PRODUCTS_BY_ID.get(it["product_id"])
-        if product:
+        p_row = s.get(ProductRow, it["product_id"])
+        if p_row:
+            product = _product(p_row)
             items.append(CartItem(id=0, product=product, product_id=it["product_id"],
                                   size=it["size"], qty=it["qty"]))
     return Order(id=r.id, items=items, total=r.total, created_at=r.created_at)
@@ -182,7 +216,7 @@ def _order(r: OrderRow) -> Order:
 def list_orders(user_id: int) -> List[Order]:
     with get_session() as s:
         rows = s.exec(select(OrderRow).where(OrderRow.user_id == user_id)).all()
-        return [_order(r) for r in rows]
+        return [_order(s, r) for r in rows]
 
 
 def count_orders(user_id: int) -> int:
@@ -355,3 +389,60 @@ def prune_jobs(max_keep: int = 500, max_age_sec: int = 7200) -> int:
                 s.delete(r)
             s.commit()
     return len(drop)
+
+
+def get_product(product_id: int) -> Optional[Product]:
+    with get_session() as s:
+        r = s.get(ProductRow, product_id)
+        return _product(r) if r else None
+
+
+def list_products(category: Optional[str] = None) -> List[Product]:
+    with get_session() as s:
+        stmt = select(ProductRow)
+        if category:
+            stmt = stmt.where(ProductRow.category == category)
+        rows = s.exec(stmt).all()
+        return [_product(r) for r in rows]
+
+
+def get_shop(shop_id: int) -> Optional[Shop]:
+    with get_session() as s:
+        r = s.get(ShopRow, shop_id)
+        return _shop(r) if r else None
+
+
+def get_shop_by_owner(owner_id: int) -> Optional[Shop]:
+    with get_session() as s:
+        r = s.exec(select(ShopRow).where(ShopRow.owner_id == owner_id)).first()
+        return _shop(r) if r else None
+
+
+def create_shop(owner_id: int, body: ShopCreate) -> Shop:
+    with get_session() as s:
+        r = ShopRow(owner_id=owner_id, name=body.name, description=body.description)
+        s.add(r); s.commit(); s.refresh(r)
+        return _shop(r)
+
+
+def create_product(shop_id: int, brand: str, body: ProductCreate, image_url: Optional[str] = None, ref_image_url: Optional[str] = None) -> Product:
+    with get_session() as s:
+        sizes_json = json.dumps(body.sizes) if body.sizes else None
+        # 새로운 상품 생성 시 AI 핏 기본 점수로 95 부여
+        r = ProductRow(
+            shop_id=shop_id,
+            brand=brand,
+            name=body.name,
+            price=body.price,
+            fit=95,
+            category=body.category,
+            species=body.species,
+            fittable=body.fittable,
+            image=image_url,
+            ref_image=ref_image_url,
+            url=body.url,
+            sizes_json=sizes_json
+        )
+        s.add(r); s.commit(); s.refresh(r)
+        return _product(r)
+

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class Product(BaseModel):
     id: int
+    shop_id: Optional[int] = Field(None, description="상점 ID")
     brand: str
     name: str
     price: int
@@ -17,6 +18,30 @@ class Product(BaseModel):
     ref_image: Optional[str] = Field(None, description="옷 레퍼런스 이미지 URL — AI 피팅이 이 옷을 입힘")
     url: Optional[str] = Field(None, description="원 판매처(해외직구) 상품 페이지 링크")
     sizes: Optional[list[str]] = Field(None, description="선택 가능 사이즈 목록 — 없으면 Free(단일 사이즈) 품목")
+
+
+class ShopCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class Shop(ShopCreate):
+    id: int
+    logo_url: Optional[str] = None
+    owner_id: int
+    created_at: str
+
+
+class ProductCreate(BaseModel):
+    brand: str
+    name: str
+    price: int
+    category: str = "fashion"
+    species: str = "dog"
+    fittable: bool = True
+    url: Optional[str] = None
+    sizes: Optional[list[str]] = None
+
 
 
 class PetCreate(BaseModel):

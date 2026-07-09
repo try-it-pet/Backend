@@ -9,7 +9,6 @@ from fastapi.responses import Response
 
 from ..auth import get_optional_user
 from ..config import settings
-from ..data import PRODUCTS_BY_ID
 from ..fourcut import compose_2x2
 from ..imageprep import prepare_pet_image
 from ..models import JobStatus, TryOnJob, TryOnResult, User
@@ -19,6 +18,7 @@ from ..upscale import maybe_upscale
 from ..quota import can_generate, consume, daily_cap_reached, ip_allowed, limits_active, refund, settle
 from ..store import (
     JOBS, add_fitting, find_pet, get_result, inc_fitting, prune_jobs, save_result, track_job,
+    get_product,
 )
 from ..vision import detect_pet
 
@@ -61,7 +61,11 @@ async def _process_job(job_id: str, pet_image: Optional[bytes],
     job = JOBS[job_id]
     job.status = JobStatus.processing
     try:
-        product = PRODUCTS_BY_ID[job.product_id]
+        product = get_product(job.product_id)
+        if product is None:
+            job.status = JobStatus.failed
+            job.error = "상품 정보를 찾을 수 없습니다."
+            return
         pet = find_pet(job.pet_id)
         provider = get_provider(job.provider)
 
@@ -149,7 +153,11 @@ async def _process_fourcut(job_id: str, images: list[bytes],
     job = JOBS[job_id]
     job.status = JobStatus.processing
     try:
-        product = PRODUCTS_BY_ID[job.product_id]
+        product = get_product(job.product_id)
+        if product is None:
+            job.status = JobStatus.failed
+            job.error = "상품 정보를 찾을 수 없습니다."
+            return
         pet = find_pet(job.pet_id)
         provider = get_provider(job.provider)
         multi = [im for im in images if im][:4]
@@ -314,9 +322,9 @@ async def create_tryon(
     `provider` 로 요청마다 모델을 바꿔 같은 입력의 품질을 비교할 수 있다.
     로그인 상태면 마이 화면 'AI 피팅' 통계에 집계된다.
     """
-    if product_id not in PRODUCTS_BY_ID:
+    product = get_product(product_id)
+    if product is None:
         raise HTTPException(status_code=404, detail="product not found")
-    product = PRODUCTS_BY_ID[product_id]
     # 2단계 피팅(멀티이미지 착용 → LoRA 룩)은 replicate 경로에서만·호출 2회 → 비용 상향(two_stage_cost).
     prov = (provider or settings.provider or "mock").lower()
     unit = settings.two_stage_cost if (
@@ -359,7 +367,8 @@ async def create_fourcut(
     `pet_images` 로 **2~4장**을 올리면 각 사진에 감성 룩·상품 옷을 입혀 컷으로 구성한다
     (실제 여러 포즈 → 자연스러운 4컷). 1장(`pet_image`)만 올리면 AI 가 4포즈를 생성한다.
     """
-    if product_id not in PRODUCTS_BY_ID:
+    product = get_product(product_id)
+    if product is None:
         raise HTTPException(status_code=404, detail="product not found")
     cost = _quota_precheck(provider, user, settings.fourcut_cost, request)
     files = list(pet_images or [])
@@ -407,7 +416,7 @@ def job_preview(job_id: str) -> Response:
     job = JOBS.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
-    product = PRODUCTS_BY_ID.get(job.product_id)
+    product = get_product(job.product_id)
     name = product.name if product else "상품"
     score = job.result.fit_score if job.result else "—"
     size = job.result.recommended_size if job.result else job.size

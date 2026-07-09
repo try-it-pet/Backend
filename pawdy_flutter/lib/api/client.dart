@@ -7,6 +7,8 @@ import '../models/user.dart';
 import '../models/commerce.dart';
 import '../models/review.dart';
 import '../models/fitting.dart';
+import '../models/shop.dart';
+
 
 /// Pawdy 백엔드(FastAPI) 클라이언트.
 /// 운영 = Railway. 빌드 시 --dart-define=API_BASE=... 로 재정의 가능.
@@ -196,6 +198,71 @@ class Api {
     if (r.statusCode != 200) return null;
     return Generations.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
+
+  // ── 상점 & 상품 등록 ──
+  static Future<Shop?> fetchMyShop() async {
+    if (_token == null) return null;
+    final r = await http.get(Uri.parse('$apiBase/products/shops/me'), headers: _authHeaders());
+    if (r.statusCode == 404) return null;
+    if (r.statusCode != 200) return null;
+    final body = jsonDecode(utf8.decode(r.bodyBytes));
+    if (body == null) return null;
+    return Shop.fromJson(body as Map<String, dynamic>);
+  }
+
+  static Future<Shop> createShop(String name, String? description) async {
+    final r = await http.post(
+      Uri.parse('$apiBase/products/shops'),
+      headers: {..._authHeaders(), 'Content-Type': 'application/json'},
+      body: jsonEncode({'name': name, 'description': description}),
+    );
+    if (r.statusCode != 200 && r.statusCode != 201) throw _apiError(r, '상점 등록 실패');
+    return Shop.fromJson(jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  static Future<Product> createProduct({
+    required String brand,
+    required String name,
+    required int price,
+    required String category,
+    required String species,
+    required bool fittable,
+    String? url,
+    List<String>? sizes,
+    required Uint8List imageBytes,
+    required String imageFilename,
+    Uint8List? refImageBytes,
+    String? refImageFilename,
+  }) async {
+    final req = http.MultipartRequest('POST', Uri.parse('$apiBase/products'))
+      ..headers.addAll(_authHeaders())
+      ..fields['brand'] = brand
+      ..fields['name'] = name
+      ..fields['price'] = '$price'
+      ..fields['category'] = category
+      ..fields['species'] = species
+      ..fields['fittable'] = fittable.toString()
+      ..fields['url'] = url ?? '';
+    if (sizes != null && sizes.isNotEmpty) {
+      req.fields['sizes'] = jsonEncode(sizes);
+    }
+    req.files.add(http.MultipartFile.fromBytes(
+      'image_file',
+      imageBytes,
+      filename: imageFilename,
+    ));
+    if (fittable && refImageBytes != null) {
+      req.files.add(http.MultipartFile.fromBytes(
+        'ref_image_file',
+        refImageBytes,
+        filename: refImageFilename ?? 'ref_image.jpg',
+      ));
+    }
+    final res = await http.Response.fromStream(await req.send());
+    if (res.statusCode != 200 && res.statusCode != 201) throw _apiError(res, '상품 등록 실패');
+    return Product.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
 
   // ── AI 피팅 / 인생네컷 ──
   static Future<TryOnJob> _createJob(

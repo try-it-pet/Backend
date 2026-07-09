@@ -6,6 +6,8 @@ import '../api/client.dart';
 import '../models/product.dart';
 import '../models/user.dart';
 import '../models/commerce.dart';
+import '../models/shop.dart';
+
 
 /// 화면 간 공유 상태: 상품·찜·인증(카카오 딥링크)·펫·통계. 전역 ChangeNotifier 싱글턴.
 class AppState extends ChangeNotifier {
@@ -19,7 +21,9 @@ class AppState extends ChangeNotifier {
 
   // 인증/계정
   User? user;
+  Shop? shop;
   List<Pet> pets = [];
+
   Stats? stats;
   List<CartItem> cart = [];
   bool get loggedIn => user != null;
@@ -90,18 +94,31 @@ class AppState extends ChangeNotifier {
     try {
       cart = await Api.fetchCart();
     } catch (_) {}
+    try {
+      shop = await Api.fetchMyShop();
+    } catch (_) {}
     notifyListeners();
   }
 
   void logout() {
     Api.setToken(null);
     user = null;
+    shop = null;
     pets = [];
     stats = null;
     cart = [];
     likedIds.clear();
     notifyListeners();
   }
+
+  Future<void> refreshShop() async {
+    if (!loggedIn) return;
+    try {
+      shop = await Api.fetchMyShop();
+      notifyListeners();
+    } catch (_) {}
+  }
+
 
   // ── 찜 ──
   bool isLiked(int id) => likedIds.contains(id);

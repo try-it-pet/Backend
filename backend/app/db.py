@@ -5,6 +5,7 @@ SQLAlchemy 용 postgresql:// 로 정규화). 미설정 시 로컬 파일 SQLite 
 """
 
 import os
+import json
 
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -28,9 +29,35 @@ engine = create_engine(DATABASE_URL, echo=False, pool_pre_ping=True, connect_arg
 def init_db() -> None:
     """앱 시작 시 테이블 생성(없으면). tables 모듈을 import 해야 메타데이터가 등록됨."""
     from . import tables  # noqa: F401
+    from .data import PRODUCTS
+    from sqlmodel import select
 
     SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as s:
+        # products 테이블에 데이터가 없는 경우에만 초기 데이터 시딩
+        existing = s.exec(select(tables.ProductRow)).first()
+        if not existing:
+            for p in PRODUCTS:
+                sizes_json = json.dumps(p.sizes) if p.sizes else None
+                row = tables.ProductRow(
+                    id=p.id,
+                    brand=p.brand,
+                    name=p.name,
+                    price=p.price,
+                    fit=p.fit,
+                    category=p.category,
+                    species=p.species,
+                    fittable=p.fittable,
+                    image=p.image,
+                    ref_image=p.ref_image,
+                    url=p.url,
+                    sizes_json=sizes_json
+                )
+                s.add(row)
+            s.commit()
 
 
 def get_session() -> Session:
     return Session(engine)
+

@@ -8,6 +8,9 @@ import 'orders_screen.dart';
 import 'my_reviews_screen.dart';
 import 'fitting_history_screen.dart';
 import 'coming_soon_screen.dart';
+import 'shop_register_screen.dart';
+import 'product_register_screen.dart';
+
 
 class MyScreen extends StatelessWidget {
   const MyScreen({super.key});
@@ -295,6 +298,21 @@ class MyScreen extends StatelessWidget {
   Widget _menuCard(BuildContext context) {
     final orders = appState.stats?.orders ?? 0;
     final fittings = appState.stats?.fittings ?? 0;
+
+    final String sellerMenuTitle;
+    final VoidCallback sellerMenuAction;
+
+    if (!appState.loggedIn) {
+      sellerMenuTitle = '판매자 등록 (상점 개설)';
+      sellerMenuAction = () => _toast(context, '로그인하면 판매자로 등록할 수 있어요');
+    } else if (appState.shop != null) {
+      sellerMenuTitle = '내 상점 관리 (${appState.shop!.name})';
+      sellerMenuAction = () => _push(context, const ProductRegisterScreen());
+    } else {
+      sellerMenuTitle = '판매자 등록 (상점 개설)';
+      sellerMenuAction = () => _push(context, const ShopRegisterScreen());
+    }
+
     final items = <(String, String, VoidCallback)>[
       ('주문 내역', orders > 0 ? '$orders건' : '', () => _openOrders(context)),
       ('배송 현황', '', () => _push(context,
@@ -313,10 +331,12 @@ class MyScreen extends StatelessWidget {
         }
         _push(context, const MyReviewsScreen());
       }),
+      (sellerMenuTitle, '', sellerMenuAction),
       ('쿠폰 · 포인트', '', () => _push(context,
           const ComingSoonScreen(title: '쿠폰 · 포인트', icon: Icons.confirmation_number_outlined))),
       ('고객센터 · 설정', '', () => _push(context, const SettingsScreen())),
     ];
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,

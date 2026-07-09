@@ -1,9 +1,5 @@
-"""오브젝트 스토리지(Cloudflare R2, S3 호환) — 생성 결과 이미지·LoRA 저장.
-
-R2 크레덴셜이 설정되면 R2 에 업로드하고 공개 URL 을 돌려준다. 미설정이면 configured()=False
-→ 호출측이 DB 폴백. R2 는 이그레스 무료라 이미지 트래픽 많은 우리에 유리.
-"""
-
+import os
+from pathlib import Path
 from typing import Optional
 
 from .config import settings
@@ -33,11 +29,23 @@ def _s3():
 
 
 def put_bytes(key: str, data: bytes, mime: str = "application/octet-stream") -> Optional[str]:
-    """R2 에 업로드하고 공개 URL 반환. 실패 시 None."""
-    if not configured():
-        return None
+    """R2 에 업로드하고 공개 URL 반환. 실패 시 로컬 static 업로드 폴백."""
+    if configured():
+        try:
+            _s3().put_object(Bucket=settings.r2_bucket, Key=key, Body=data, ContentType=mime)
+            return f"{settings.r2_public_base.rstrip('/')}/{key}"
+        except Exception:  # noqa: BLE001
+            pass
+
+    # 로컬 폴백: app/static/uploads 디렉토리에 저장
     try:
-        _s3().put_object(Bucket=settings.r2_bucket, Key=key, Body=data, ContentType=mime)
-        return f"{settings.r2_public_base.rstrip('/')}/{key}"
-    except Exception:  # noqa: BLE001 (업로드 실패 → 호출측 DB 폴백)
+        base_dir = Path(__file__).resolve().parent / "static" / "uploads"
+        base_dir.mkdir(parents=True, exist_ok=True)
+        # 경로 구분자(/)를 언더스코어(_)로 변환하여 로컬 파일명 충돌 방지
+        filename = key.replace("/", "_")
+        file_path = base_dir / filename
+        file_path.write_bytes(data)
+        return f"/static/uploads/{filename}"
+    except Exception:
         return None
+

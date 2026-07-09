@@ -1,6 +1,7 @@
 /// 백엔드 GET /products 응답 항목. models.py Product 스키마와 일치.
 class Product {
   final int id;
+  final int? shopId;
   final String brand;
   final String name;
   final int price;
@@ -15,6 +16,7 @@ class Product {
 
   const Product({
     required this.id,
+    this.shopId,
     required this.brand,
     required this.name,
     required this.price,
@@ -30,6 +32,7 @@ class Product {
 
   factory Product.fromJson(Map<String, dynamic> j) => Product(
         id: j['id'] as int,
+        shopId: j['shop_id'] as int?,
         brand: j['brand'] as String? ?? '',
         name: j['name'] as String? ?? '',
         price: (j['price'] as num?)?.toInt() ?? 0,

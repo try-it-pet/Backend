@@ -60,7 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _card([
                     _tap('문의하기', () => _toast('문의 기능은 준비 중이에요')),
                     _tap('이용약관 · 개인정보', () => _toast('준비 중이에요')),
-                    _row('앱 버전', '1.0.0 ($_buildTag)'),
+                    _row('앱 버전', '1.2.0 ($_buildTag)'),
                   ]),
                   const SizedBox(height: 14),
                   if (user != null)

@@ -102,3 +102,33 @@ class KVRow(SQLModel, table=True):
     __tablename__ = "kv"
     key: str = Field(primary_key=True)
     ival: int = 0
+
+
+class ShopRow(SQLModel, table=True):
+    """상점/브랜드 정보"""
+    __tablename__ = "shops"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    owner_id: int = Field(index=True)
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class ProductRow(SQLModel, table=True):
+    """상품 정보 테이블"""
+    __tablename__ = "products"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    shop_id: Optional[int] = Field(default=None, index=True)
+    brand: str
+    name: str
+    price: int
+    fit: int = 90
+    category: str = "fashion"
+    species: str = "dog"
+    fittable: bool = True
+    image: Optional[str] = None
+    ref_image: Optional[str] = None
+    url: Optional[str] = None
+    sizes_json: Optional[str] = None  # JSON string e.g. ["XS", "S", "M"]
+
