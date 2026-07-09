@@ -369,10 +369,218 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
             ],
           ),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: _showMatchScoreGuide,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: T.soft,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: T.line),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.psychology_outlined, size: 20, color: T.accent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'AI 매치 점수 ',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: T.ink),
+                            ),
+                            Text(
+                              '${product.fit}%',
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  color: T.accent),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _getFitDescription(product.fit),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: T.sub,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.info_outline, size: 16, color: T.muted2),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+
+  String _getFitDescription(int fit) {
+    if (fit >= 93) return '우리 아이에게 완벽하게 어울리고 편안한 추천 핏이에요.';
+    if (fit >= 85) return '약간의 여유(3~5cm)가 있어 활동하기 편안한 핏이에요.';
+    if (fit >= 70) return '슬림하고 딱 맞는 핏이에요. 상세 치수를 확인해 주세요.';
+    return '치수 차이가 있어 착용 시 다소 낄 수 있어요.';
+  }
+
+  void _showMatchScoreGuide() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: T.line,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Icon(Icons.psychology_outlined, color: T.accent, size: 24),
+                const SizedBox(width: 8),
+                const Text(
+                  'AI 매치 점수 산출 안내',
+                  style: TextStyle(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w900,
+                    color: T.ink,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '포디의 AI는 등록된 반려동물의 고유 신체 데이터(목 둘레, 가슴 둘레, 등 길이)와 해당 상품의 실측 사이즈 표를 정밀 비교 분석하여 최적의 적합도를 백분율로 산출합니다.',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.5,
+                color: T.sub,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _guideRow(
+              title: '93% ~ 100% : 완벽한 매치',
+              desc: '반려동물의 체형과 가슴/목둘레 오차가 2cm 이내로 매우 편안하고 완벽하게 맞아떨어지는 최적의 추천 사이즈입니다.',
+              color: T.accent,
+            ),
+            const SizedBox(height: 16),
+            _guideRow(
+              title: '85% ~ 92% : 여유로운 매치',
+              desc: '약 3~5cm 정도의 활동성 여유분이 확보되어, 격렬한 야외 활동이나 산책 시에도 아이가 매우 편안해합니다.',
+              color: const Color(0xFFE2A54A),
+            ),
+            const SizedBox(height: 16),
+            _guideRow(
+              title: '70% ~ 84% : 슬림/타이트 매치',
+              desc: '체형에 딱 맞아떨어지는 핏으로, 신축성이 없는 탄탄한 면 원단 등은 착용 시 가슴 부분이 다소 조이거나 꽉 낄 수 있습니다.',
+              color: const Color(0xFF6B7280),
+            ),
+            const SizedBox(height: 16),
+            _guideRow(
+              title: '70% 미만 : 신중한 구매 요망',
+              desc: '신체 사이즈보다 제품이 작거나 5cm 이상 큽니다. 착용 및 고정이 불가능할 수 있으므로 다른 사이즈나 제품을 권장합니다.',
+              color: const Color(0xFFDC2626),
+            ),
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: T.ink,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  '확인',
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _guideRow({required String title, required String desc, required Color color}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 4),
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                desc,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  height: 1.4,
+                  color: T.sub,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
 
   Widget _reviewsSection() {
     return Padding(
