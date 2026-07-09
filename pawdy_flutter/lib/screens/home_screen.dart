@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
+import '../api/client.dart';
+
 import '../widgets/product_card.dart';
 import 'detail_screen.dart';
 import 'cart_screen.dart';
@@ -49,31 +51,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: T.paper,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _header(),
-            _search(),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  _chips(),
-                  _hero(),
-                  _sectionHeader(),
-                  _grid(),
-                  const SizedBox(height: 24),
-                ],
-              ),
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        return Container(
+          color: T.paper,
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                _header(),
+                _search(),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _chips(),
+                      _hero(),
+                      _sectionHeader(),
+                      _grid(),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
+
 
   Widget _header() => Padding(
         padding: const EdgeInsets.fromLTRB(22, 6, 22, 0),
@@ -290,107 +298,139 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
-  Widget _hero() => Padding(
-        padding: const EdgeInsets.fromLTRB(22, 12, 22, 6),
-        child: GestureDetector(
-          onTap: widget.onOpenFit,
-          child: Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-                color: T.heroBg, borderRadius: BorderRadius.circular(22)),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('AI 가상 피팅',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2,
-                              color: T.heroLabel)),
-                      const SizedBox(height: 11),
-                      const Text('사진 한 장이면\n우리 아이가 입은\n모습이 바로 보여요',
-                          style: TextStyle(
-                              fontSize: 20,
-                              height: 1.4,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.6,
-                              color: T.ink)),
-                      const SizedBox(height: 18),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 11),
-                        decoration: BoxDecoration(
-                            color: T.ink,
-                            borderRadius: BorderRadius.circular(999)),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('지금 입혀보기',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.3)),
-                            SizedBox(width: 6),
-                            Icon(Icons.arrow_forward,
-                                color: Colors.white, size: 15),
-                          ],
-                        ),
+  Widget _hero() {
+    final pet = appState.activePet;
+    final petNameText = pet?.name ?? '우리 아이';
+    final hasImage = pet?.image != null && pet!.image!.isNotEmpty;
+    final imageUrl = hasImage ? (pet.image!.startsWith('http') ? pet.image! : '$apiBase${pet.image!}') : null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 6),
+      child: GestureDetector(
+        onTap: widget.onOpenFit,
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+              color: T.heroBg, borderRadius: BorderRadius.circular(22)),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('AI 가상 피팅',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                            color: T.heroLabel)),
+                    const SizedBox(height: 11),
+                    const Text('사진 한 장이면\n우리 아이가 입은\n모습이 바로 보여요',
+                        style: TextStyle(
+                            fontSize: 20,
+                            height: 1.4,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.6,
+                            color: T.ink)),
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 11),
+                      decoration: BoxDecoration(
+                          color: T.ink,
+                          borderRadius: BorderRadius.circular(999)),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('지금 입혀보기',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.3)),
+                          SizedBox(width: 6),
+                          Icon(Icons.arrow_forward,
+                              color: Colors.white, size: 15),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 14),
-                Container(
-                  width: 104,
-                  height: 128,
-                  decoration: BoxDecoration(
-                      color: T.soft, borderRadius: BorderRadius.circular(18)),
-                  alignment: Alignment.center,
-                  child: const Text('$petName 사진',
-                      style: TextStyle(
-                          fontSize: 10.5,
-                          color: T.muted2,
-                          fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 14),
+              Container(
+                width: 104,
+                height: 128,
+                decoration: BoxDecoration(
+                    color: T.soft, borderRadius: BorderRadius.circular(18)),
+                alignment: Alignment.center,
+                child: imageUrl != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          width: 104,
+                          height: 128,
+                        ),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.pets, size: 28, color: T.muted),
+                          const SizedBox(height: 6),
+                          Text(
+                            pet != null ? petNameText : '피팅 대기 중',
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: T.muted2,
+                                fontWeight: FontWeight.w700),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 
-  Widget _sectionHeader() => const Padding(
-        padding: EdgeInsets.fromLTRB(22, 26, 22, 0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('$petName한테 어울려요',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                        color: T.ink)),
-                SizedBox(height: 6),
-                Text('AI가 $petName의 체형을 분석했어요',
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        color: T.muted,
-                        fontWeight: FontWeight.w500)),
-              ],
-            ),
-            Text('더보기',
-                style: TextStyle(
-                    fontSize: 13, color: T.muted, fontWeight: FontWeight.w600)),
-          ],
-        ),
-      );
+  Widget _sectionHeader() {
+    final pet = appState.activePet;
+    final petNameText = pet?.name ?? '우리 아이';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 26, 22, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$petNameText한테 어울려요',
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      color: T.ink)),
+              const SizedBox(height: 6),
+              Text('AI가 $petNameText의 체형을 분석했어요',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: T.muted,
+                      fontWeight: FontWeight.w500)),
+            ],
+          ),
+          const Text('더보기',
+              style: TextStyle(
+                  fontSize: 13, color: T.muted, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
 
   Widget _grid() {
     if (appState.loading) {
