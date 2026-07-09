@@ -86,6 +86,18 @@ class FittingRow(SQLModel, table=True):
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
+class NotificationRow(SQLModel, table=True):
+    """알림 센터 알림 레코드"""
+    __tablename__ = "notifications"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    title: str = Field(description="알림 제목")
+    content: str = Field(description="알림 상세")
+    is_read: bool = Field(default=False, description="읽음 여부")
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+
 class UserCounterRow(SQLModel, table=True):
     """유저별 카운터: AI 생성 사용/보너스, 피팅 횟수."""
     __tablename__ = "user_counters"

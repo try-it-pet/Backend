@@ -5,6 +5,8 @@ import '../theme/tokens.dart';
 import '../widgets/product_card.dart';
 import 'detail_screen.dart';
 import 'cart_screen.dart';
+import 'notification_screen.dart';
+
 
 class _Cat {
   final String key;
@@ -101,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Row(
                 children: [
+                  _notifButton(),
+                  const SizedBox(width: 4),
                   _cartButton(),
                   const SizedBox(width: 4),
                   _profileAvatar(),
@@ -110,6 +114,64 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       );
+
+  Widget _notifButton() {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final count = appState.unreadNotificationsCount;
+        return GestureDetector(
+          onTap: () {
+            if (!appState.loggedIn) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('로그인하면 알림을 받아볼 수 있어요'), duration: Duration(milliseconds: 1400)),
+              );
+              return;
+            }
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const NotificationScreen()),
+            ).then((_) {
+              appState.fetchUnreadNotificationsCount();
+            });
+          },
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: T.line),
+            ),
+            alignment: Alignment.center,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_none_outlined, size: 20, color: T.ink),
+                if (count > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: T.accent,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 7,
+                        minHeight: 7,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 
   Widget _cartButton() => GestureDetector(
         onTap: () => Navigator.of(context).push(

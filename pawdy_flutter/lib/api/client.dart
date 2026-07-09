@@ -220,6 +220,36 @@ class Api {
     return Generations.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
 
+  // ── 알림 센터 ──
+  static Future<List<NotificationItem>> fetchNotifications() async {
+    if (_token == null) return [];
+    final r = await http.get(Uri.parse('$apiBase/me/notifications'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '알림 조회 실패');
+    final data = jsonDecode(utf8.decode(r.bodyBytes)) as List;
+    return data.map((e) => NotificationItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<void> markNotificationRead(int notifId) async {
+    final r = await http.post(Uri.parse('$apiBase/me/notifications/$notifId/read'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '알림 읽음 처리 실패');
+  }
+
+  static Future<void> markAllNotificationsRead() async {
+    final r = await http.post(Uri.parse('$apiBase/me/notifications/read-all'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '전체 알림 읽음 처리 실패');
+  }
+
+  static Future<void> deleteNotification(int notifId) async {
+    final r = await http.delete(Uri.parse('$apiBase/me/notifications/$notifId'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '알림 삭제 실패');
+  }
+
+  static Future<void> deleteAllNotifications() async {
+    final r = await http.delete(Uri.parse('$apiBase/me/notifications'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '전체 알림 삭제 실패');
+  }
+
+
   // ── 상점 & 상품 등록 ──
   static Future<Shop?> fetchMyShop() async {
     if (_token == null) return null;

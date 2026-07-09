@@ -14,13 +14,14 @@ from sqlmodel import select
 from .db import get_session
 from .models import (
     CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, ReviewCreate, User,
-    Product, Shop, ShopCreate, ProductCreate, ProductUpdate,
+    Product, Shop, ShopCreate, ProductCreate, ProductUpdate, Notification,
 )
 
 from .tables import (
     CartRow, FittingRow, KVRow, LikeRow, OrderRow, PetRow, ResultRow, ReviewRow,
-    UserCounterRow, UserRow, ProductRow, ShopRow,
+    UserCounterRow, UserRow, ProductRow, ShopRow, NotificationRow,
 )
+
 
 # ── 인메모리(단기 생성 상태만) ──
 JOBS: Dict[str, object] = {}                       # job_id -> TryOnJob (폴링용, 단기)
@@ -209,11 +210,32 @@ def create_order(user_id: int) -> Optional[Order]:
         total = sum(it.product.price * it.qty for it in items)
         payload = json.dumps([{"product_id": it.product_id, "size": it.size, "qty": it.qty} for it in items])
         row = OrderRow(user_id=user_id, items_json=payload, total=total)
+        # 알림 생성 (소비자)
+        create_notification_in_session(s, user_id, "주문 완료", f"총 {len(items)}개 상품 결제가 정상 완료되었습니다.")
+
+        # 알림 생성 (각 상점 판매자)
+        notified_sellers = set()
+        for it in items:
+            p_row = s.get(ProductRow, it.product_id)
+            if p_row and p_row.shop_id:
+                shop_row = s.get(ShopRow, p_row.shop_id)
+                if shop_row and shop_row.owner_id and shop_row.owner_id not in notified_sellers:
+                    create_notification_in_session(
+                        s,
+                        shop_row.owner_id,
+                        "신규 주문 접수",
+                        f"내 상점 '{shop_row.name}'에 신규 주문(주문번호 #{row.id})이 접수되었습니다."
+                    )
+                    notified_sellers.add(shop_row.owner_id)
+
         s.add(row)
         for cr in s.exec(select(CartRow).where(CartRow.user_id == user_id)).all():
             s.delete(cr)  # 주문 후 장바구니 비움
+
         s.commit(); s.refresh(row)
         return _order(s, row)
+
+
 
 
 
@@ -296,6 +318,61 @@ def product_rating(product_id: int) -> Tuple[int, float]:
         if not ratings:
             return 0, 0.0
         return len(ratings), round(sum(ratings) / len(ratings), 1)
+
+
+# ── 알림 센터 ──
+def create_notification_in_session(s, user_id: int, title: str, content: str) -> NotificationRow:
+    r = NotificationRow(user_id=user_id, title=title, content=content)
+    s.add(r)
+    return r
+
+def create_notification(user_id: int, title: str, content: str) -> Notification:
+    with get_session() as s:
+        r = create_notification_in_session(s, user_id, title, content)
+        s.commit(); s.refresh(r)
+        return Notification(id=r.id, user_id=r.user_id, title=r.title, content=r.content, is_read=r.is_read, created_at=r.created_at)
+
+def list_notifications(user_id: int) -> List[Notification]:
+    with get_session() as s:
+        rows = s.exec(select(NotificationRow).where(NotificationRow.user_id == user_id).order_by(NotificationRow.id.desc())).all()
+        return [
+            Notification(id=r.id, user_id=r.user_id, title=r.title, content=r.content, is_read=r.is_read, created_at=r.created_at)
+            for r in rows
+        ]
+
+def mark_notification_as_read(user_id: int, notif_id: int) -> bool:
+    with get_session() as s:
+        r = s.get(NotificationRow, notif_id)
+        if not r or r.user_id != user_id:
+            return False
+        r.is_read = True
+        s.add(r); s.commit()
+        return True
+
+def mark_all_notifications_as_read(user_id: int) -> bool:
+    with get_session() as s:
+        rows = s.exec(select(NotificationRow).where(NotificationRow.user_id == user_id, NotificationRow.is_read == False)).all()
+        for r in rows:
+            r.is_read = True
+            s.add(r)
+        s.commit()
+        return True
+
+def delete_notification(user_id: int, notif_id: int) -> bool:
+    with get_session() as s:
+        r = s.get(NotificationRow, notif_id)
+        if not r or r.user_id != user_id:
+            return False
+        s.delete(r); s.commit()
+        return True
+
+def delete_all_notifications(user_id: int) -> bool:
+    with get_session() as s:
+        rows = s.exec(select(NotificationRow).where(NotificationRow.user_id == user_id)).all()
+        for r in rows:
+            s.delete(r)
+        s.commit()
+        return True
 
 
 # ── AI 피팅 이력(라이브러리) ──
@@ -552,8 +629,26 @@ def update_order_status(order_id: int, status: str, carrier: Optional[str] = Non
                 r.carrier = carrier
             if tracking_no is not None:
                 r.tracking_no = tracking_no
+        # 소비자(r.user_id)에게 알림 발송 트리거
+        if status == "배송중":
+            tracking_msg = f" ({carrier} - 송장: {tracking_no})" if carrier and tracking_no else ""
+            create_notification_in_session(
+                s,
+                user_id=r.user_id,
+                title="배송 시작 안내",
+                content=f"주문하신 상품의 배송이 시작되었습니다!{tracking_msg}"
+            )
+        elif status == "배송완료":
+            create_notification_in_session(
+                s,
+                user_id=r.user_id,
+                title="배송 완료 안내",
+                content="상품 배송이 완료되었습니다. 이용해 주셔서 감사합니다! 만족하셨다면 리뷰를 남겨주세요."
+            )
+
         s.add(r); s.commit(); s.refresh(r)
         return _order(s, r)
+
 
 
 

@@ -140,6 +140,16 @@ class ProductReviews(BaseModel):
     items: list[Review]
 
 
+class Notification(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    content: str
+    is_read: bool
+    created_at: str
+
+
+
 class Fitting(BaseModel):
     id: int
     product_id: int

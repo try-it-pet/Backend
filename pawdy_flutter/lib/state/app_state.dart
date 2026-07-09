@@ -26,6 +26,7 @@ class AppState extends ChangeNotifier {
 
   Stats? stats;
   List<CartItem> cart = [];
+  int unreadNotificationsCount = 0;
   bool get loggedIn => user != null;
   int get cartCount => cart.fold(0, (n, it) => n + it.qty);
 
@@ -47,6 +48,20 @@ class AppState extends ChangeNotifier {
   }
 
 
+  Future<void> fetchUnreadNotificationsCount() async {
+    if (!loggedIn) {
+      unreadNotificationsCount = 0;
+      notifyListeners();
+      return;
+    }
+    try {
+      final notifs = await Api.fetchNotifications();
+      unreadNotificationsCount = notifs.where((n) => !n.isRead).length;
+      notifyListeners();
+    } catch (_) {}
+  }
+  
+  
   /// 앱 시작 시 딥링크 리스너 등록(카카오 로그인 후 pawdy://login?token= 수신).
   Future<void> initDeepLinks() async {
     _linkSub = _appLinks.uriLinkStream.listen(_onLink, onError: (_) {});
@@ -98,8 +113,12 @@ class AppState extends ChangeNotifier {
     try {
       shop = await Api.fetchMyShop();
     } catch (_) {}
+    try {
+      await fetchUnreadNotificationsCount();
+    } catch (_) {}
     notifyListeners();
   }
+
 
   void logout() {
     Api.setToken(null);
@@ -108,9 +127,11 @@ class AppState extends ChangeNotifier {
     pets = [];
     stats = null;
     cart = [];
+    unreadNotificationsCount = 0;
     likedIds.clear();
     notifyListeners();
   }
+
 
   Future<void> refreshShop() async {
     if (!loggedIn) return;
@@ -168,10 +189,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     try {
       stats = await Api.fetchStats(); // 주문 수 갱신
+      await fetchUnreadNotificationsCount(); // 알림 배지 개수 갱신
     } catch (_) {}
     notifyListeners();
     return order;
   }
+
 
   // ── 펫 ──
   Future<void> registerPet(Map<String, dynamic> body) async {

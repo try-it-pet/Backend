@@ -77,3 +77,32 @@ class Generations {
 
   String get label => unlimited ? '무제한' : '남은 ${remaining ?? 0}회';
 }
+
+
+class NotificationItem {
+  final int id;
+  final int userId;
+  final String title;
+  final String content;
+  final bool isRead;
+  final String createdAt;
+
+  const NotificationItem({
+    required this.id,
+    required this.userId,
+    required this.title,
+    required this.content,
+    required this.isRead,
+    required this.createdAt,
+  });
+
+  factory NotificationItem.fromJson(Map<String, dynamic> j) => NotificationItem(
+        id: j['id'] as int,
+        userId: (j['user_id'] as num).toInt(),
+        title: j['title'] as String? ?? '',
+        content: j['content'] as String? ?? '',
+        isRead: j['is_read'] as bool? ?? false,
+        createdAt: j['created_at'] as String? ?? '',
+      );
+}
+

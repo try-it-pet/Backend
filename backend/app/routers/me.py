@@ -3,14 +3,16 @@ from typing import Optional
 
 from ..auth import get_current_user
 from ..models import (
-    CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, Stats, User,
+    CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, Stats, User, Notification,
 )
 from ..quota import grant_purchase, status as quota_status
 from ..store import (
     add_cart, add_pet, add_review, count_likes, count_orders, create_order, get_cart, get_fittings,
     list_fittings, list_likes, list_my_reviews, list_orders, list_pets, remove_cart, toggle_like,
-    get_product,
+    get_product, list_notifications, mark_notification_as_read, mark_all_notifications_as_read,
+    delete_notification, delete_all_notifications,
 )
+
 
 
 router = APIRouter(prefix="/me", tags=["me"], dependencies=[Depends(get_current_user)])
@@ -123,3 +125,38 @@ def generations(user: User = Depends(get_current_user)) -> dict:
 @router.get("/stats", response_model=Stats)
 def stats(user: User = Depends(get_current_user)) -> Stats:
     return Stats(orders=count_orders(user.id), likes=count_likes(user.id), fittings=get_fittings(user.id))
+
+
+# ── 알림 센터 ──
+@router.get("/notifications", response_model=list[Notification])
+def get_notifications(user: User = Depends(get_current_user)) -> list[Notification]:
+    return list_notifications(user.id)
+
+
+@router.post("/notifications/{notif_id}/read")
+def read_notification(notif_id: int, user: User = Depends(get_current_user)) -> dict:
+    success = mark_notification_as_read(user.id, notif_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Notification not found or access denied")
+    return {"status": "success"}
+
+
+@router.post("/notifications/read-all")
+def read_all_notifications(user: User = Depends(get_current_user)) -> dict:
+    mark_all_notifications_as_read(user.id)
+    return {"status": "success"}
+
+
+@router.delete("/notifications/{notif_id}")
+def delete_one_notification(notif_id: int, user: User = Depends(get_current_user)) -> dict:
+    success = delete_notification(user.id, notif_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Notification not found or access denied")
+    return {"status": "success"}
+
+
+@router.delete("/notifications")
+def clear_all_notifications(user: User = Depends(get_current_user)) -> dict:
+    delete_all_notifications(user.id)
+    return {"status": "success"}
+
