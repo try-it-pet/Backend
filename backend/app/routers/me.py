@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
+from pydantic import BaseModel
 from typing import Optional
+
 
 from ..auth import get_current_user
 from ..models import (
@@ -10,7 +12,8 @@ from ..store import (
     add_cart, add_pet, add_review, count_likes, count_orders, create_order, get_cart, get_fittings,
     list_fittings, list_likes, list_my_reviews, list_orders, list_pets, remove_cart, toggle_like,
     get_product, list_notifications, mark_notification_as_read, mark_all_notifications_as_read,
-    delete_notification, delete_all_notifications, delete_pet,
+    delete_notification, delete_all_notifications, delete_pet, create_pending_order, confirm_payment,
+
 )
 
 
@@ -59,6 +62,38 @@ def checkout(user: User = Depends(get_current_user)) -> Order:
         raise HTTPException(status_code=400, detail="장바구니가 비어 있습니다")
     grant_purchase(user.id)  # 구매 보상: AI 생성 횟수 추가 충전
     return order
+
+
+@router.post("/orders/pending", response_model=Order)
+def checkout_pending(user: User = Depends(get_current_user)) -> Order:
+    try:
+        order = create_pending_order(user.id)
+        if order is None:
+            raise HTTPException(status_code=400, detail="장바구니가 비어 있습니다")
+        return order
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class PaymentConfirmRequest(BaseModel):
+    paymentKey: str
+    orderId: int
+    amount: int
+
+
+@router.post("/payments/confirm", response_model=Order)
+def payments_confirm(req: PaymentConfirmRequest, user: User = Depends(get_current_user)) -> Order:
+    try:
+        order = confirm_payment(
+            user_id=user.id,
+            order_id=req.orderId,
+            payment_key=req.paymentKey,
+            amount=req.amount
+        )
+        return order
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 
 @router.get("/orders", response_model=list[Order])

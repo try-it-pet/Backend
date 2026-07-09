@@ -91,6 +91,11 @@ class Settings:
     # dev-login(키 없이 테스트) 허용 여부 — 운영에선 false 로
     allow_dev_login: bool = os.getenv("PETFIT_ALLOW_DEV_LOGIN", "1") not in ("0", "false", "False")
 
+    # 토스 페이먼츠 결제 연동 설정
+    toss_secret_key: str = os.getenv("PETFIT_TOSS_SECRET_KEY", "")
+    toss_client_key: str = os.getenv("PETFIT_TOSS_CLIENT_KEY", "")
+
+
     cors_origins: list[str] = (
         os.getenv("PETFIT_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
     )

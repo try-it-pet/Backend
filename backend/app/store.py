@@ -248,6 +248,132 @@ def create_order(user_id: int) -> Optional[Order]:
         return _order(s, row)
 
 
+def create_pending_order(user_id: int) -> Optional[Order]:
+    with get_session() as s:
+        items = _cart_items(s, user_id)
+        if not items:
+            return None
+        
+        # 재고 미리 체크
+        for it in items:
+            p_row = s.get(ProductRow, it.product_id)
+            if not p_row:
+                raise ValueError(f"상품 정보를 찾을 수 없습니다: {it.product.name}")
+            if p_row.stock < it.qty:
+                raise ValueError(f"재고가 부족합니다: {it.product.name} (남은 재고: {p_row.stock}개)")
+
+        total = sum(it.product.price * it.qty for it in items)
+        payload = json.dumps([{"product_id": it.product_id, "size": it.size, "qty": it.qty} for it in items])
+        row = OrderRow(user_id=user_id, items_json=payload, total=total, status="결제대기")
+        s.add(row)
+        s.commit(); s.refresh(row)
+        return _order(s, row)
+
+
+def confirm_payment(user_id: int, order_id: int, payment_key: str, amount: int) -> Order:
+    import base64
+    import httpx
+    from .config import Settings
+    
+    settings = Settings()
+    
+    with get_session() as s:
+        row = s.get(OrderRow, order_id)
+        if not row:
+            raise ValueError("주문 정보를 찾을 수 없습니다.")
+        if row.user_id != user_id:
+            raise ValueError("권한이 없는 주문입니다.")
+        if row.status != "결제대기":
+            raise ValueError(f"이미 처리되었거나 처리할 수 없는 주문 상태입니다. (현재 상태: {row.status})")
+        if row.total != amount:
+            raise ValueError(f"결제 요청 금액({amount}원)이 주문 총액({row.total}원)과 일치하지 않습니다.")
+
+        # 토스 페이먼츠 승인 연동
+        secret_key = settings.toss_secret_key
+        if secret_key:
+            encoded_key = base64.b64encode(f"{secret_key}:".encode("utf-8")).decode("utf-8")
+            headers = {
+                "Authorization": f"Basic {encoded_key}",
+                "Content-Type": "application/json"
+            }
+            body = {
+                "paymentKey": payment_key,
+                "orderId": str(order_id),
+                "amount": amount
+            }
+            try:
+                resp = httpx.post(
+                    "https://api.tosspayments.com/v1/payments/confirm",
+                    json=body,
+                    headers=headers,
+                    timeout=10.0
+                )
+                if resp.status_code != 200:
+                    try:
+                        error_data = resp.json()
+                        err_msg = error_data.get("message", "토스 승인 실패")
+                    except Exception:
+                        err_msg = resp.text
+                    raise ValueError(f"토스페이먼츠 승인 실패: {err_msg}")
+            except Exception as e:
+                if not isinstance(e, ValueError):
+                    raise ValueError(f"토스페이먼츠 통신 오류: {e}")
+                raise
+        else:
+            print("[Warning] PETFIT_TOSS_SECRET_KEY가 설정되지 않아 로컬 테스트용 모의 승인(Mock Confirm) 처리합니다.")
+
+        # 재고 최종 차감
+        items_payload = json.loads(row.items_json)
+        for it in items_payload:
+            p_row = s.get(ProductRow, it["product_id"])
+            if not p_row:
+                raise ValueError(f"상품 정보를 찾을 수 없습니다.")
+            if p_row.stock < it["qty"]:
+                raise ValueError(f"재고가 부족합니다: {p_row.name} (남은 재고: {p_row.stock}개)")
+            p_row.stock -= it["qty"]
+            s.add(p_row)
+
+        # 장바구니 비우기
+        for cr in s.exec(select(CartRow).where(CartRow.user_id == user_id)).all():
+            s.delete(cr)
+
+        # 주문 업데이트 및 저장
+        row.status = "결제완료"
+        row.payment_key = payment_key
+        s.add(row)
+
+        # 알림 생성 (소비자)
+        create_notification_in_session(
+            s,
+            user_id,
+            "결제 승인 완료",
+            f"토스페이먼츠를 통한 결제 승인이 정상 완료되었습니다. (주문번호 #{order_id})"
+        )
+
+        # 알림 생성 (각 상점 판매자)
+        notified_sellers = set()
+        for it in items_payload:
+            p_row = s.get(ProductRow, it["product_id"])
+            if p_row and p_row.shop_id:
+                shop_row = s.get(ShopRow, p_row.shop_id)
+                if shop_row and shop_row.owner_id and shop_row.owner_id not in notified_sellers:
+                    create_notification_in_session(
+                        s,
+                        shop_row.owner_id,
+                        "신규 주문 접수",
+                        f"내 상점 '{shop_row.name}'에 신규 결제완료 주문(주문번호 #{order_id})이 접수되었습니다."
+                    )
+                    notified_sellers.add(shop_row.owner_id)
+
+        # AI 생성 횟수 추가 충전
+        from .quota import grant_purchase
+        grant_purchase(user_id)
+
+        s.commit(); s.refresh(row)
+        return _order(s, row)
+
+
+
 
 
 
@@ -269,8 +395,12 @@ def _order(s, r: OrderRow) -> Order:
         status=r.status,
         carrier=r.carrier,
         tracking_no=r.tracking_no,
-        buyer_name=buyer_name
+        buyer_name=buyer_name,
+        payment_key=r.payment_key
     )
+
+
+
 
 
 

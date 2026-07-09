@@ -59,6 +59,8 @@ class OrderRow(SQLModel, table=True):
     status: str = Field(default="결제완료")
     carrier: Optional[str] = Field(default=None, description="택배사")
     tracking_no: Optional[str] = Field(default=None, description="송장번호")
+    payment_key: Optional[str] = Field(default=None, description="토스결제키")
+
 
 
 

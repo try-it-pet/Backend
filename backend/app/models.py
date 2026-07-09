@@ -98,6 +98,8 @@ class Order(BaseModel):
     carrier: Optional[str] = None
     tracking_no: Optional[str] = None
     buyer_name: Optional[str] = None
+    payment_key: Optional[str] = None
+
 
 
 

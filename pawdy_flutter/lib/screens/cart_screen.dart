@@ -3,7 +3,9 @@ import '../api/client.dart';
 import '../models/commerce.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
+import 'toss_payment_screen.dart';
 import 'coming_soon_screen.dart' show PawdyBar;
+
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -28,10 +30,16 @@ class _CartScreenState extends State<CartScreen> {
     if (appState.cart.isEmpty || _paying) return;
     setState(() => _paying = true);
     try {
-      final order = await appState.checkout();
+      final pendingOrder = await Api.createPendingOrder();
       if (mounted) {
-        _snack('주문 완료! (주문 #${order.id})');
-        Navigator.of(context).pop();
+        final success = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => TossPaymentScreen(pendingOrder: pendingOrder),
+          ),
+        );
+        if (success == true && mounted) {
+          Navigator.of(context).pop();
+        }
       }
     } catch (e) {
       if (mounted) _snack('$e');
@@ -39,6 +47,7 @@ class _CartScreenState extends State<CartScreen> {
       if (mounted) setState(() => _paying = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

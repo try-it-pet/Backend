@@ -126,6 +126,35 @@ class Api {
     return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
 
+  /// 임시 결제대기 주문 생성
+  static Future<Order> createPendingOrder() async {
+    final r = await http.post(Uri.parse('$apiBase/me/orders/pending'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '결제 준비 실패');
+    return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
+  }
+
+  /// 토스 페이먼츠 결제 승인 요청
+  static Future<Order> confirmPayment({
+    required String paymentKey,
+    required int orderId,
+    required int amount,
+  }) async {
+    final body = jsonEncode({
+      'paymentKey': paymentKey,
+      'orderId': orderId,
+      'amount': amount,
+    });
+    final headers = _authHeaders()..addAll({'Content-Type': 'application/json'});
+    final r = await http.post(
+      Uri.parse('$apiBase/me/payments/confirm'),
+      headers: headers,
+      body: body,
+    );
+    if (r.statusCode != 200) throw _apiError(r, '결제 최종 승인 실패');
+    return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
+  }
+
+
   // ── 통계 ──
   static Future<Stats> fetchStats() async {
     final r = await http.get(Uri.parse('$apiBase/me/stats'), headers: _authHeaders());

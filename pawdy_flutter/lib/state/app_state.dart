@@ -212,6 +212,27 @@ class AppState extends ChangeNotifier {
     return order;
   }
 
+  Future<Order> confirmPayment({
+    required String paymentKey,
+    required int orderId,
+    required int amount,
+  }) async {
+    final order = await Api.confirmPayment(
+      paymentKey: paymentKey,
+      orderId: orderId,
+      amount: amount,
+    );
+    cart = [];
+    notifyListeners();
+    try {
+      stats = await Api.fetchStats();
+      await fetchUnreadNotificationsCount();
+    } catch (_) {}
+    notifyListeners();
+    return order;
+  }
+
+
 
   // ── 펫 ──
   Future<void> registerPet({
