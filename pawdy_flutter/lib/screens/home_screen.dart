@@ -23,7 +23,8 @@ const cats = [
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onOpenFit;
-  const HomeScreen({super.key, this.onOpenFit});
+  final VoidCallback? onOpenSearch;
+  const HomeScreen({super.key, this.onOpenFit, this.onOpenSearch});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -32,6 +33,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const petName = '초코';
   String _chip = 'all';
+
 
   List<Product> _homeSelection(List<Product> all) {
     if (_chip == 'all') {
@@ -161,33 +163,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _search() => Padding(
-        padding: const EdgeInsets.fromLTRB(22, 6, 22, 14),
-        child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 15),
-          decoration: BoxDecoration(
-            color: T.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: T.line),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.search, size: 20, color: T.muted2),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text('우리 아이 옷 찾기',
-                    style: TextStyle(
-                        fontSize: 14.5,
-                        color: T.muted2,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: -0.3)),
-              ),
-              Icon(Icons.photo_camera_outlined, size: 20, color: T.ink),
-            ],
+  Widget _search() => GestureDetector(
+        onTap: widget.onOpenSearch,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 6, 22, 14),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            decoration: BoxDecoration(
+              color: T.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: T.line),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.search, size: 20, color: T.muted2),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text('우리 아이 옷 찾기',
+                      style: TextStyle(
+                          fontSize: 14.5,
+                          color: T.muted2,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.3)),
+                ),
+                Icon(Icons.photo_camera_outlined, size: 20, color: T.ink),
+              ],
+            ),
           ),
         ),
       );
+
 
   Widget _chips() => SizedBox(
         height: 40,

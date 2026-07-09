@@ -63,12 +63,16 @@ class _RootShellState extends State<RootShell> {
             builder: (_, __) => IndexedStack(
               index: _tab,
               children: [
-                HomeScreen(onOpenFit: () => _go(2)),
+                HomeScreen(
+                  onOpenFit: () => _go(2),
+                  onOpenSearch: () => _go(1),
+                ),
                 CategoryScreen(),
                 FitScreen(),
                 LikesScreen(),
                 MyScreen(),
               ],
+
             ),
           ),
           bottomNavigationBar: _BottomBar(current: _tab, onTap: _go),
