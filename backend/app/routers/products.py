@@ -122,13 +122,19 @@ def register_product(
         stock=stock
     )
 
-    return create_product(
-        shop_id=shop.id,
-        brand=brand,
-        body=product_create,
-        image_url=image_url,
-        ref_image_url=ref_image_url
-    )
+    try:
+        return create_product(
+            shop_id=shop.id,
+            brand=brand,
+            body=product_create,
+            image_url=image_url,
+            ref_image_url=ref_image_url
+        )
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}\n{tb}")
+
 
 
 @router.get("/seller/my-products", response_model=list[Product])
