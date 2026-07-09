@@ -240,8 +240,14 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> removePet(int petId) async {
+    await Api.deletePet(petId);
+    pets = pets.where((p) => p.id != petId).toList();
+    notifyListeners();
+  }
 
   Pet? get firstPet => pets.isNotEmpty ? pets.first : null;
+
 
   @override
   void dispose() {

@@ -87,15 +87,27 @@ class MyScreen extends StatelessWidget {
                 else
                   _loginButtons(context),
                 const SizedBox(height: 16),
-                if (pet != null)
-                  _petRow(context, pet)
-                else
+                if (user != null) ...[
+                  if (appState.pets.isNotEmpty) ...[
+                    for (final p in appState.pets) ...[
+                      _petRow(context, p),
+                      const SizedBox(height: 12),
+                    ],
+                    GestureDetector(
+                      onTap: () => _openPetForm(context),
+                      child: _dashedCard('+ 우리 아이 추가 등록하기'),
+                    ),
+                  ] else
+                    GestureDetector(
+                      onTap: () => _openPetForm(context),
+                      child: _dashedCard('+ 우리 아이 프로필 등록하기'),
+                    ),
+                ] else
                   GestureDetector(
                     onTap: () => _openPetForm(context),
-                    child: _dashedCard(user != null
-                        ? '+ 우리 아이 프로필 등록하기'
-                        : '로그인하면 우리 아이를 등록할 수 있어요'),
+                    child: _dashedCard('로그인하면 우리 아이를 등록할 수 있어요'),
                   ),
+
                 const SizedBox(height: 16),
                 _statsCard(appState.stats?.orders ?? 0, likes,
                     appState.stats?.fittings ?? 0),
@@ -237,7 +249,42 @@ class MyScreen extends StatelessWidget {
           ),
         ),
         GestureDetector(
-          onTap: () => _openPetForm(context),
+          onTap: () async {
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: T.paper,
+                title: const Text('우리 아이 정보 삭제', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: T.ink)),
+                content: Text('${pet.name}의 프로필 정보를 삭제하시겠습니까?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text('취소', style: TextStyle(color: T.sub, fontWeight: FontWeight.w600)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: const Text('삭제', style: TextStyle(color: T.accent, fontWeight: FontWeight.w800)),
+                  ),
+                ],
+              ),
+            );
+            if (confirm == true) {
+              try {
+                await appState.removePet(pet.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${pet.name} 삭제되었습니다'), duration: const Duration(milliseconds: 1400)),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('삭제 실패: $e'), duration: const Duration(milliseconds: 1400)),
+                  );
+                }
+              }
+            }
+          },
           child: Container(
             width: 32,
             height: 32,
@@ -246,9 +293,10 @@ class MyScreen extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: T.line),
             ),
-            child: const Icon(Icons.add, size: 16, color: T.sub),
+            child: const Icon(Icons.delete_outline, size: 16, color: T.accent),
           ),
         ),
+
       ],
     );
   }

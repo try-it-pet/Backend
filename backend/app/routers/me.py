@@ -10,7 +10,7 @@ from ..store import (
     add_cart, add_pet, add_review, count_likes, count_orders, create_order, get_cart, get_fittings,
     list_fittings, list_likes, list_my_reviews, list_orders, list_pets, remove_cart, toggle_like,
     get_product, list_notifications, mark_notification_as_read, mark_all_notifications_as_read,
-    delete_notification, delete_all_notifications,
+    delete_notification, delete_all_notifications, delete_pet,
 )
 
 
@@ -110,8 +110,16 @@ def create_pet(
     return add_pet(user.id, body)
 
 
+@router.delete("/pets/{pet_id}")
+def delete_my_pet(pet_id: int, user: User = Depends(get_current_user)) -> dict:
+    success = delete_pet(user.id, pet_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Pet not found or access denied")
+    return {"status": "success"}
+
 
 # ── 리뷰 ──
+
 @router.get("/reviews", response_model=list[Review])
 def my_reviews(user: User = Depends(get_current_user)) -> list[Review]:
     return list_my_reviews(user.id)

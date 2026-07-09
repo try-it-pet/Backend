@@ -258,8 +258,10 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Widget _fitCta() {
     final isHome = product.category == 'home';
+    if (isHome) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 20),
+
       child: GestureDetector(
         onTap: () {
           if (product.isOutOfStock) {

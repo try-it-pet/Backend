@@ -181,6 +181,15 @@ class Api {
     return Pet.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
 
+  static Future<void> deletePet(int petId) async {
+    final r = await http.delete(
+      Uri.parse('$apiBase/me/pets/$petId'),
+      headers: _authHeaders(),
+    );
+    if (r.statusCode != 200) throw _apiError(r, '펫 삭제 실패');
+  }
+
+
 
   // ── 주문 / AI 생성 잔여 횟수 ──
   static Future<List<Order>> fetchOrders() async {

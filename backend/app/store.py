@@ -119,6 +119,17 @@ def add_pet(user_id: int, body: PetCreate) -> Pet:
         return _pet(r)
 
 
+def delete_pet(user_id: int, pet_id: int) -> bool:
+    with get_session() as s:
+        r = s.exec(select(PetRow).where(PetRow.id == pet_id, PetRow.user_id == user_id)).first()
+        if not r:
+            return False
+        s.delete(r)
+        s.commit()
+        return True
+
+
+
 def find_pet(pet_id: Optional[int]) -> Optional[Pet]:
     if pet_id is None:
         return None
