@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+
 import '../models/product.dart';
 import '../state/app_state.dart';
 import '../theme/tokens.dart';
@@ -69,6 +71,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
+  Timer? _debounce;
+
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      appState.load(q: query.trim());
+    });
+  }
+
   Widget _searchBar() => Padding(
         padding: const EdgeInsets.fromLTRB(22, 8, 22, 8),
         child: Container(
@@ -85,7 +103,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
               const SizedBox(width: 9),
               Expanded(
                 child: TextField(
-                  onChanged: (v) => setState(() => _query = v),
+                  onChanged: (v) {
+                    setState(() => _query = v);
+                    _onSearchChanged(v);
+                  },
                   style: const TextStyle(fontSize: 14, color: T.ink),
                   decoration: const InputDecoration(
                     isDense: true,
@@ -100,13 +121,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
               ),
               if (_query.isNotEmpty)
                 GestureDetector(
-                  onTap: () => setState(() => _query = ''),
+                  onTap: () {
+                    setState(() => _query = '');
+                    appState.load(q: '');
+                  },
                   child: const Icon(Icons.close, size: 17, color: T.muted2),
                 ),
             ],
           ),
         ),
       );
+
 
   Widget _catChips() => SizedBox(
         height: 42,

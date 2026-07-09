@@ -30,8 +30,9 @@ def list_products(
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
     fittable: Optional[bool] = None,
+    q: Optional[str] = None,
 ) -> list[Product]:
-    items = store_list_products(category=category)
+    items = store_list_products(category=category, q=q)
     if species and species != "all":
         items = [p for p in items if p.species in (species, "all")]
     if min_price is not None:
@@ -41,6 +42,7 @@ def list_products(
     if fittable is not None:
         items = [p for p in items if p.fittable == fittable]
     return items
+
 
 
 @router.post("/shops", response_model=Shop)
@@ -68,6 +70,7 @@ def register_product(
     fittable: bool = Form(True),
     url: Optional[str] = Form(None),
     sizes: Optional[str] = Form(None),  # JSON list string e.g. '["XS", "S", "M"]'
+    stock: int = Form(99),
     image_file: UploadFile = File(...),
     ref_image_file: Optional[UploadFile] = File(None),
     user: User = Depends(get_current_user)
@@ -113,7 +116,8 @@ def register_product(
         species=species,
         fittable=fittable,
         url=url,
-        sizes=parsed_sizes
+        sizes=parsed_sizes,
+        stock=stock
     )
 
     return create_product(
@@ -123,6 +127,7 @@ def register_product(
         image_url=image_url,
         ref_image_url=ref_image_url
     )
+
 
 
 @router.get("/{product_id}", response_model=Product)

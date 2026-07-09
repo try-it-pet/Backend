@@ -32,12 +32,12 @@ class AppState extends ChangeNotifier {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSub;
 
-  Future<void> load() async {
+  Future<void> load({String? q}) async {
     loading = true;
     error = false;
     notifyListeners();
     try {
-      products = await Api.fetchProducts();
+      products = await Api.fetchProducts(q: q);
     } catch (_) {
       error = true;
     } finally {
@@ -45,6 +45,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   /// 앱 시작 시 딥링크 리스너 등록(카카오 로그인 후 pawdy://login?token= 수신).
   Future<void> initDeepLinks() async {

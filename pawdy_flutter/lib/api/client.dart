@@ -52,12 +52,16 @@ class Api {
   }
 
   // ── 상품 ──
-  static Future<List<Product>> fetchProducts() async {
-    final r = await http.get(Uri.parse('$apiBase/products'));
+  static Future<List<Product>> fetchProducts({String? q}) async {
+    final uri = Uri.parse('$apiBase/products').replace(
+      queryParameters: q != null && q.isNotEmpty ? {'q': q} : null,
+    );
+    final r = await http.get(uri);
     if (r.statusCode != 200) throw Exception('products ${r.statusCode}');
     final data = jsonDecode(utf8.decode(r.bodyBytes)) as List;
     return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
   }
+
 
   static String? imageUrl(Product p) => _abs(p.image ?? p.refImage);
   static String resultImageUrl(String url) => _abs(url) ?? url;
@@ -229,6 +233,7 @@ class Api {
     required bool fittable,
     String? url,
     List<String>? sizes,
+    int stock = 99,
     required Uint8List imageBytes,
     required String imageFilename,
     Uint8List? refImageBytes,
@@ -242,7 +247,9 @@ class Api {
       ..fields['category'] = category
       ..fields['species'] = species
       ..fields['fittable'] = fittable.toString()
-      ..fields['url'] = url ?? '';
+      ..fields['url'] = url ?? ''
+      ..fields['stock'] = '$stock';
+
     if (sizes != null && sizes.isNotEmpty) {
       req.fields['sizes'] = jsonEncode(sizes);
     }

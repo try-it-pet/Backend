@@ -13,6 +13,7 @@ class Product {
   final String? refImage; // 옷 레퍼런스(AI 피팅용)
   final String? url; // 원 판매처 링크
   final List<String>? sizes; // 없으면 Free(단일)
+  final int? stock; // 재고량
 
   const Product({
     required this.id,
@@ -28,6 +29,7 @@ class Product {
     this.refImage,
     this.url,
     this.sizes,
+    this.stock,
   });
 
   factory Product.fromJson(Map<String, dynamic> j) => Product(
@@ -44,7 +46,10 @@ class Product {
         refImage: j['ref_image'] as String?,
         url: j['url'] as String?,
         sizes: (j['sizes'] as List?)?.map((e) => e.toString()).toList(),
+        stock: (j['stock'] as num?)?.toInt(),
       );
 
   bool get aiPick => fit >= 93;
+  bool get isOutOfStock => (stock ?? 0) <= 0;
 }
+

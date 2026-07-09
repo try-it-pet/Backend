@@ -40,6 +40,8 @@ def init_db() -> None:
         if not existing:
             for p in PRODUCTS:
                 sizes_json = json.dumps(p.sizes) if p.sizes else None
+                # 테스트 목적으로 id=2(빅 블랙 퍼퍼 재킷)인 경우 재고를 0(품절)으로 설정하고 나머지는 50개 설정
+                stock_val = 0 if p.id == 2 else 50
                 row = tables.ProductRow(
                     id=p.id,
                     brand=p.brand,
@@ -52,10 +54,12 @@ def init_db() -> None:
                     image=p.image,
                     ref_image=p.ref_image,
                     url=p.url,
-                    sizes_json=sizes_json
+                    sizes_json=sizes_json,
+                    stock=stock_val
                 )
                 s.add(row)
             s.commit()
+
 
 
 def get_session() -> Session:

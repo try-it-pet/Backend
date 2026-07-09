@@ -131,4 +131,6 @@ class ProductRow(SQLModel, table=True):
     ref_image: Optional[str] = None
     url: Optional[str] = None
     sizes_json: Optional[str] = None  # JSON string e.g. ["XS", "S", "M"]
+    stock: int = Field(default=99, description="재고량")
+
 

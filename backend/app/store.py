@@ -192,6 +192,17 @@ def create_order(user_id: int) -> Optional[Order]:
         items = _cart_items(s, user_id)
         if not items:
             return None
+        
+        # 재고 검증 및 차감
+        for it in items:
+            p_row = s.get(ProductRow, it.product_id)
+            if not p_row:
+                raise ValueError(f"상품 정보를 찾을 수 없습니다: {it.product.name}")
+            if p_row.stock < it.qty:
+                raise ValueError(f"재고가 부족합니다: {it.product.name} (남은 재고: {p_row.stock}개)")
+            p_row.stock -= it.qty
+            s.add(p_row)
+
         total = sum(it.product.price * it.qty for it in items)
         payload = json.dumps([{"product_id": it.product_id, "size": it.size, "qty": it.qty} for it in items])
         row = OrderRow(user_id=user_id, items_json=payload, total=total)
@@ -200,6 +211,7 @@ def create_order(user_id: int) -> Optional[Order]:
             s.delete(cr)  # 주문 후 장바구니 비움
         s.commit(); s.refresh(row)
         return _order(s, row)
+
 
 
 def _order(s, r: OrderRow) -> Order:
@@ -397,11 +409,15 @@ def get_product(product_id: int) -> Optional[Product]:
         return _product(r) if r else None
 
 
-def list_products(category: Optional[str] = None) -> List[Product]:
+def list_products(category: Optional[str] = None, q: Optional[str] = None) -> List[Product]:
     with get_session() as s:
         stmt = select(ProductRow)
         if category:
             stmt = stmt.where(ProductRow.category == category)
+        if q:
+            keyword = f"%{q}%"
+            # 상품명(name) 또는 브랜드명(brand) 검색 지원 (SQLite/Postgres 공용 LIKE 일치)
+            stmt = stmt.where((ProductRow.name.like(keyword)) | (ProductRow.brand.like(keyword)))
         rows = s.exec(stmt).all()
         return [_product(r) for r in rows]
 
@@ -441,8 +457,10 @@ def create_product(shop_id: int, brand: str, body: ProductCreate, image_url: Opt
             image=image_url,
             ref_image=ref_image_url,
             url=body.url,
-            sizes_json=sizes_json
+            sizes_json=sizes_json,
+            stock=body.stock
         )
+
         s.add(r); s.commit(); s.refresh(r)
         return _product(r)
 

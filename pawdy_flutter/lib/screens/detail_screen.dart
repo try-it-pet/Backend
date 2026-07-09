@@ -209,6 +209,37 @@ class _DetailScreenState extends State<DetailScreen> {
                         const SizedBox(width: 10),
                         Expanded(child: _spec('사이즈 범위', sizeText)),
                       ]),
+                      const SizedBox(height: 12),
+                      // 남은 재고 수량 노출
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: product.isOutOfStock ? T.accentSoft : T.soft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              product.isOutOfStock ? '상태: 품절' : '남은 재고',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: product.isOutOfStock ? T.accent : T.sub,
+                              ),
+                            ),
+                            Text(
+                              product.isOutOfStock ? '구매 불가' : '${product.stock ?? 0}개',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: product.isOutOfStock ? T.accent : T.ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       if (product.fittable) _fitCta(),
                       if (sizes != null && sizes.isNotEmpty) _sizeSelector(sizes),
                     ],
@@ -230,46 +261,55 @@ class _DetailScreenState extends State<DetailScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 20),
       child: GestureDetector(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => FitScreen(initialProductId: product.id))),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: T.line),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                    color: T.accentSoft, borderRadius: BorderRadius.circular(11)),
-                child: const Icon(Icons.auto_awesome, color: T.accent, size: 20),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(isHome ? '우리 집에 배치해보기' : '우리 아이한테 입혀보기',
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
-                            color: T.ink)),
-                    const SizedBox(height: 2),
-                    Text(isHome ? 'AI가 우리 집 사진에 배치해드려요' : 'AI가 우리 아이 사진에 바로 입혀드려요',
-                        style: const TextStyle(
-                            fontSize: 12,
-                            color: T.muted,
-                            fontWeight: FontWeight.w500)),
-                  ],
+        onTap: () {
+          if (product.isOutOfStock) {
+            _snack('품절된 상품은 AI 피팅을 이용할 수 없습니다');
+            return;
+          }
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => FitScreen(initialProductId: product.id)));
+        },
+        child: Opacity(
+          opacity: product.isOutOfStock ? 0.5 : 1.0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: T.line),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                      color: T.accentSoft, borderRadius: BorderRadius.circular(11)),
+                  child: const Icon(Icons.auto_awesome, color: T.accent, size: 20),
                 ),
-              ),
-              const Icon(Icons.chevron_right, size: 19, color: Color(0xFFC4BDB3)),
-            ],
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(isHome ? '우리 집에 배치해보기' : '우리 아이한테 입혀보기',
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                              color: T.ink)),
+                      const SizedBox(height: 2),
+                      Text(isHome ? 'AI가 우리 집 사진에 배치해드려요' : 'AI가 우리 아이 사진에 바로 입혀드려요',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: T.muted,
+                              fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, size: 19, color: Color(0xFFC4BDB3)),
+              ],
+            ),
           ),
         ),
       ),
@@ -305,21 +345,24 @@ class _DetailScreenState extends State<DetailScreen> {
                   child: Padding(
                     padding: EdgeInsets.only(right: s == sizes.last ? 0 : 9),
                     child: GestureDetector(
-                      onTap: () => setState(() => _selectedSize = s),
-                      child: Container(
-                        height: 46,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: _selectedSize == s ? T.ink : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: _selectedSize == s ? T.ink : T.line),
+                      onTap: product.isOutOfStock ? null : () => setState(() => _selectedSize = s),
+                      child: Opacity(
+                        opacity: product.isOutOfStock ? 0.4 : 1.0,
+                        child: Container(
+                          height: 46,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: _selectedSize == s ? T.ink : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: _selectedSize == s ? T.ink : T.line),
+                          ),
+                          child: Text(s,
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: _selectedSize == s ? Colors.white : T.sub)),
                         ),
-                        child: Text(s,
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: _selectedSize == s ? Colors.white : T.sub)),
                       ),
                     ),
                   ),
@@ -486,7 +529,7 @@ class _DetailScreenState extends State<DetailScreen> {
               child: SizedBox(
                 height: 52,
                 child: FilledButton(
-                  onPressed: () async {
+                  onPressed: product.isOutOfStock ? null : () async {
                     if (!appState.loggedIn) {
                       await showLoginSheet(context);
                       if (!appState.loggedIn) return;
@@ -500,11 +543,11 @@ class _DetailScreenState extends State<DetailScreen> {
                     }
                   },
                   style: FilledButton.styleFrom(
-                      backgroundColor: T.ink,
+                      backgroundColor: product.isOutOfStock ? T.muted : T.ink,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15))),
-                  child: const Text('장바구니 담기',
-                      style: TextStyle(
+                  child: Text(product.isOutOfStock ? '품절된 상품' : '장바구니 담기',
+                      style: const TextStyle(
                           fontSize: 15.5,
                           fontWeight: FontWeight.w800,
                           color: Colors.white)),
@@ -514,4 +557,5 @@ class _DetailScreenState extends State<DetailScreen> {
           ],
         ),
       );
+
 }

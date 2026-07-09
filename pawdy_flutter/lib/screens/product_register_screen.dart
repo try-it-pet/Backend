@@ -16,6 +16,7 @@ class _ProductRegisterScreenState extends State<ProductRegisterScreen> {
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
   final _urlController = TextEditingController();
+  final _stockController = TextEditingController(text: '99');
   
   String _category = 'fashion';
   String _species = 'dog';
@@ -62,11 +63,17 @@ class _ProductRegisterScreenState extends State<ProductRegisterScreen> {
     final name = _nameController.text.trim();
     final priceStr = _priceController.text.trim();
     final url = _urlController.text.trim();
+    final stockStr = _stockController.text.trim();
 
     if (name.isEmpty) return _toast('상품명을 입력해 주세요');
     if (priceStr.isEmpty) return _toast('가격을 입력해 주세요');
     final price = int.tryParse(priceStr);
     if (price == null || price <= 0) return _toast('올바른 가격을 입력해 주세요');
+    
+    if (stockStr.isEmpty) return _toast('재고량을 입력해 주세요');
+    final stock = int.tryParse(stockStr);
+    if (stock == null || stock < 0) return _toast('올바른 재고량을 입력해 주세요');
+
     if (_imageBytes == null || _imageFilename == null) return _toast('대표 상품 이미지를 업로드해 주세요');
     if (_fittable && _refImageBytes == null) return _toast('AI 피팅용 의상 이미지를 업로드해 주세요');
 
@@ -83,6 +90,7 @@ class _ProductRegisterScreenState extends State<ProductRegisterScreen> {
         fittable: _fittable,
         url: url.isEmpty ? null : url,
         sizes: _category == 'fashion' && _selectedSizes.isNotEmpty ? _selectedSizes : null,
+        stock: stock,
         imageBytes: _imageBytes!,
         imageFilename: _imageFilename!,
         refImageBytes: _fittable ? _refImageBytes : null,
@@ -98,6 +106,7 @@ class _ProductRegisterScreenState extends State<ProductRegisterScreen> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
 
   Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
@@ -144,6 +153,16 @@ class _ProductRegisterScreenState extends State<ProductRegisterScreen> {
                 style: const TextStyle(fontSize: 14.5, color: T.ink),
               ),
               const SizedBox(height: 20),
+
+              _label('초기 재고량 *'),
+              TextField(
+                controller: _stockController,
+                keyboardType: TextInputType.number,
+                decoration: _inputDecoration('예: 99'),
+                style: const TextStyle(fontSize: 14.5, color: T.ink),
+              ),
+              const SizedBox(height: 20),
+
 
               _label('카테고리 *'),
               Container(
