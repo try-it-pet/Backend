@@ -24,11 +24,15 @@ class Order {
   final int total;
   final String createdAt;
   final List<CartItem> items;
-  const Order(
-      {required this.id,
-      required this.total,
-      required this.createdAt,
-      required this.items});
+  final String status;
+
+  const Order({
+    required this.id,
+    required this.total,
+    required this.createdAt,
+    required this.items,
+    required this.status,
+  });
 
   factory Order.fromJson(Map<String, dynamic> j) => Order(
         id: j['id'] as int,
@@ -37,7 +41,9 @@ class Order {
         items: ((j['items'] as List?) ?? [])
             .map((e) => CartItem.fromJson(e as Map<String, dynamic>))
             .toList(),
+        status: j['status'] as String? ?? '결제완료',
       );
+
 
   String get summary {
     if (items.isEmpty) return '상품 없음';

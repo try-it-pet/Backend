@@ -54,6 +54,8 @@ class OrderRow(SQLModel, table=True):
     items_json: str  # [{product_id,size,qty}, ...]
     total: int
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    status: str = Field(default="결제완료")
+
 
 
 class ReviewRow(SQLModel, table=True):

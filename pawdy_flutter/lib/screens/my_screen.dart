@@ -9,7 +9,8 @@ import 'my_reviews_screen.dart';
 import 'fitting_history_screen.dart';
 import 'coming_soon_screen.dart';
 import 'shop_register_screen.dart';
-import 'product_register_screen.dart';
+import 'seller_dashboard_screen.dart';
+
 
 
 class MyScreen extends StatelessWidget {
@@ -307,8 +308,9 @@ class MyScreen extends StatelessWidget {
       sellerMenuAction = () => _toast(context, '로그인하면 판매자로 등록할 수 있어요');
     } else if (appState.shop != null) {
       sellerMenuTitle = '내 상점 관리 (${appState.shop!.name})';
-      sellerMenuAction = () => _push(context, const ProductRegisterScreen());
+      sellerMenuAction = () => _push(context, const SellerDashboardScreen());
     } else {
+
       sellerMenuTitle = '판매자 등록 (상점 개설)';
       sellerMenuAction = () => _push(context, const ShopRegisterScreen());
     }

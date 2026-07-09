@@ -1,0 +1,390 @@
+import 'package:flutter/material.dart';
+import '../api/client.dart';
+import '../models/product.dart';
+import '../models/commerce.dart';
+import '../theme/tokens.dart';
+import 'product_register_screen.dart';
+
+class SellerDashboardScreen extends StatefulWidget {
+  const SellerDashboardScreen({super.key});
+
+  @override
+  State<SellerDashboardScreen> createState() => _SellerDashboardScreenState();
+}
+
+class _SellerDashboardScreenState extends State<SellerDashboardScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  
+  List<Product> _products = [];
+  List<Order> _orders = [];
+  
+  bool _loadingProducts = true;
+  bool _loadingOrders = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _loadProducts();
+    _loadOrders();
+  }
+
+  Future<void> _loadProducts() async {
+    setState(() => _loadingProducts = true);
+    try {
+      final data = await Api.fetchSellerProducts();
+      setState(() => _products = data);
+    } catch (e) {
+      _toast('상품 조회 실패: $e');
+    } finally {
+      setState(() => _loadingProducts = false);
+    }
+  }
+
+  Future<void> _loadOrders() async {
+    setState(() => _loadingOrders = true);
+    try {
+      final data = await Api.fetchSellerOrders();
+      setState(() => _orders = data);
+    } catch (e) {
+      _toast('주문 조회 실패: $e');
+    } finally {
+      setState(() => _loadingOrders = false);
+    }
+  }
+
+  void _toast(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(m), duration: const Duration(milliseconds: 1400)),
+    );
+  }
+
+  void _openEditDialog(Product p) {
+    final nameCtrl = TextEditingController(text: p.name);
+    final priceCtrl = TextEditingController(text: p.price.toString());
+    final stockCtrl = TextEditingController(text: (p.stock ?? 99).toString());
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('상품 정보 수정', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: '상품명'),
+              ),
+              TextField(
+                controller: priceCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '가격 (KRW)'),
+              ),
+              TextField(
+                controller: stockCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '재고량'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('취소', style: TextStyle(color: T.sub)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final newName = nameCtrl.text.trim();
+              final newPrice = int.tryParse(priceCtrl.text.trim()) ?? p.price;
+              final newStock = int.tryParse(stockCtrl.text.trim()) ?? (p.stock ?? 99);
+              
+              if (newName.isEmpty) {
+                _toast('상품명을 입력해 주세요');
+                return;
+              }
+              
+              Navigator.of(ctx).pop();
+              try {
+                await Api.updateProduct(p.id, {
+                  'name': newName,
+                  'price': newPrice,
+                  'stock': newStock,
+                });
+                _toast('상품 정보가 수정되었습니다');
+                _loadProducts();
+              } catch (e) {
+                _toast('수정 실패: $e');
+              }
+            },
+            child: const Text('저장', style: TextStyle(color: T.accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteConfirm(Product p) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('상품 삭제', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: Text('${p.name} 상품을 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('취소', style: TextStyle(color: T.sub)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('삭제', style: TextStyle(color: T.accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await Api.deleteProduct(p.id);
+        _toast('상품이 삭제되었습니다');
+        _loadProducts();
+      } catch (e) {
+        _toast('삭제 실패: $e');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: T.paper,
+      appBar: AppBar(
+        title: const Text('내 상점 관리자', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: T.ink)),
+        backgroundColor: T.paper,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: T.ink),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: T.ink,
+          unselectedLabelColor: T.muted,
+          indicatorColor: T.accent,
+          indicatorWeight: 2.5,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          tabs: const [
+            Tab(text: '등록 상품 관리'),
+            Tab(text: '들어온 주문 관리'),
+          ],
+        ),
+      ),
+      body: SafeArea(
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _productsTab(),
+            _ordersTab(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _productsTab() {
+    if (_loadingProducts) {
+      return const Center(child: CircularProgressIndicator(color: T.accent, strokeWidth: 3));
+    }
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('등록 상품 ${_products.length}개', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: T.sub)),
+              GestureDetector(
+                onTap: () async {
+                  await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProductRegisterScreen()));
+                  _loadProducts();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: T.accent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.add, size: 14, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text('새 상품 등록', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _products.isEmpty
+              ? _emptyState('등록된 상품이 없습니다')
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+                  itemCount: _products.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => _productItem(_products[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _productItem(Product p) {
+    final imgUrl = Api.imageUrl(p);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: T.line),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: T.soft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: imgUrl != null ? Image.network(imgUrl, fit: BoxFit.cover) : const Icon(Icons.checkroom, color: T.muted2),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(p.name, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: T.ink), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 4),
+                Text('${won(p.price)}원', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: T.ink)),
+                const SizedBox(height: 3),
+                Text(p.isOutOfStock ? '품절' : '재고: ${p.stock ?? 0}개', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: p.isOutOfStock ? T.accent : T.sub)),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 18, color: T.sub),
+            onPressed: () => _openEditDialog(p),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: T.accent),
+            onPressed: () => _deleteConfirm(p),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ordersTab() {
+    if (_loadingOrders) {
+      return const Center(child: CircularProgressIndicator(color: T.accent, strokeWidth: 3));
+    }
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('주문건 ${_orders.length}개', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: T.sub)),
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 18, color: T.sub),
+                onPressed: _loadOrders,
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _orders.isEmpty
+              ? _emptyState('들어온 주문이 없습니다')
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+                  itemCount: _orders.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => _orderItem(_orders[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _orderItem(Order o) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: T.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('주문 #${o.id}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: T.ink)),
+              DropdownButton<String>(
+                value: o.status,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: T.accent),
+                underline: const SizedBox.shrink(),
+                icon: const Icon(Icons.keyboard_arrow_down, size: 16, color: T.accent),
+                items: const [
+                  DropdownMenuItem(value: '결제완료', child: Text('결제완료')),
+                  DropdownMenuItem(value: '배송준비중', child: Text('배송준비중')),
+                  DropdownMenuItem(value: '배송중', child: Text('배송중')),
+                  DropdownMenuItem(value: '배송완료', child: Text('배송완료')),
+                ],
+                onChanged: (val) async {
+                  if (val != null && val != o.status) {
+                    try {
+                      await Api.updateOrderStatus(o.id, val);
+                      _toast('배송 상태가 [$val](으)로 변경되었습니다');
+                      _loadOrders();
+                    } catch (e) {
+                      _toast('상태 변경 실패: $e');
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(o.summary, style: const TextStyle(fontSize: 13, color: T.sub, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text('주문 일자: ${o.createdAt.split('T').first}', style: const TextStyle(fontSize: 11, color: T.muted)),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState(String text) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.inbox_outlined, size: 36, color: T.muted2),
+            const SizedBox(height: 8),
+            Text(text, style: const TextStyle(fontSize: 12.5, color: T.muted, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+}

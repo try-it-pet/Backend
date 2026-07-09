@@ -56,7 +56,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
-  Widget _orderCard(Order o) => Container(
+    Widget _orderCard(Order o) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -74,9 +74,29 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: T.ink)),
-                Text(o.createdAt.split('T').first,
-                    style: const TextStyle(
-                        fontSize: 12, color: T.muted, fontWeight: FontWeight.w500)),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: o.status == '결제완료' ? T.soft : T.accentSoft,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        o.status,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          color: o.status == '결제완료' ? T.sub : T.accent,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(o.createdAt.split('T').first,
+                        style: const TextStyle(
+                            fontSize: 12, color: T.muted, fontWeight: FontWeight.w500)),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -99,6 +119,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           ],
         ),
       );
+
 
   Widget _empty() => Center(
         child: Column(

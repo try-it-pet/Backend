@@ -222,7 +222,8 @@ def _order(s, r: OrderRow) -> Order:
             product = _product(p_row)
             items.append(CartItem(id=0, product=product, product_id=it["product_id"],
                                   size=it["size"], qty=it["qty"]))
-    return Order(id=r.id, items=items, total=r.total, created_at=r.created_at)
+    return Order(id=r.id, items=items, total=r.total, created_at=r.created_at, status=r.status)
+
 
 
 def list_orders(user_id: int) -> List[Order]:
@@ -463,4 +464,73 @@ def create_product(shop_id: int, brand: str, body: ProductCreate, image_url: Opt
 
         s.add(r); s.commit(); s.refresh(r)
         return _product(r)
+
+
+def list_seller_products(shop_id: int) -> List[Product]:
+    with get_session() as s:
+        rows = s.exec(select(ProductRow).where(ProductRow.shop_id == shop_id)).all()
+        return [_product(r) for r in rows]
+
+
+def update_product(product_id: int, body: ProductUpdate) -> Optional[Product]:
+    with get_session() as s:
+        r = s.get(ProductRow, product_id)
+        if not r:
+            return None
+        if body.name is not None:
+            r.name = body.name
+        if body.price is not None:
+            r.price = body.price
+        if body.category is not None:
+            r.category = body.category
+        if body.species is not None:
+            r.species = body.species
+        if body.fittable is not None:
+            r.fittable = body.fittable
+        if body.url is not None:
+            r.url = body.url
+        if body.sizes is not None:
+            r.sizes_json = json.dumps(body.sizes) if body.sizes else None
+        if body.stock is not None:
+            r.stock = body.stock
+        s.add(r); s.commit(); s.refresh(r)
+        return _product(r)
+
+
+def delete_product(product_id: int) -> bool:
+    with get_session() as s:
+        r = s.get(ProductRow, product_id)
+        if not r:
+            return False
+        s.delete(r); s.commit()
+        return True
+
+
+def list_seller_orders(shop_id: int) -> List[Order]:
+    with get_session() as s:
+        # 내 상점에 속한 상품 ID 목록을 먼저 추출
+        my_p_ids = set(s.exec(select(ProductRow.id).where(ProductRow.shop_id == shop_id)).all())
+        if not my_p_ids:
+            return []
+        
+        # 전체 주문 리스트에서 내 상품이 포함된 주문만 선별
+        all_order_rows = s.exec(select(OrderRow).order_by(OrderRow.id.desc())).all()
+        seller_orders = []
+        for o_row in all_order_rows:
+            items_data = json.loads(o_row.items_json)
+            # 내 샵 제품이 주문 항목에 하나라도 들어있다면
+            if any(it["product_id"] in my_p_ids for it in items_data):
+                seller_orders.append(_order(s, o_row))
+        return seller_orders
+
+
+def update_order_status(order_id: int, status: str) -> Optional[Order]:
+    with get_session() as s:
+        r = s.get(OrderRow, order_id)
+        if not r:
+            return None
+        r.status = status
+        s.add(r); s.commit(); s.refresh(r)
+        return _order(s, r)
+
 

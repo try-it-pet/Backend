@@ -47,6 +47,14 @@ def init_db() -> None:
             # 컬럼이 이미 존재하거나 DB 상태에 따른 오류 발생 시 개별적으로 안전하게 스킵
             pass
 
+    # 기존 orders 테이블에 신규 컬럼(status)이 없을 경우를 대비한 동적 마이그레이션
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE orders ADD COLUMN status VARCHAR(50) DEFAULT '결제완료'"))
+    except Exception:
+        pass
+
+
 
 
     with Session(engine) as s:

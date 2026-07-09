@@ -6,12 +6,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, Form, UploadFile
 
 from ..auth import get_current_user
 from ..data import CATEGORIES
-from ..models import Product, ProductReviews, User, Shop, ShopCreate, ProductCreate
+from ..models import Product, ProductReviews, User, Shop, ShopCreate, ProductCreate, ProductUpdate, Order
 from ..store import (
     list_product_reviews, product_rating, get_product as store_get_product,
     list_products as store_list_products, create_shop, get_shop_by_owner,
-    create_product
+    create_product, list_seller_products, update_product, delete_product,
+    list_seller_orders, update_order_status
 )
+
 from ..storage import put_bytes
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -129,8 +131,73 @@ def register_product(
     )
 
 
+@router.get("/seller/my-products", response_model=list[Product])
+def get_seller_products(user: User = Depends(get_current_user)) -> list[Product]:
+    """판매자 등록 상품 목록 조회"""
+    shop = get_shop_by_owner(user.id)
+    if not shop:
+        raise HTTPException(status_code=403, detail="No shop found for user")
+    return list_seller_products(shop.id)
+
+
+@router.put("/seller/products/{product_id}", response_model=Product)
+def put_seller_product(product_id: int, body: ProductUpdate, user: User = Depends(get_current_user)) -> Product:
+    """판매자 등록 상품 정보 수정"""
+    shop = get_shop_by_owner(user.id)
+    if not shop:
+        raise HTTPException(status_code=403, detail="No shop found for user")
+    # 수정 대상 상품 소유권 검증
+    p = store_get_product(product_id)
+    if not p or p.shop_id != shop.id:
+        raise HTTPException(status_code=404, detail="Product not found or not owned by this shop")
+    updated = update_product(product_id, body)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update product")
+    return updated
+
+
+@router.delete("/seller/products/{product_id}")
+def delete_seller_product(product_id: int, user: User = Depends(get_current_user)) -> dict:
+    """판매자 등록 상품 삭제"""
+    shop = get_shop_by_owner(user.id)
+    if not shop:
+        raise HTTPException(status_code=403, detail="No shop found for user")
+    p = store_get_product(product_id)
+    if not p or p.shop_id != shop.id:
+        raise HTTPException(status_code=404, detail="Product not found or not owned by this shop")
+    success = delete_product(product_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to delete product")
+    return {"status": "success", "message": "Product deleted"}
+
+
+@router.get("/seller/my-orders", response_model=list[Order])
+def get_seller_orders(user: User = Depends(get_current_user)) -> list[Order]:
+    """자사 상품이 들어간 주문 목록 조회"""
+    shop = get_shop_by_owner(user.id)
+    if not shop:
+        raise HTTPException(status_code=403, detail="No shop found for user")
+    return list_seller_orders(shop.id)
+
+
+@router.patch("/seller/orders/{order_id}/status", response_model=Order)
+def patch_seller_order_status(order_id: int, status: str = Form(...), user: User = Depends(get_current_user)) -> Order:
+    """주문의 배송 상태 변경"""
+    shop = get_shop_by_owner(user.id)
+    if not shop:
+        raise HTTPException(status_code=403, detail="No shop found for user")
+    # 주문 내에 자사 상품이 들었는지 검증
+    my_orders = list_seller_orders(shop.id)
+    if not any(o.id == order_id for o in my_orders):
+        raise HTTPException(status_code=404, detail="Order not found or contains no products from this shop")
+    updated = update_order_status(order_id, status)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update order status")
+    return updated
+
 
 @router.get("/{product_id}", response_model=Product)
+
 def get_product(product_id: int) -> Product:
     product = store_get_product(product_id)
     if product is None:

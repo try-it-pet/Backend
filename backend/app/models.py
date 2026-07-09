@@ -92,6 +92,19 @@ class Order(BaseModel):
     items: list[CartItem]
     total: int
     created_at: str
+    status: str = "결제완료"
+
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    price: Optional[int] = None
+    category: Optional[str] = None
+    species: Optional[str] = None
+    fittable: Optional[bool] = None
+    url: Optional[str] = None
+    sizes: Optional[list[str]] = None
+    stock: Optional[int] = None
+
 
 
 class Stats(BaseModel):

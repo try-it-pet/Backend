@@ -270,6 +270,46 @@ class Api {
     return Product.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  static Future<List<Product>> fetchSellerProducts() async {
+    final r = await http.get(Uri.parse('$apiBase/products/seller/my-products'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '등록 상품 조회 실패');
+    final data = jsonDecode(utf8.decode(r.bodyBytes)) as List;
+    return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<Product> updateProduct(int id, Map<String, dynamic> body) async {
+    final r = await http.put(
+      Uri.parse('$apiBase/products/seller/products/$id'),
+      headers: {..._authHeaders(), 'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+    if (r.statusCode != 200) throw _apiError(r, '상품 수정 실패');
+    return Product.fromJson(jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  static Future<void> deleteProduct(int id) async {
+    final r = await http.delete(Uri.parse('$apiBase/products/seller/products/$id'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '상품 삭제 실패');
+  }
+
+  static Future<List<Order>> fetchSellerOrders() async {
+    final r = await http.get(Uri.parse('$apiBase/products/seller/my-orders'), headers: _authHeaders());
+    if (r.statusCode != 200) throw _apiError(r, '들어온 주문 조회 실패');
+    final data = jsonDecode(utf8.decode(r.bodyBytes)) as List;
+    return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  static Future<Order> updateOrderStatus(int orderId, String status) async {
+    final r = await http.patch(
+      Uri.parse('$apiBase/products/seller/orders/$orderId/status'),
+      headers: _authHeaders(),
+      body: {'status': status},
+    );
+    if (r.statusCode != 200) throw _apiError(r, '배송 상태 수정 실패');
+    return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>);
+  }
+
+
 
   // ── AI 피팅 / 인생네컷 ──
   static Future<TryOnJob> _createJob(
