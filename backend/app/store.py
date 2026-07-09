@@ -14,8 +14,9 @@ from sqlmodel import select
 from .db import get_session
 from .models import (
     CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, ReviewCreate, User,
-    Product, Shop, ShopCreate, ProductCreate,
+    Product, Shop, ShopCreate, ProductCreate, ProductUpdate,
 )
+
 from .tables import (
     CartRow, FittingRow, KVRow, LikeRow, OrderRow, PetRow, ResultRow, ReviewRow,
     UserCounterRow, UserRow, ProductRow, ShopRow,
