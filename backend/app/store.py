@@ -259,6 +259,8 @@ def _order(s, r: OrderRow) -> Order:
             product = _product(p_row)
             items.append(CartItem(id=0, product=product, product_id=it["product_id"],
                                   size=it["size"], qty=it["qty"]))
+    user_row = s.get(UserRow, r.user_id)
+    buyer_name = user_row.nickname if user_row else "알 수 없음"
     return Order(
         id=r.id,
         items=items,
@@ -266,8 +268,10 @@ def _order(s, r: OrderRow) -> Order:
         created_at=r.created_at,
         status=r.status,
         carrier=r.carrier,
-        tracking_no=r.tracking_no
+        tracking_no=r.tracking_no,
+        buyer_name=buyer_name
     )
+
 
 
 

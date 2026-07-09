@@ -27,6 +27,7 @@ class Order {
   final String status;
   final String? carrier;
   final String? trackingNo;
+  final String? buyerName;
 
   const Order({
     required this.id,
@@ -36,6 +37,7 @@ class Order {
     required this.status,
     this.carrier,
     this.trackingNo,
+    this.buyerName,
   });
 
   factory Order.fromJson(Map<String, dynamic> j) => Order(
@@ -48,7 +50,9 @@ class Order {
         status: j['status'] as String? ?? '결제완료',
         carrier: j['carrier'] as String?,
         trackingNo: j['tracking_no'] as String?,
+        buyerName: j['buyer_name'] as String?,
       );
+
 
 
 

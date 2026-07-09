@@ -97,6 +97,8 @@ class Order(BaseModel):
     status: str = "결제완료"
     carrier: Optional[str] = None
     tracking_no: Optional[str] = None
+    buyer_name: Optional[str] = None
+
 
 
 
