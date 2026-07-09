@@ -70,6 +70,8 @@ class ReviewRow(SQLModel, table=True):
     rating: int = 5
     text: str = ""
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    image: Optional[str] = Field(default=None, description="리뷰 첨부 이미지 URL")
+
 
 
 class FittingRow(SQLModel, table=True):

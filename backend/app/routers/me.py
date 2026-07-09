@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
+from typing import Optional
 
 from ..auth import get_current_user
 from ..models import (
-    CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, ReviewCreate, Stats, User,
+    CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, Stats, User,
 )
 from ..quota import grant_purchase, status as quota_status
 from ..store import (
@@ -11,7 +12,9 @@ from ..store import (
     get_product,
 )
 
+
 router = APIRouter(prefix="/me", tags=["me"], dependencies=[Depends(get_current_user)])
+
 
 
 # ── 좋아요 ──
@@ -79,10 +82,29 @@ def my_reviews(user: User = Depends(get_current_user)) -> list[Review]:
 
 
 @router.post("/reviews", response_model=Review, status_code=201)
-def write_review(body: ReviewCreate, user: User = Depends(get_current_user)) -> Review:
-    if get_product(body.product_id) is None:
+def write_review(
+    product_id: int = Form(...),
+    rating: int = Form(5),
+    text: str = Form(""),
+    image_file: Optional[UploadFile] = File(None),
+    user: User = Depends(get_current_user)
+) -> Review:
+    if get_product(product_id) is None:
         raise HTTPException(status_code=404, detail="product not found")
-    return add_review(user.id, body)
+
+    image_url = None
+    if image_file:
+        import uuid
+        from ..storage import put_bytes
+        image_data = image_file.file.read()
+        image_ext = image_file.filename.split(".")[-1] if "." in image_file.filename else "jpg"
+        image_key = f"reviews/{uuid.uuid4()}.{image_ext}"
+        image_url = put_bytes(image_key, image_data, image_file.content_type)
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Failed to upload review image")
+
+    return add_review(user_id=user.id, product_id=product_id, rating=rating, text=text, image_url=image_url)
+
 
 
 # ── AI 피팅 이력(라이브러리) ──

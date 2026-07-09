@@ -73,7 +73,13 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
     return null;
   }
 
-  Widget _card(BuildContext context, Review r) => GestureDetector(
+  Widget _card(BuildContext context, Review r) {
+    final hasImage = r.image != null && r.image!.isNotEmpty;
+    final imageUrl = hasImage
+        ? (r.image!.startsWith('http') ? r.image! : '$apiBase${r.image!}')
+        : '';
+
+    return GestureDetector(
       onTap: () {
         final p = _findProduct(r.productId);
         if (p != null) {
@@ -120,10 +126,65 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
                       color: T.sub,
                       fontWeight: FontWeight.w500)),
             ],
+            if (hasImage) ...[
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () => _showFullImage(context, imageUrl),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    imageUrl,
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  void _showFullImage(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => GestureDetector(
+        onTap: () => Navigator.of(ctx).pop(),
+        child: Container(
+          color: Colors.black.withOpacity(0.9),
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  maxScale: 4.0,
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 40,
+                right: 20,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, size: 20, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   Widget _empty() => Center(
         child: Column(

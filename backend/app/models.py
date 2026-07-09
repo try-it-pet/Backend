@@ -130,6 +130,8 @@ class Review(BaseModel):
     rating: int
     text: str
     created_at: str
+    image: Optional[str] = None
+
 
 
 class ProductReviews(BaseModel):

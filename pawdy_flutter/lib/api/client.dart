@@ -177,15 +177,32 @@ class Api {
         .toList();
   }
 
-  static Future<Review> createReview(int productId, int rating, String text) async {
-    final r = await http.post(
-      Uri.parse('$apiBase/me/reviews'),
-      headers: {..._authHeaders(), 'Content-Type': 'application/json'},
-      body: jsonEncode({'product_id': productId, 'rating': rating, 'text': text}),
-    );
-    if (r.statusCode != 200 && r.statusCode != 201) throw _apiError(r, '리뷰 작성 실패');
-    return Review.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
+  static Future<Review> createReview({
+    required int productId,
+    required int rating,
+    required String text,
+    Uint8List? imageBytes,
+    String? imageFilename,
+  }) async {
+    final req = http.MultipartRequest('POST', Uri.parse('$apiBase/me/reviews'))
+      ..headers.addAll(_authHeaders())
+      ..fields['product_id'] = '$productId'
+      ..fields['rating'] = '$rating'
+      ..fields['text'] = text;
+
+    if (imageBytes != null) {
+      req.files.add(http.MultipartFile.fromBytes(
+        'image_file',
+        imageBytes,
+        filename: imageFilename ?? 'review_photo.jpg',
+      ));
+    }
+
+    final res = await http.Response.fromStream(await req.send());
+    if (res.statusCode != 200 && res.statusCode != 201) throw _apiError(res, '리뷰 작성 실패');
+    return Review.fromJson(jsonDecode(utf8.decode(res.bodyBytes)));
   }
+
 
   // ── AI 피팅 이력 ──
   static Future<List<Fitting>> fetchFittings() async {

@@ -5,6 +5,7 @@ class Review {
   final int rating;
   final String text;
   final String createdAt;
+  final String? image;
 
   const Review({
     required this.id,
@@ -13,6 +14,7 @@ class Review {
     required this.rating,
     required this.text,
     required this.createdAt,
+    this.image,
   });
 
   factory Review.fromJson(Map<String, dynamic> j) => Review(
@@ -22,8 +24,10 @@ class Review {
         rating: (j['rating'] as num?)?.toInt() ?? 5,
         text: j['text'] as String? ?? '',
         createdAt: j['created_at'] as String? ?? '',
+        image: j['image'] as String?,
       );
 }
+
 
 class ProductReviews {
   final int count;

@@ -433,48 +433,109 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _reviewCard(Review r) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: T.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: T.line),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(children: [
-                  Stars(r.rating.toDouble(), size: 13),
-                  const SizedBox(width: 7),
-                  Text(r.nickname,
-                      style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: T.ink)),
-                ]),
-                Text(r.createdAt.split('T').first,
+  Widget _reviewCard(Review r) {
+    final hasImage = r.image != null && r.image!.isNotEmpty;
+    final imageUrl = hasImage
+        ? (r.image!.startsWith('http') ? r.image! : '$apiBase${r.image!}')
+        : '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: T.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: T.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [
+                Stars(r.rating.toDouble(), size: 13),
+                const SizedBox(width: 7),
+                Text(r.nickname,
                     style: const TextStyle(
-                        fontSize: 11.5,
-                        color: T.muted2,
-                        fontWeight: FontWeight.w500)),
-              ],
-            ),
-            if (r.text.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(r.text,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: T.ink)),
+              ]),
+              Text(r.createdAt.split('T').first,
                   style: const TextStyle(
-                      fontSize: 13.5,
-                      height: 1.55,
-                      color: T.sub,
+                      fontSize: 11.5,
+                      color: T.muted2,
                       fontWeight: FontWeight.w500)),
             ],
+          ),
+          if (r.text.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(r.text,
+                style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.55,
+                    color: T.sub,
+                    fontWeight: FontWeight.w500)),
           ],
+          if (hasImage) ...[
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: () => _showFullImage(imageUrl),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  imageUrl,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showFullImage(String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => GestureDetector(
+        onTap: () => Navigator.of(ctx).pop(),
+        child: Container(
+          color: Colors.black.withOpacity(0.9),
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  maxScale: 4.0,
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 40,
+                right: 20,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, size: 20, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
         ),
-      );
+      ),
+    );
+  }
+
 
   Widget _spec(String label, String value) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),

@@ -1,8 +1,10 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../api/client.dart';
 import '../theme/tokens.dart';
 
-/// 리뷰 작성 — 별점(1~5) + 텍스트. 성공 시 true 반환(pop).
+/// 리뷰 작성 — 별점(1~5) + 텍스트 + 이미지 1장. 성공 시 true 반환(pop).
 class ReviewWriteSheet extends StatefulWidget {
   final int productId;
   final String productName;
@@ -18,6 +20,9 @@ class _ReviewWriteSheetState extends State<ReviewWriteSheet> {
   final _text = TextEditingController();
   bool _saving = false;
 
+  Uint8List? _photoBytes;
+  String? _photoFilename;
+
   @override
   void dispose() {
     _text.dispose();
@@ -27,10 +32,38 @@ class _ReviewWriteSheetState extends State<ReviewWriteSheet> {
   void _toast(String m) => ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(m), duration: const Duration(milliseconds: 1400)));
 
+  Future<void> _pickPhoto() async {
+    try {
+      final x = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (x == null) return;
+      final bytes = await x.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _photoBytes = bytes;
+        _photoFilename = x.name;
+      });
+    } catch (e) {
+      if (mounted) _toast('사진을 불러오지 못했어요: $e');
+    }
+  }
+
+  void _clearPhoto() {
+    setState(() {
+      _photoBytes = null;
+      _photoFilename = null;
+    });
+  }
+
   Future<void> _submit() async {
     setState(() => _saving = true);
     try {
-      await Api.createReview(widget.productId, _rating, _text.text.trim());
+      await Api.createReview(
+        productId: widget.productId,
+        rating: _rating,
+        text: _text.text.trim(),
+        imageBytes: _photoBytes,
+        imageFilename: _photoFilename,
+      );
       if (mounted) {
         Navigator.of(context).pop(true);
         _toast('리뷰가 등록됐어요');
@@ -114,6 +147,81 @@ class _ReviewWriteSheetState extends State<ReviewWriteSheet> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            
+            // 이미지 첨부 영역
+            if (_photoBytes == null)
+              GestureDetector(
+                onTap: _pickPhoto,
+                child: Container(
+                  width: double.infinity,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: T.line),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.add_photo_alternate_outlined, size: 20, color: T.sub),
+                      SizedBox(width: 8),
+                      Text('리뷰 사진 첨부하기',
+                          style: TextStyle(
+                              fontSize: 13.5,
+                              color: T.sub,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Row(
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.memory(
+                          _photoBytes!,
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: GestureDetector(
+                          onTap: _clearPhoto,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: T.ink,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close, size: 10, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      _photoFilename ?? 'review_photo.jpg',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: T.muted,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            
             const SizedBox(height: 18),
             SizedBox(
               height: 52,

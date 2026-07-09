@@ -259,17 +259,18 @@ def _reviews(s, rows: List[ReviewRow]) -> List[Review]:
     return [
         Review(id=r.id, product_id=r.product_id, user_id=r.user_id,
                nickname=nick.get(r.user_id, "익명"), rating=r.rating, text=r.text,
-               created_at=r.created_at)
+               created_at=r.created_at, image=r.image)
         for r in rows
     ]
 
 
-def add_review(user_id: int, body: ReviewCreate) -> Review:
+def add_review(user_id: int, product_id: int, rating: int, text: str, image_url: Optional[str] = None) -> Review:
     with get_session() as s:
-        r = ReviewRow(user_id=user_id, product_id=body.product_id,
-                      rating=body.rating, text=body.text.strip())
+        r = ReviewRow(user_id=user_id, product_id=product_id,
+                      rating=rating, text=text.strip(), image=image_url)
         s.add(r); s.commit(); s.refresh(r)
         return _reviews(s, [r])[0]
+
 
 
 def list_product_reviews(product_id: int) -> List[Review]:
