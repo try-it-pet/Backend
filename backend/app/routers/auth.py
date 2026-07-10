@@ -161,17 +161,44 @@ def login_email(req: EmailLoginRequest) -> AuthResult:
     return AuthResult(token=create_token(user.id), user=user)
 
 @router.post("/google", response_model=AuthResult)
-def google_login(req: GoogleLoginRequest) -> AuthResult:
+async def google_login(req: GoogleLoginRequest) -> AuthResult:
     from ..store import upsert_google_user
-    # 구글 실제 토큰 검증은 상용 키가 있을 때 수행하며,
-    # 로컬 및 시연 테스트에서는 idToken 자체를 구글 ID로 간주하여 가입 및 바이패스 처리합니다.
+    import httpx
+
     google_id = req.idToken
+    nickname = req.nickname or "구글 사용자"
+    image = None
+
+    # 구글 클라이언트 ID가 설정된 경우 실서빙용 토큰 검증 실행
+    if settings.google_client_id:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                res = await client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={req.idToken}")
+                if res.status_code != 200:
+                    raise ValueError("유효하지 않은 Google ID Token입니다.")
+                payload = res.json()
+                
+                # Client ID(Audience) 검증
+                if payload.get("aud") != settings.google_client_id:
+                    raise ValueError("Google Client ID(Audience) 불일치")
+                
+                # Issuer 검증
+                if payload.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+                    raise ValueError("유효하지 않은 토큰 발행처(Issuer)")
+                
+                google_id = payload.get("sub")
+                nickname = payload.get("name") or payload.get("given_name") or nickname
+                image = payload.get("picture")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Google 인증 실패: {str(e)}")
+
     user = upsert_google_user(
         google_id=google_id,
-        nickname=req.nickname or "구글 사용자",
-        image=None
+        nickname=nickname,
+        image=image
     )
     return AuthResult(token=create_token(user.id), user=user)
+
 
 
 @router.get("/me", response_model=User, tags=["auth"])

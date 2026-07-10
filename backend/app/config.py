@@ -94,6 +94,8 @@ class Settings:
     # 토스 페이먼츠 결제 연동 설정
     toss_secret_key: str = os.getenv("PETFIT_TOSS_SECRET_KEY", "")
     toss_client_key: str = os.getenv("PETFIT_TOSS_CLIENT_KEY", "")
+    google_client_id: str = os.getenv("PETFIT_GOOGLE_CLIENT_ID", "")
+
 
 
     cors_origins: list[str] = (
