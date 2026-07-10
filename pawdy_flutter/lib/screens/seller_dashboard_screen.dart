@@ -684,15 +684,17 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text('주문번호 ${o.orderCode}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: T.ink)),
-                  const SizedBox(width: 8),
-                  Text('·  구매자: ${o.buyerName ?? '알 수 없음'}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: T.sub)),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('주문번호 ${o.orderCode}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: T.ink)),
+                    const SizedBox(height: 3),
+                    Text('구매자: ${o.buyerName ?? '알 수 없음'}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: T.sub)),
+                  ],
+                ),
               ),
+
 
               DropdownButton<String>(
                 value: o.status,

@@ -194,18 +194,33 @@ class _OrdersScreenState extends State<OrdersScreen> {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('주문번호 ${o.orderCode}',
-                    style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: T.ink)),
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('주문번호',
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: T.muted)),
+                    const SizedBox(height: 2),
+                    Text(o.orderCode,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: T.ink)),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: o.status == '결제완료' ? T.soft : T.accentSoft,
+                        color: o.status == '결제완료' 
+                            ? T.soft 
+                            : (o.status == '구매확정' ? T.soft : T.accentSoft),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -213,18 +228,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.bold,
-                          color: o.status == '결제완료' ? T.sub : T.accent,
+                          color: o.status == '결제완료' 
+                              ? T.sub 
+                              : (o.status == '구매확정' ? T.sub : T.accent),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 4),
                     Text(o.createdAt.split('T').first,
                         style: const TextStyle(
-                            fontSize: 12, color: T.muted, fontWeight: FontWeight.w500)),
+                            fontSize: 11.5, color: T.muted, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ],
             ),
+
             const Divider(height: 24, color: T.line),
             
             // 주문한 개별 상품 목록 표시
