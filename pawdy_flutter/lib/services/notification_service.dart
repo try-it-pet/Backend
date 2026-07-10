@@ -5,7 +5,7 @@ class NotificationService {
 
   static Future<void> init() async {
     // 1. Android 초기화 설정 (앱 기본 아이콘 사용)
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
     
     // 2. iOS/macOS 초기화 설정
     const darwinSettings = DarwinInitializationSettings(
