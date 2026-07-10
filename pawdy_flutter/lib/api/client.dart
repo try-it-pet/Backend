@@ -154,6 +154,17 @@ class Api {
     return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
 
+  /// 구매 확정 요청
+  static Future<Order> confirmOrder(int orderId) async {
+    final r = await http.post(
+      Uri.parse('$apiBase/me/orders/$orderId/confirm'),
+      headers: _authHeaders(),
+    );
+    if (r.statusCode != 200) throw _apiError(r, '구매확정 실패');
+    return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
+  }
+
+
 
   // ── 통계 ──
   static Future<Stats> fetchStats() async {

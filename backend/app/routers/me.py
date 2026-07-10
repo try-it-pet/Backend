@@ -95,6 +95,27 @@ def payments_confirm(req: PaymentConfirmRequest, user: User = Depends(get_curren
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/orders/{order_id}/confirm", response_model=Order)
+def confirm_order(order_id: int, user: User = Depends(get_current_user)) -> Order:
+    from ..db import get_session
+    from ..tables import OrderRow
+    from ..store import update_order_status
+    with get_session() as s:
+        r = s.get(OrderRow, order_id)
+        if not r:
+            raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다")
+        if r.user_id != user.id:
+            raise HTTPException(status_code=403, detail="권한이 없습니다")
+        if r.status == "구매확정":
+            raise HTTPException(status_code=400, detail="이미 구매확정된 주문입니다")
+            
+    updated = update_order_status(order_id, "구매확정")
+    if updated is None:
+        raise HTTPException(status_code=400, detail="상태 변경 실패")
+    return updated
+
+
+
 
 @router.get("/orders", response_model=list[Order])
 def orders(user: User = Depends(get_current_user)) -> list[Order]:

@@ -4,6 +4,8 @@ import '../models/commerce.dart';
 import '../theme/tokens.dart';
 import 'coming_soon_screen.dart' show PawdyBar;
 import 'detail_screen.dart';
+import 'review_write_sheet.dart';
+
 
 
 class OrdersScreen extends StatefulWidget {
@@ -21,6 +23,128 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.initState();
     _future = Api.fetchOrders();
   }
+
+  Future<void> _confirmOrder(int orderId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('구매 확정', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: T.ink)),
+        content: const Text('구매 확정을 진행하시겠습니까?\n구매 확정 후에는 교환/반품이 불가합니다.', style: TextStyle(color: T.sub, fontSize: 14)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('취소', style: TextStyle(color: T.sub))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('확인', style: TextStyle(color: T.accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await Api.confirmOrder(orderId);
+        setState(() {
+          _future = Api.fetchOrders();
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('구매 확정이 정상 처리되었습니다.'), backgroundColor: T.accent),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('구매 확정 실패: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  void _openReviewSheet(int productId, String productName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ReviewWriteSheet(productId: productId, productName: productName),
+    ).then((ok) {
+      if (ok == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('리뷰가 성공적으로 등록되었습니다!'), backgroundColor: T.accent),
+        );
+      }
+    });
+  }
+
+  void _showProductSelectForReview(Order o) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '리뷰를 작성할 상품을 선택해 주세요',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: T.ink),
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: o.items.length,
+                    separatorBuilder: (_, __) => const Divider(color: T.line, height: 1),
+                    itemBuilder: (context, idx) {
+                      final it = o.items[idx];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            color: T.soft,
+                            child: Api.imageUrl(it.product) != null
+                                ? Image.network(Api.imageUrl(it.product)!, fit: BoxFit.cover)
+                                : const Icon(Icons.shopping_bag_outlined, color: T.muted),
+                          ),
+                        ),
+                        title: Text(
+                          it.product.name,
+                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: T.ink),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          '사이즈: ${it.size}',
+                          style: const TextStyle(fontSize: 11, color: T.muted),
+                        ),
+                        trailing: const Icon(Icons.edit_note, color: T.accent),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openReviewSheet(it.product.id, it.product.name);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -190,6 +314,55 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         color: T.ink)),
               ],
             ),
+            
+            if (o.status == '배송중' || o.status == '배송완료' || o.status == '구매확정') ...[
+              const Divider(height: 20, color: T.line),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (o.status == '배송중' || o.status == '배송완료')
+                    OutlinedButton(
+                      onPressed: () => _confirmOrder(o.id),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: T.sub,
+                        side: const BorderSide(color: T.line),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      ),
+                      child: const Text('구매확정', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  if (o.status == '구매확정')
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: T.soft,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('구매확정 완료', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: T.muted)),
+                    ),
+                  const SizedBox(width: 8),
+                  if (o.status == '배송완료' || o.status == '구매확정')
+                    ElevatedButton(
+                      onPressed: () {
+                        if (o.items.length == 1) {
+                          _openReviewSheet(o.items[0].product.id, o.items[0].product.name);
+                        } else {
+                          _showProductSelectForReview(o);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: T.accent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      ),
+                      child: const Text('리뷰작성', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              ),
+            ],
+
           ],
         ),
       );

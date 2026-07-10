@@ -791,6 +791,14 @@ def update_order_status(order_id: int, status: str, carrier: Optional[str] = Non
                 title="배송 완료 안내",
                 content="상품 배송이 완료되었습니다. 이용해 주셔서 감사합니다! 만족하셨다면 리뷰를 남겨주세요."
             )
+        elif status == "구매확정":
+            create_notification_in_session(
+                s,
+                user_id=r.user_id,
+                title="구매 확정 완료",
+                content=f"주문번호 #{r.id}번 상품들의 구매 확정이 완료되었습니다. 만족하셨다면 후기를 남겨주세요!"
+            )
+
 
         s.add(r); s.commit(); s.refresh(r)
         return _order(s, r)
