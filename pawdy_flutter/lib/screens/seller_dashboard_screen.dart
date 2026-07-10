@@ -23,6 +23,9 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
   bool _loadingProducts = true;
   bool _loadingOrders = true;
   String _ordersSubTab = 'pending'; // 'pending' | 'shipping' | 'completed'
+  String _searchQuery = '';
+  String _productFilter = 'all'; // 'all' | 'low' | 'out'
+
 
 
   @override
@@ -152,64 +155,126 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
     
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('상품 정보 수정', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: '상품명'),
-              ),
-              TextField(
-                controller: priceCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '가격 (KRW)'),
-              ),
-              TextField(
-                controller: stockCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '재고량'),
-              ),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: const Text('상품 정보 수정', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: '상품명'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: '가격 (KRW)'),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: stockCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: '재고량'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: () {
+                        final val = int.tryParse(stockCtrl.text) ?? 0;
+                        if (val > 0) {
+                          setDlgState(() {
+                            stockCtrl.text = (val - 1).toString();
+                          });
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(36, 36),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        side: const BorderSide(color: T.line),
+                      ),
+                      child: const Icon(Icons.remove, size: 16, color: T.sub),
+                    ),
+                    const SizedBox(width: 4),
+                    OutlinedButton(
+                      onPressed: () {
+                        final val = int.tryParse(stockCtrl.text) ?? 0;
+                        setDlgState(() {
+                          stockCtrl.text = (val + 1).toString();
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(36, 36),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        side: const BorderSide(color: T.line),
+                      ),
+                      child: const Icon(Icons.add, size: 16, color: T.sub),
+                    ),
+                    const SizedBox(width: 4),
+                    OutlinedButton(
+                      onPressed: () {
+                        final val = int.tryParse(stockCtrl.text) ?? 0;
+                        setDlgState(() {
+                          stockCtrl.text = (val + 10).toString();
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        minimumSize: const Size(40, 36),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        side: const BorderSide(color: T.line),
+                      ),
+                      child: const Text('+10', style: TextStyle(fontSize: 11, color: T.sub, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('취소', style: TextStyle(color: T.sub)),
+            ),
+            TextButton(
+              onPressed: () async {
+                final newName = nameCtrl.text.trim();
+                final newPrice = int.tryParse(priceCtrl.text.trim()) ?? p.price;
+                final newStock = int.tryParse(stockCtrl.text.trim()) ?? (p.stock ?? 99);
+                
+                if (newName.isEmpty) {
+                  _toast('상품명을 입력해 주세요');
+                  return;
+                }
+                
+                Navigator.of(ctx).pop();
+                try {
+                  await Api.updateProduct(p.id, {
+                    'name': newName,
+                    'price': newPrice,
+                    'stock': newStock,
+                  });
+                  _toast('상품 정보가 수정되었습니다');
+                  _loadProducts();
+                } catch (e) {
+                  _toast('수정 실패: $e');
+                }
+              },
+              child: const Text('저장', style: TextStyle(color: T.accent, fontWeight: FontWeight.bold)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('취소', style: TextStyle(color: T.sub)),
-          ),
-          TextButton(
-            onPressed: () async {
-              final newName = nameCtrl.text.trim();
-              final newPrice = int.tryParse(priceCtrl.text.trim()) ?? p.price;
-              final newStock = int.tryParse(stockCtrl.text.trim()) ?? (p.stock ?? 99);
-              
-              if (newName.isEmpty) {
-                _toast('상품명을 입력해 주세요');
-                return;
-              }
-              
-              Navigator.of(ctx).pop();
-              try {
-                await Api.updateProduct(p.id, {
-                  'name': newName,
-                  'price': newPrice,
-                  'stock': newStock,
-                });
-                _toast('상품 정보가 수정되었습니다');
-                _loadProducts();
-              } catch (e) {
-                _toast('수정 실패: $e');
-              }
-            },
-            child: const Text('저장', style: TextStyle(color: T.accent, fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
   }
+
 
   Future<void> _deleteConfirm(Product p) async {
     final confirm = await showDialog<bool>(
@@ -278,18 +343,107 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
     );
   }
 
+  Widget _buildStatCard(String label, String value, Color color, String filterKey) {
+    final isSelected = _productFilter == filterKey;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _productFilter = filterKey),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isSelected ? color : T.line, width: isSelected ? 1.5 : 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 11, color: T.muted, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Text(value, style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _productsTab() {
     if (_loadingProducts) {
       return const Center(child: CircularProgressIndicator(color: T.accent, strokeWidth: 3));
     }
+
+    final lowStockCount = _products.where((p) => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 5).length;
+    final outOfStockCount = _products.where((p) => p.isOutOfStock).length;
+
+    // 필터링 및 검색 연산
+    final filtered = _products.where((p) {
+      if (_searchQuery.isNotEmpty && !p.name.toLowerCase().contains(_searchQuery.toLowerCase())) {
+        return false;
+      }
+      if (_productFilter == 'low') {
+        final stock = p.stock ?? 0;
+        return stock > 0 && stock <= 5;
+      } else if (_productFilter == 'out') {
+        return p.isOutOfStock;
+      }
+      return true;
+    }).toList();
+
     return Column(
       children: [
+        // 1. 개요 통계 카드 세트
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 16, 22, 10),
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 6),
+          child: Row(
+            children: [
+              _buildStatCard('전체 상품', '${_products.length}개', T.sub, 'all'),
+              const SizedBox(width: 8),
+              _buildStatCard('품절 임박', '$lowStockCount개', Colors.orange, 'low'),
+              const SizedBox(width: 8),
+              _buildStatCard('품절 상품', '$outOfStockCount개', T.accent, 'out'),
+            ],
+          ),
+        ),
+
+        // 2. 검색 바
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: T.line),
+            ),
+            child: TextField(
+              onChanged: (val) => setState(() => _searchQuery = val.trim()),
+              style: const TextStyle(fontSize: 13.5, color: T.ink),
+              decoration: const InputDecoration(
+                hintText: '등록 상품명으로 검색...',
+                hintStyle: TextStyle(color: T.muted, fontSize: 13),
+                prefixIcon: Icon(Icons.search, size: 18, color: T.muted),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 11),
+              ),
+            ),
+          ),
+        ),
+
+        // 3. 상품 목록 수량 정보 & 등록 버튼
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 8, 22, 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('등록 상품 ${_products.length}개', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: T.sub)),
+              Text('조회된 상품 ${filtered.length}개', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: T.sub)),
               GestureDetector(
                 onTap: () async {
                   await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProductRegisterScreen()));
@@ -313,19 +467,21 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
             ],
           ),
         ),
+
         Expanded(
-          child: _products.isEmpty
-              ? _emptyState('등록된 상품이 없습니다')
+          child: filtered.isEmpty
+              ? _emptyState(_searchQuery.isNotEmpty ? '검색 결과와 일치하는 상품이 없습니다' : '조회된 상품이 없습니다')
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-                  itemCount: _products.length,
+                  itemCount: filtered.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => _productItem(_products[i]),
+                  itemBuilder: (_, i) => _productItem(filtered[i]),
                 ),
         ),
       ],
     );
   }
+
 
   Widget _productItem(Product p) {
     final imgUrl = Api.imageUrl(p);
