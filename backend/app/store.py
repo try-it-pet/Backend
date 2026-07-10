@@ -430,6 +430,7 @@ def confirm_payment(user_id: int, order_id: int, payment_key: str, amount: int) 
 
 
 def _order(s, r: OrderRow) -> Order:
+    import hashlib
     items = []
     for it in json.loads(r.items_json):
         p_row = s.get(ProductRow, it["product_id"])
@@ -439,6 +440,17 @@ def _order(s, r: OrderRow) -> Order:
                                   size=it["size"], qty=it["qty"]))
     user_row = s.get(UserRow, r.user_id)
     buyer_name = user_row.nickname if user_row else "알 수 없음"
+
+    # 주문 고유 식별 코드 생성 (예: P20260710-0015-E8A7)
+    date_str = "00000000"
+    if r.created_at:
+        try:
+            date_str = r.created_at.split("T")[0].replace("-", "")
+        except Exception:
+            pass
+    hash_suffix = hashlib.md5(str(r.id).encode()).hexdigest()[:4].upper()
+    order_code = f"P{date_str}-{r.id:04d}-{hash_suffix}"
+
     return Order(
         id=r.id,
         items=items,
@@ -448,8 +460,10 @@ def _order(s, r: OrderRow) -> Order:
         carrier=r.carrier,
         tracking_no=r.tracking_no,
         buyer_name=buyer_name,
-        payment_key=r.payment_key
+        payment_key=r.payment_key,
+        order_code=order_code
     )
+
 
 
 

@@ -688,7 +688,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> with Sing
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text('주문 #${o.id}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: T.ink)),
+                  Text('주문번호 ${o.orderCode}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: T.ink)),
                   const SizedBox(width: 8),
                   Text('·  구매자: ${o.buyerName ?? '알 수 없음'}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: T.sub)),
                 ],

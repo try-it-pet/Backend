@@ -195,9 +195,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('주문 #${o.id}',
+                Text('주문번호 ${o.orderCode}',
                     style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w800,
                         color: T.ink)),
                 Row(

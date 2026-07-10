@@ -102,6 +102,8 @@ class Order(BaseModel):
     tracking_no: Optional[str] = None
     buyer_name: Optional[str] = None
     payment_key: Optional[str] = None
+    order_code: str = ""
+
 
 
 

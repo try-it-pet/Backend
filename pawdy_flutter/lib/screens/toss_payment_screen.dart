@@ -34,7 +34,7 @@ class _TossPaymentScreenState extends State<TossPaymentScreen> {
         // 결제 승인 성공 시 완료 알림 후 화면 탈출
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('결제가 정상 완료되었습니다! (주문 #${order.id})'),
+            content: Text('결제가 정상 완료되었습니다! (주문번호 ${order.orderCode})'),
             backgroundColor: T.accent,
             duration: const Duration(seconds: 2),
           ),

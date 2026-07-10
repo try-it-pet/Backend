@@ -28,6 +28,7 @@ class Order {
   final String? carrier;
   final String? trackingNo;
   final String? buyerName;
+  final String orderCode;
 
   const Order({
     required this.id,
@@ -35,6 +36,7 @@ class Order {
     required this.createdAt,
     required this.items,
     required this.status,
+    required this.orderCode,
     this.carrier,
     this.trackingNo,
     this.buyerName,
@@ -51,7 +53,9 @@ class Order {
         carrier: j['carrier'] as String?,
         trackingNo: j['tracking_no'] as String?,
         buyerName: j['buyer_name'] as String?,
+        orderCode: j['order_code'] as String? ?? 'O-${j['id']}',
       );
+
 
 
 
