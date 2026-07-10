@@ -180,7 +180,15 @@ class MyScreen extends StatelessWidget {
             width: double.infinity,
             height: 48,
             child: OutlinedButton(
-              onPressed: () => _showGoogleLoginMockDialog(context),
+              onPressed: () async {
+                try {
+                  await appState.startGoogleLogin(
+                    onShowMock: () => _showGoogleLoginMockDialog(context),
+                  );
+                } catch (e) {
+                  if (context.mounted) _toast(context, 'Google 로그인 실패: $e');
+                }
+              },
               style: OutlinedButton.styleFrom(
                 backgroundColor: Colors.white,
                 side: const BorderSide(color: T.line),
@@ -201,6 +209,7 @@ class MyScreen extends StatelessWidget {
               ),
             ),
           ),
+
           const SizedBox(height: 10),
 
           // 3. 이메일 로그인 & 회원가입 가로 배치

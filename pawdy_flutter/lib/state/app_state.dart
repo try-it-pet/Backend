@@ -8,6 +8,7 @@ import '../models/user.dart';
 import '../models/commerce.dart';
 import '../models/shop.dart';
 import '../services/notification_service.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 
 
@@ -126,6 +127,44 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     await _afterLogin();
   }
+
+  /// 구글 로그인 시작 (서버 키 설정 여부에 따라 실제 연동 또는 시뮬레이터 분기)
+  Future<void> startGoogleLogin({
+    required Function() onShowMock,
+  }) async {
+    try {
+      final googleClientId = await Api.fetchGoogleClientId();
+      
+      // 구글 클라이언트 ID가 설정되어 있지 않은 경우 ➔ 개발용 시뮬레이터 팝업
+      if (googleClientId.isEmpty) {
+        onShowMock();
+        return;
+      }
+
+      // 구글 클라이언트 ID가 설정되어 있는 경우 ➔ 실제 네이티브 구글 로그인 연동 진행 (7.x 싱글톤 스펙 적용)
+      await GoogleSignIn.instance.initialize(
+        serverClientId: googleClientId,
+      );
+
+      // 기존 로그인 상태가 남아있을 수 있으므로 명시적 로그아웃 후 진행
+      await GoogleSignIn.instance.signOut().catchError((_) => null);
+      final account = await GoogleSignIn.instance.authenticate();
+      
+      final auth = account.authentication;
+      final idToken = auth.idToken;
+      if (idToken != null) {
+        user = await Api.loginGoogle(idToken: idToken, nickname: account.displayName);
+        notifyListeners();
+        await _afterLogin();
+      } else {
+        throw Exception('Google ID Token 획득 실패');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+
 
 
   Future<void> _afterLogin() async {

@@ -226,6 +226,15 @@ class Api {
     return User.fromJson(data['user'] as Map<String, dynamic>);
   }
 
+  /// 구글 클라이언트 ID 환경변수 조회
+  static Future<String> fetchGoogleClientId() async {
+    final r = await http.get(Uri.parse('$apiBase/auth/config'));
+    if (r.statusCode != 200) return '';
+    final data = jsonDecode(utf8.decode(r.bodyBytes));
+    return data['google_client_id'] as String? ?? '';
+  }
+
+
 
 
 

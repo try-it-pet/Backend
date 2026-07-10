@@ -119,6 +119,13 @@ def _app_return_html(app_url: str) -> str:
     )
 
 
+@router.get("/config")
+def get_auth_config():
+    return {
+        "google_client_id": settings.google_client_id
+    }
+
+
 @router.post("/dev-login", response_model=AuthResult)
 def dev_login(nickname: str = Body("초코집사", embed=True)) -> AuthResult:
     """키 없이 테스트용 로그인. 운영에선 PETFIT_ALLOW_DEV_LOGIN=0 으로 비활성화."""
@@ -126,6 +133,7 @@ def dev_login(nickname: str = Body("초코집사", embed=True)) -> AuthResult:
         raise HTTPException(status_code=403, detail="dev-login 비활성화됨")
     user = create_dev_user(nickname)
     return AuthResult(token=create_token(user.id), user=user)
+
 
 
 from pydantic import BaseModel
