@@ -164,6 +164,70 @@ class Api {
     return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
   }
 
+  /// 이메일 회원가입
+  static Future<User> registerEmail({
+    required String email,
+    required String password,
+    required String nickname,
+  }) async {
+    final body = jsonEncode({
+      'email': email,
+      'password': password,
+      'nickname': nickname,
+    });
+    final r = await http.post(
+      Uri.parse('$apiBase/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+    if (r.statusCode != 200) throw _apiError(r, '회원가입 실패');
+    final data = jsonDecode(utf8.decode(r.bodyBytes));
+    _token = data['token'] as String;
+    return User.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
+  /// 이메일 로그인
+  static Future<User> loginEmail({
+    required String email,
+    required String password,
+  }) async {
+    final body = jsonEncode({
+      'email': email,
+      'password': password,
+    });
+    final r = await http.post(
+      Uri.parse('$apiBase/auth/login/email'),
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+    if (r.statusCode != 200) throw _apiError(r, '로그인 실패');
+    final data = jsonDecode(utf8.decode(r.bodyBytes));
+    _token = data['token'] as String;
+    return User.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
+  /// 구글 로그인
+  static Future<User> loginGoogle({
+    required String idToken,
+    String? nickname,
+  }) async {
+    final body = jsonEncode({
+      'idToken': idToken,
+      'nickname': nickname,
+    });
+    final r = await http.post(
+      Uri.parse('$apiBase/auth/google'),
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
+    if (r.statusCode != 200) throw _apiError(r, '구글 로그인 실패');
+    final data = jsonDecode(utf8.decode(r.bodyBytes));
+    _token = data['token'] as String;
+    return User.fromJson(data['user'] as Map<String, dynamic>);
+  }
+
+
+
 
 
   // ── 통계 ──

@@ -145,49 +145,333 @@ class MyScreen extends StatelessWidget {
         ],
       );
 
-  Widget _loginButtons(BuildContext context) => Row(
+  Widget _loginButtons(BuildContext context) => Column(
         children: [
-          Expanded(
-            child: SizedBox(
-              height: 44,
-              child: FilledButton(
-                onPressed: appState.startKakaoLogin,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFFEE500),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('카카오로 로그인',
-                    style: TextStyle(
-                        color: T.ink,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800)),
+          // 1. 카카오 로그인
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton(
+              onPressed: appState.startKakaoLogin,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFFEE500),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.chat_bubble, color: Color(0xFF3C1E1E), size: 16),
+                  SizedBox(width: 8),
+                  Text('카카오로 로그인',
+                      style: TextStyle(
+                          color: Color(0xFF3C1E1E),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800)),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(height: 10),
+          
+          // 2. 구글 로그인
           SizedBox(
-            height: 44,
+            width: double.infinity,
+            height: 48,
             child: OutlinedButton(
-              onPressed: () async {
-                try {
-                  await appState.devLogin();
-                } catch (e) {
-                  if (context.mounted) _toast(context, '$e');
-                }
-              },
+              onPressed: () => _showGoogleLoginMockDialog(context),
               style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
                 side: const BorderSide(color: T.line),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('둘러보기',
-                  style: TextStyle(
-                      color: T.sub, fontSize: 13, fontWeight: FontWeight.w700)),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.g_mobiledata, color: T.ink, size: 28),
+                  SizedBox(width: 2),
+                  Text('Google로 로그인',
+                      style: TextStyle(
+                          color: T.ink,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 3. 이메일 로그인 & 회원가입 가로 배치
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: FilledButton(
+                    onPressed: () => _showEmailLoginBottomSheet(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: T.accent,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('이메일 로그인',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: OutlinedButton(
+                    onPressed: () => _showEmailRegisterBottomSheet(context),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: T.line),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('이메일 회원가입',
+                        style: TextStyle(
+                            color: T.sub,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // 4. 둘러보기 (데모)
+          TextButton(
+            onPressed: () async {
+              try {
+                await appState.devLogin();
+              } catch (e) {
+                if (context.mounted) _toast(context, '$e');
+              }
+            },
+            child: const Text(
+              '게스트 모드로 둘러보기',
+              style: TextStyle(
+                  color: T.muted2,
+                  fontSize: 12,
+                  decoration: TextDecoration.underline,
+                  fontWeight: FontWeight.w600),
             ),
           ),
         ],
       );
+
+  void _showGoogleLoginMockDialog(BuildContext context) {
+    final nameCtrl = TextEditingController(text: '구글집사');
+    final emailCtrl = TextEditingController(text: 'google_user_123');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Google 로그인 시뮬레이터', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: T.ink)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('구글 로그인 API 연동용 개발자 시뮬레이터입니다. 구글 고유 ID와 닉네임을 설정해 로그인해보세요.', style: TextStyle(fontSize: 12, color: T.sub)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailCtrl,
+              decoration: const InputDecoration(
+                labelText: '구글 고유 식별값 (ID Token 대용)',
+                labelStyle: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(
+                labelText: '구글 닉네임',
+                labelStyle: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('취소', style: TextStyle(color: T.sub)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                await appState.loginGoogle(emailCtrl.text.trim(), nickname: nameCtrl.text.trim());
+              } catch (e) {
+                if (context.mounted) _toast(context, '$e');
+              }
+            },
+            child: const Text('로그인', style: TextStyle(color: T.accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEmailLoginBottomSheet(BuildContext context) {
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(22, 20, 22, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('이메일 로그인', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: T.ink)),
+            const SizedBox(height: 18),
+            TextField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: '이메일 주소',
+                labelStyle: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: passCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: '비밀번호',
+                labelStyle: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                onPressed: () async {
+                  final email = emailCtrl.text.trim();
+                  final pass = passCtrl.text.trim();
+                  if (email.isEmpty || pass.isEmpty) {
+                    _toast(context, '이메일과 비밀번호를 입력해주세요.');
+                    return;
+                  }
+                  Navigator.of(ctx).pop();
+                  try {
+                    await appState.loginEmail(email, pass);
+                  } catch (e) {
+                    if (context.mounted) _toast(context, '$e');
+                  }
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: T.accent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('로그인하기', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEmailRegisterBottomSheet(BuildContext context) {
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+    final nickCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(22, 20, 22, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('이메일 회원가입', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: T.ink)),
+            const SizedBox(height: 18),
+            TextField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: '이메일 주소',
+                labelStyle: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: passCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: '비밀번호',
+                labelStyle: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: nickCtrl,
+              decoration: const InputDecoration(
+                labelText: '닉네임',
+                labelStyle: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                onPressed: () async {
+                  final email = emailCtrl.text.trim();
+                  final pass = passCtrl.text.trim();
+                  final nick = nickCtrl.text.trim();
+                  if (email.isEmpty || pass.isEmpty || nick.isEmpty) {
+                    _toast(context, '모든 필드를 기입해 주세요.');
+                    return;
+                  }
+                  Navigator.of(ctx).pop();
+                  try {
+                    await appState.registerEmail(email, pass, nick);
+                    if (context.mounted) _toast(context, '회원가입 완료 및 자동 로그인되었습니다!');
+                  } catch (e) {
+                    if (context.mounted) _toast(context, '$e');
+                  }
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: T.accent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('가입 완료하기', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Widget _petRow(BuildContext context, Pet pet) {
     final hasImage = pet.image != null && pet.image!.isNotEmpty;

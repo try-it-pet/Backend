@@ -84,6 +84,19 @@ def init_db() -> None:
     except Exception:
         pass
 
+    # users 테이블에 email, password_hash, google_id 컬럼 동적 추가
+    for col, col_type in [
+        ("email", "VARCHAR(150)"),
+        ("password_hash", "VARCHAR(255)"),
+        ("google_id", "VARCHAR(150)")
+    ]:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
+        except Exception:
+            pass
+
+
 
 
 

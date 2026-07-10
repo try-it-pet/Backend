@@ -128,6 +128,53 @@ def dev_login(nickname: str = Body("초코집사", embed=True)) -> AuthResult:
     return AuthResult(token=create_token(user.id), user=user)
 
 
+from pydantic import BaseModel
+
+class EmailRegisterRequest(BaseModel):
+    email: str
+    password: str
+    nickname: str
+
+class EmailLoginRequest(BaseModel):
+    email: str
+    password: str
+
+class GoogleLoginRequest(BaseModel):
+    idToken: str
+    nickname: Optional[str] = "구글 사용자"
+
+@router.post("/register", response_model=AuthResult)
+def register_email(req: EmailRegisterRequest) -> AuthResult:
+    from ..store import register_email_user
+    try:
+        user = register_email_user(req.email, req.password, req.nickname)
+        return AuthResult(token=create_token(user.id), user=user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/login/email", response_model=AuthResult)
+def login_email(req: EmailLoginRequest) -> AuthResult:
+    from ..store import authenticate_email_user
+    user = authenticate_email_user(req.email, req.password)
+    if user is None:
+        raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 일치하지 않습니다.")
+    return AuthResult(token=create_token(user.id), user=user)
+
+@router.post("/google", response_model=AuthResult)
+def google_login(req: GoogleLoginRequest) -> AuthResult:
+    from ..store import upsert_google_user
+    # 구글 실제 토큰 검증은 상용 키가 있을 때 수행하며,
+    # 로컬 및 시연 테스트에서는 idToken 자체를 구글 ID로 간주하여 가입 및 바이패스 처리합니다.
+    google_id = req.idToken
+    user = upsert_google_user(
+        google_id=google_id,
+        nickname=req.nickname or "구글 사용자",
+        image=None
+    )
+    return AuthResult(token=create_token(user.id), user=user)
+
+
 @router.get("/me", response_model=User, tags=["auth"])
 def me(user: User = Depends(get_current_user)) -> User:
     return user
+

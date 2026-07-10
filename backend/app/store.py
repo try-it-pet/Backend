@@ -31,8 +31,16 @@ JOB_TS: Dict[str, float] = {}                       # job_id -> 생성 시각
 
 # ── 변환 헬퍼 ──
 def _user(r: UserRow) -> User:
-    return User(id=r.id, provider=r.provider, nickname=r.nickname,
-                profile_image=r.profile_image, kakao_id=r.kakao_id)
+    return User(
+        id=r.id,
+        provider=r.provider,
+        nickname=r.nickname,
+        profile_image=r.profile_image,
+        kakao_id=r.kakao_id,
+        email=r.email,
+        google_id=r.google_id
+    )
+
 
 
 def _pet(r: PetRow) -> Pet:
@@ -103,6 +111,50 @@ def upsert_kakao_user(kakao_id: str, nickname: str, image: Optional[str]) -> Use
             r = UserRow(provider="kakao", nickname=nickname, profile_image=image, kakao_id=kakao_id)
             s.add(r); s.commit(); s.refresh(r)
         return _user(r)
+
+
+import hashlib
+
+def _hash_password(password: str) -> str:
+    salt = "pawdy_salt_secure_123"
+    return hashlib.sha256((password + salt).encode("utf-8")).hexdigest()
+
+def register_email_user(email: str, password_raw: str, nickname: str) -> User:
+    with get_session() as s:
+        exists = s.exec(select(UserRow).where(UserRow.email == email)).first()
+        if exists:
+            raise ValueError("이미 가입된 이메일 주소입니다.")
+        r = UserRow(
+            provider="email",
+            email=email,
+            password_hash=_hash_password(password_raw),
+            nickname=nickname
+        )
+        s.add(r); s.commit(); s.refresh(r)
+        return _user(r)
+
+def authenticate_email_user(email: str, password_raw: str) -> Optional[User]:
+    with get_session() as s:
+        r = s.exec(select(UserRow).where(
+            UserRow.email == email,
+            UserRow.password_hash == _hash_password(password_raw)
+        )).first()
+        if r:
+            return _user(r)
+        return None
+
+def upsert_google_user(google_id: str, nickname: str, image: Optional[str]) -> User:
+    with get_session() as s:
+        r = s.exec(select(UserRow).where(UserRow.google_id == google_id)).first()
+        if r is None:
+            r = UserRow(provider="google", nickname=nickname, profile_image=image, google_id=google_id)
+            s.add(r); s.commit(); s.refresh(r)
+        else:
+            if image and not r.profile_image:
+                r.profile_image = image
+                s.add(r); s.commit(); s.refresh(r)
+        return _user(r)
+
 
 
 # ── 펫 ──

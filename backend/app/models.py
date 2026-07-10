@@ -71,6 +71,9 @@ class User(BaseModel):
     nickname: str
     profile_image: Optional[str] = None
     kakao_id: Optional[str] = None
+    email: Optional[str] = None
+    google_id: Optional[str] = None
+
 
 
 class AuthResult(BaseModel):

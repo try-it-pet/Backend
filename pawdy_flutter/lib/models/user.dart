@@ -1,14 +1,18 @@
 class User {
   final int id;
-  final String provider; // kakao | dev
+  final String provider; // kakao | dev | email | google
   final String nickname;
   final String? profileImage;
+  final String? email;
+  final String? googleId;
 
   const User({
     required this.id,
     required this.provider,
     required this.nickname,
     this.profileImage,
+    this.email,
+    this.googleId,
   });
 
   factory User.fromJson(Map<String, dynamic> j) => User(
@@ -16,10 +20,14 @@ class User {
         provider: j['provider'] as String? ?? 'dev',
         nickname: j['nickname'] as String? ?? '집사',
         profileImage: j['profile_image'] as String?,
+        email: j['email'] as String?,
+        googleId: j['google_id'] as String?,
       );
 
   bool get isKakao => provider == 'kakao';
+  bool get isGoogle => provider == 'google';
 }
+
 
 class Pet {
   final int id;

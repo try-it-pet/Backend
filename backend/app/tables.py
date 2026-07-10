@@ -15,6 +15,10 @@ class UserRow(SQLModel, table=True):
     nickname: str
     profile_image: Optional[str] = None
     kakao_id: Optional[str] = Field(default=None, index=True, unique=True)
+    email: Optional[str] = Field(default=None, index=True, unique=True)
+    password_hash: Optional[str] = Field(default=None)
+    google_id: Optional[str] = Field(default=None, index=True, unique=True)
+
 
 
 class PetRow(SQLModel, table=True):

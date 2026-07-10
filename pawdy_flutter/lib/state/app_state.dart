@@ -109,6 +109,25 @@ class AppState extends ChangeNotifier {
     await _afterLogin();
   }
 
+  Future<void> loginEmail(String email, String password) async {
+    user = await Api.loginEmail(email: email, password: password);
+    notifyListeners();
+    await _afterLogin();
+  }
+
+  Future<void> registerEmail(String email, String password, String nickname) async {
+    user = await Api.registerEmail(email: email, password: password, nickname: nickname);
+    notifyListeners();
+    await _afterLogin();
+  }
+
+  Future<void> loginGoogle(String idToken, {String? nickname}) async {
+    user = await Api.loginGoogle(idToken: idToken, nickname: nickname);
+    notifyListeners();
+    await _afterLogin();
+  }
+
+
   Future<void> _afterLogin() async {
     user = await Api.fetchMe();
     if (user == null) return;
