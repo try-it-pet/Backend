@@ -57,8 +57,32 @@ LOOK_PROMPTS = {
 SCENE_LOOKS = {"winter", "sakura"}
 
 # 일러스트/감성 룩 — 펫을 통째로 "다시 그림"(옷 착용 X). 프롬프트가 착장 base 를 대체.
-# gpt-image-2(openai)에서 검증된 20대 트렌디 그림체. 하트·반짝이 없이 무드 팔레트.
+# plush/clay/cartoon/pixel = 2026-07 fal flux-kontext/dev 로 검증한 확정 라인업(강한 매체라
+# 프롬프트만으로 화풍이 잡힘 — 은은한 회화 계열은 화풍 LoRA 학습 전까지 라인업 제외).
+# ghibli/riso/mood 는 gpt-image-2 시절 구세대 — 칩에선 내렸고 레지스트리 호환용으로만 유지.
 ILLUSTRATION_LOOKS = {
+    "plush": (
+        "Redraw this exact pet as a soft 3D plush toy character: rounded fluffy plush texture, "
+        "big glossy eyes, soft studio lighting, pastel background, extremely cute and huggable, "
+        "Pixar-like softness. Keep the pet's exact fur color, breed and face recognizable. "
+        "Adorable idealized cute proportions. Clean, soft, no oversaturation."
+    ),
+    "clay": (
+        "Redraw this exact pet as a cute claymation stop-motion character: sculpted plasticine "
+        "clay texture with tiny fingerprints, soft studio lighting, handmade tactile look, rounded "
+        "chunky proportions. Keep the pet's fur color, breed and face recognizable. Adorable, cute."
+    ),
+    "cartoon": (
+        "Redraw this exact pet as a bold flat 2D cartoon in classic American TV cartoon style: "
+        "thick black outlines, simple flat cheerful colors (slightly muted, no neon, not "
+        "oversaturated), big round white eyes, exaggerated cute, minimal shading, cel animation "
+        "look. Keep the pet's fur color and shape recognizable."
+    ),
+    "pixel": (
+        "Redraw this exact pet as charming 16-bit pixel art: crisp pixelated blocks, limited retro "
+        "game color palette, dithering, cute chibi sprite, nostalgic video-game look. Keep the "
+        "pet's fur color and markings recognizable. Adorable, cute."
+    ),
     "ghibli": (
         "Redraw this exact pet as a soft dreamy anime-style illustration: gentle natural muted colors, "
         "delicate soft shading, cinematic calm mood, refined and tasteful, Studio-Ghibli-like warmth. "

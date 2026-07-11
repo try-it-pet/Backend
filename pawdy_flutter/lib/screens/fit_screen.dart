@@ -37,12 +37,15 @@ class _FitScreenState extends State<FitScreen> {
   String _msg = '';
   Generations? _gen; // AI 생성 잔여 횟수
 
+  // 일러스트 4종(plush/clay/cartoon/pixel)은 fal flux-kontext 검증 완료 라인업(2026-07).
+  // 구세대 ghibli/riso/mood 칩은 내림 — 은은한 회화 계열은 화풍 LoRA 학습 후 승격 예정.
   static const _styles = [
     ['winter', '겨울 감성'],
     ['sakura', '벚꽃 감성'],
-    ['ghibli', '지브리'],
-    ['riso', '리소'],
-    ['mood', '무드'],
+    ['plush', '플러시 토이'],
+    ['clay', '클레이'],
+    ['cartoon', '카툰'],
+    ['pixel', '픽셀'],
   ];
   static const _comps = [
     ['front_full', '정면 전신'],
