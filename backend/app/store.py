@@ -115,9 +115,30 @@ def upsert_kakao_user(kakao_id: str, nickname: str, image: Optional[str]) -> Use
 
 import hashlib
 
-def _hash_password(password: str) -> str:
+import bcrypt
+
+
+def _legacy_hash(password: str) -> str:
+    """구 방식(SHA-256 + 고정 salt) — 기존 가입자 검증·자동 마이그레이션 용도로만 유지."""
     salt = "pawdy_salt_secure_123"
     return hashlib.sha256((password + salt).encode("utf-8")).hexdigest()
+
+
+def _hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def _verify_password(password: str, stored: Optional[str]) -> Tuple[bool, bool]:
+    """(일치 여부, 레거시 해시였는지). 레거시 일치 시 호출부에서 bcrypt 로 재해시한다."""
+    if not stored:
+        return False, False
+    if stored.startswith("$2"):  # bcrypt
+        try:
+            return bcrypt.checkpw(password.encode("utf-8"), stored.encode("utf-8")), False
+        except ValueError:
+            return False, False
+    return stored == _legacy_hash(password), True  # 구 SHA-256 해시
+
 
 def register_email_user(email: str, password_raw: str, nickname: str) -> User:
     with get_session() as s:
@@ -135,13 +156,16 @@ def register_email_user(email: str, password_raw: str, nickname: str) -> User:
 
 def authenticate_email_user(email: str, password_raw: str) -> Optional[User]:
     with get_session() as s:
-        r = s.exec(select(UserRow).where(
-            UserRow.email == email,
-            UserRow.password_hash == _hash_password(password_raw)
-        )).first()
-        if r:
-            return _user(r)
-        return None
+        r = s.exec(select(UserRow).where(UserRow.email == email)).first()
+        if r is None:
+            return None
+        ok, legacy = _verify_password(password_raw, r.password_hash)
+        if not ok:
+            return None
+        if legacy:  # 구 해시 사용자는 로그인 성공 시점에 bcrypt 로 무중단 업그레이드
+            r.password_hash = _hash_password(password_raw)
+            s.add(r); s.commit(); s.refresh(r)
+        return _user(r)
 
 def upsert_google_user(google_id: str, nickname: str, image: Optional[str]) -> User:
     with get_session() as s:
@@ -188,6 +212,13 @@ def find_pet(pet_id: Optional[int]) -> Optional[Pet]:
     with get_session() as s:
         r = s.get(PetRow, pet_id)
         return _pet(r) if r else None
+
+
+def pet_belongs_to(user_id: int, pet_id: int) -> bool:
+    """pet_id 가 해당 유저 소유인지 — 타인 펫 도용(IDOR) 방지용."""
+    with get_session() as s:
+        r = s.get(PetRow, pet_id)
+        return bool(r and r.user_id == user_id)
 
 
 # ── 좋아요 ──

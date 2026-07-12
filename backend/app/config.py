@@ -126,6 +126,8 @@ class Settings:
     # ip_rate_per_min: 한 IP 가 분당 생성 요청 최대치(0=무제한).
     daily_gen_cap: int = int(os.getenv("PETFIT_DAILY_GEN_CAP", "0"))
     ip_rate_per_min: int = int(os.getenv("PETFIT_IP_RATE_PER_MIN", "10"))
+    # 인증(로그인/가입) 엔드포인트 IP 분당 시도 상한 — 무차별 대입 방어(0=무제한)
+    auth_rate_per_min: int = int(os.getenv("PETFIT_AUTH_RATE_PER_MIN", "10"))
 
     def configured_providers(self) -> dict[str, bool]:
         return {

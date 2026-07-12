@@ -32,6 +32,16 @@ def init_db() -> None:
     from .data import PRODUCTS
     from sqlmodel import select
 
+    # 프로덕션(Railway) 오설정 방어: DATABASE_URL 없이 SQLite 폴백으로 뜨면 재배포/재시작마다
+    # 유저·주문 데이터가 통째로 날아간다 → 조용히 뜨는 대신 기동 실패로 크게 알린다.
+    if DATABASE_URL.startswith("sqlite") and (
+        os.getenv("RAILWAY_ENVIRONMENT_NAME") or os.getenv("RAILWAY_PROJECT_ID")
+    ):
+        raise RuntimeError(
+            "Railway 환경에서 SQLite 폴백이 감지됨 — Postgres 플러그인 연결 및 "
+            "DATABASE_URL 주입 여부를 확인하세요."
+        )
+
     SQLModel.metadata.create_all(engine)
 
     # 기존 products 테이블에 신규 컬럼(shop_id, stock)이 없을 경우를 대비한 동적 마이그레이션

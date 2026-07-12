@@ -21,9 +21,10 @@ def _startup() -> None:
 
 app.add_middleware(
     CORSMiddleware,
-    # https://localhost, capacitor://localhost = 모바일 앱(Capacitor WebView) 오리진
+    # https://localhost, capacitor://localhost = 모바일 앱(Capacitor WebView) 오리진.
+    # 그 외 웹 오리진은 PETFIT_CORS_ORIGINS 에 정확한 도메인만 등록한다 —
+    # (구) *.vercel.app 와일드카드는 임의의 타인 Vercel 앱까지 허용해서 제거함.
     allow_origins=[*settings.cors_origins, "https://localhost", "capacitor://localhost"],
-    allow_origin_regex=r"https://.*\.vercel\.app",  # 모든 Vercel 배포/프리뷰 도메인 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

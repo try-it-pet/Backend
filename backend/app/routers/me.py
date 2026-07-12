@@ -145,10 +145,10 @@ def create_pet(
     if image_file:
         import uuid
         from ..storage import put_bytes
-        image_data = image_file.file.read()
-        image_ext = image_file.filename.split(".")[-1] if "." in image_file.filename else "jpg"
+        from ..uploads import read_image_upload
+        image_data, image_ext, image_mime = read_image_upload(image_file)
         image_key = f"pets/{uuid.uuid4()}.{image_ext}"
-        image_url = put_bytes(image_key, image_data, image_file.content_type)
+        image_url = put_bytes(image_key, image_data, image_mime)
         if not image_url:
             raise HTTPException(status_code=500, detail="Failed to upload pet profile image")
 
@@ -196,10 +196,10 @@ def write_review(
     if image_file:
         import uuid
         from ..storage import put_bytes
-        image_data = image_file.file.read()
-        image_ext = image_file.filename.split(".")[-1] if "." in image_file.filename else "jpg"
+        from ..uploads import read_image_upload
+        image_data, image_ext, image_mime = read_image_upload(image_file)
         image_key = f"reviews/{uuid.uuid4()}.{image_ext}"
-        image_url = put_bytes(image_key, image_data, image_file.content_type)
+        image_url = put_bytes(image_key, image_data, image_mime)
         if not image_url:
             raise HTTPException(status_code=500, detail="Failed to upload review image")
 

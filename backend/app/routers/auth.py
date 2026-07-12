@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from ..auth import create_token, get_current_user
 from ..config import settings
 from ..models import AuthResult, User
+from ..ratelimit import guard_auth
 from ..store import create_dev_user, upsert_kakao_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -127,8 +128,9 @@ def get_auth_config():
 
 
 @router.post("/dev-login", response_model=AuthResult)
-def dev_login(nickname: str = Body("초코집사", embed=True)) -> AuthResult:
+def dev_login(request: Request, nickname: str = Body("초코집사", embed=True)) -> AuthResult:
     """키 없이 테스트용 로그인. 운영에선 PETFIT_ALLOW_DEV_LOGIN=0 으로 비활성화."""
+    guard_auth(request)
     if not settings.allow_dev_login:
         raise HTTPException(status_code=403, detail="dev-login 비활성화됨")
     user = create_dev_user(nickname)
@@ -152,7 +154,8 @@ class GoogleLoginRequest(BaseModel):
     nickname: Optional[str] = "구글 사용자"
 
 @router.post("/register", response_model=AuthResult)
-def register_email(req: EmailRegisterRequest) -> AuthResult:
+def register_email(req: EmailRegisterRequest, request: Request) -> AuthResult:
+    guard_auth(request)
     from ..store import register_email_user
     try:
         user = register_email_user(req.email, req.password, req.nickname)
@@ -161,7 +164,8 @@ def register_email(req: EmailRegisterRequest) -> AuthResult:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/login/email", response_model=AuthResult)
-def login_email(req: EmailLoginRequest) -> AuthResult:
+def login_email(req: EmailLoginRequest, request: Request) -> AuthResult:
+    guard_auth(request)
     from ..store import authenticate_email_user
     user = authenticate_email_user(req.email, req.password)
     if user is None:
@@ -169,7 +173,8 @@ def login_email(req: EmailLoginRequest) -> AuthResult:
     return AuthResult(token=create_token(user.id), user=user)
 
 @router.post("/google", response_model=AuthResult)
-async def google_login(req: GoogleLoginRequest) -> AuthResult:
+async def google_login(req: GoogleLoginRequest, request: Request) -> AuthResult:
+    guard_auth(request)
     from ..store import upsert_google_user
     import httpx
 

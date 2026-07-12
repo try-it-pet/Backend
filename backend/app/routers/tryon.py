@@ -17,8 +17,8 @@ from ..providers.looks import FOURCUT_POSES, pet_lora, pet_trigger, two_stage_ga
 from ..upscale import maybe_upscale
 from ..quota import can_generate, consume, daily_cap_reached, ip_allowed, limits_active, refund, settle
 from ..store import (
-    JOBS, add_fitting, find_pet, get_result, inc_fitting, prune_jobs, save_result, track_job,
-    get_product,
+    JOBS, add_fitting, find_pet, get_result, inc_fitting, pet_belongs_to, prune_jobs,
+    save_result, track_job, get_product,
 )
 from ..vision import detect_pet
 
@@ -32,6 +32,16 @@ def _client_ip(request: Optional[Request]) -> Optional[str]:
     if fwd:
         return fwd.split(",")[0].strip()
     return request.client.host if request.client else None
+
+
+def _check_pet_ownership(pet_id: Optional[int], user: Optional[User]) -> None:
+    """pet_id 는 본인 소유만 허용 — 타인 펫 프로필(향후 펫 전용 LoRA) 도용(IDOR) 차단."""
+    if pet_id is None:
+        return
+    if user is None:
+        raise HTTPException(status_code=401, detail="펫 프로필을 사용하려면 로그인이 필요해요.")
+    if not pet_belongs_to(user.id, pet_id):
+        raise HTTPException(status_code=403, detail="본인 펫 프로필만 사용할 수 있어요.")
 
 
 def _quota_precheck(provider: Optional[str], user: Optional[User], cost: int,
@@ -341,13 +351,16 @@ async def create_tryon(
     product = get_product(product_id)
     if product is None:
         raise HTTPException(status_code=404, detail="product not found")
+    _check_pet_ownership(pet_id, user)
     # 2단계 피팅(멀티이미지 착용 → LoRA 룩)은 replicate 경로에서만·호출 2회 → 비용 상향(two_stage_cost).
     prov = (provider or settings.provider or "mock").lower()
     unit = settings.two_stage_cost if (
         prov == "replicate" and two_stage_garment(style, bool(product.ref_image))
     ) else 1
     cost = _quota_precheck(provider, user, unit, request)
-    image_bytes = await pet_image.read() if pet_image is not None else None
+    # 용량 상한·실이미지 검증(대용량/비이미지 업로드로 인한 메모리·비용 낭비 차단)
+    from ..uploads import read_image_upload
+    image_bytes = read_image_upload(pet_image)[0] if pet_image is not None else None
     if user is not None:
         inc_fitting(user.id)
 
@@ -386,11 +399,13 @@ async def create_fourcut(
     product = get_product(product_id)
     if product is None:
         raise HTTPException(status_code=404, detail="product not found")
+    _check_pet_ownership(pet_id, user)
     cost = _quota_precheck(provider, user, settings.fourcut_cost, request)
     files = list(pet_images or [])
     if pet_image is not None:
         files.append(pet_image)
-    images = [await f.read() for f in files][:4]  # 최대 4장
+    from ..uploads import read_image_upload
+    images = [read_image_upload(f)[0] for f in files[:4]]  # 최대 4장, 용량·실이미지 검증
     if user is not None:
         inc_fitting(user.id)
 

@@ -84,11 +84,11 @@ def register_product(
     if not shop:
         raise HTTPException(status_code=403, detail="Only shop owners can register products")
 
-    # 대표 이미지 업로드
-    image_data = image_file.file.read()
-    image_ext = image_file.filename.split(".")[-1] if "." in image_file.filename else "jpg"
+    # 대표 이미지 업로드 (용량·실이미지 검증 후 실제 포맷 기준 확장자/MIME 사용)
+    from ..uploads import read_image_upload
+    image_data, image_ext, image_mime = read_image_upload(image_file)
     image_key = f"products/{uuid.uuid4()}.{image_ext}"
-    image_url = put_bytes(image_key, image_data, image_file.content_type)
+    image_url = put_bytes(image_key, image_data, image_mime)
 
     if not image_url:
         raise HTTPException(status_code=500, detail="Failed to upload product image")
@@ -97,10 +97,9 @@ def register_product(
     ref_image_url = None
     if fittable:
         if ref_image_file:
-            ref_image_data = ref_image_file.file.read()
-            ref_ext = ref_image_file.filename.split(".")[-1] if "." in ref_image_file.filename else "jpg"
+            ref_image_data, ref_ext, ref_mime = read_image_upload(ref_image_file)
             ref_key = f"products/ref_{uuid.uuid4()}.{ref_ext}"
-            ref_image_url = put_bytes(ref_key, ref_image_data, ref_image_file.content_type)
+            ref_image_url = put_bytes(ref_key, ref_image_data, ref_mime)
         else:
             # fittable 상품이나 ref_image가 없으면 대표 이미지를 피팅 이미지로 기본 사용
             ref_image_url = image_url
