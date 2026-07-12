@@ -173,37 +173,51 @@ async def google_login(req: GoogleLoginRequest) -> AuthResult:
     from ..store import upsert_google_user
     import httpx
 
-    google_id = req.idToken
     nickname = req.nickname or "구글 사용자"
     image = None
 
-    # 구글 클라이언트 ID가 설정된 경우 실서빙용 토큰 검증 실행
     if settings.google_client_id:
+        # ── 운영: 구글 tokeninfo 로 idToken 을 실제 검증 ──
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                res = await client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={req.idToken}")
+                res = await client.get(
+                    "https://oauth2.googleapis.com/tokeninfo",
+                    params={"id_token": req.idToken},
+                )
                 if res.status_code != 200:
                     raise ValueError("유효하지 않은 Google ID Token입니다.")
                 payload = res.json()
-                
+
                 # Client ID(Audience) 검증
                 if payload.get("aud") != settings.google_client_id:
                     raise ValueError("Google Client ID(Audience) 불일치")
-                
+
                 # Issuer 검증
                 if payload.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
                     raise ValueError("유효하지 않은 토큰 발행처(Issuer)")
-                
+
                 google_id = payload.get("sub")
+                if not google_id:
+                    raise ValueError("토큰에 사용자 식별자(sub)가 없습니다.")
                 nickname = payload.get("name") or payload.get("given_name") or nickname
                 image = payload.get("picture")
-        except Exception as e:
+        except HTTPException:
+            raise
+        except Exception as e:  # noqa: BLE001
             raise HTTPException(status_code=400, detail=f"Google 인증 실패: {str(e)}")
+    elif settings.allow_dev_login:
+        # ── 개발: client_id 미설정 + dev-login 허용 시에만 무검증 폴백(로컬 테스트용) ──
+        # ⚠️ 위조 idToken 이 실제 검증된 구글 계정(google_id=구글 sub)을 가로채지 못하도록
+        # dev 계정은 "dev:" 네임스페이스로 분리한다. 운영에선 이 분기 자체가 막힌다.
+        google_id = f"dev:{req.idToken}"
+    else:
+        # ── 운영 오설정 방어: client_id 없고 dev-login 도 꺼짐 → 무검증 통과 금지 ──
+        raise HTTPException(status_code=503, detail="구글 로그인이 서버에 설정되지 않았습니다.")
 
     user = upsert_google_user(
         google_id=google_id,
         nickname=nickname,
-        image=image
+        image=image,
     )
     return AuthResult(token=create_token(user.id), user=user)
 
