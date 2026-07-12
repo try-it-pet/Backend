@@ -13,7 +13,7 @@ from ..fourcut import compose_2x2
 from ..imageprep import prepare_pet_image
 from ..models import JobStatus, TryOnJob, TryOnResult, User
 from ..providers import get_provider
-from ..providers.looks import FOURCUT_POSES, two_stage_garment
+from ..providers.looks import FOURCUT_POSES, pet_lora, pet_trigger, two_stage_garment
 from ..upscale import maybe_upscale
 from ..quota import can_generate, consume, daily_cap_reached, ip_allowed, limits_active, refund, settle
 from ..store import (
@@ -238,11 +238,18 @@ async def _process_fourcut(job_id: str, images: list[bytes],
         # (같은 seed 로 묶으면 4컷이 거의 똑같이 나옴). 같은 룩 프롬프트라 테마는 응집됨.
         base_seed = random.randint(1, 2_000_000_000)
 
+        # ── 프리미엄: 펫 전용 LoRA(PETFIT_PET_LORAS)가 등록된 아이면 사진 편집·파생 대신
+        # '고정포즈 txt2img' 4컷 — LoRA 가 정체성을 들고 있어 4컷 동일성이 보장된다(2026-07-11
+        # 검증). 이 모드에선 옷 착용을 생략한다(컷=화보 컨셉, 착장은 편집 플로우 담당).
+        p_lora, p_trig = pet_lora(job.pet_id), pet_trigger(job.pet_id)
+        use_pet_lora = provider.name == "replicate" and bool(p_lora and p_trig)
+
         # 실제 상품 옷을 1번만 입히고(멀티이미지) 그 결과로 4컷을 파생 → 옷은 실물·일관,
         # 컷마다 포즈·배경만 변화. (컷마다 옷을 입히면 호출 2배 + 옷이 컷마다 달라짐.)
         cut_input = pet_image
         worn_flag = False
-        if provider.name == "replicate" and product.ref_image and pet_image is not None:
+        if (not use_pet_lora and provider.name == "replicate"
+                and product.ref_image and pet_image is not None):
             worn = await provider.wear_garment(pet_image=pet_image, product=product)
             if worn:
                 cut_input, worn_flag = worn, True
@@ -252,6 +259,13 @@ async def _process_fourcut(job_id: str, images: list[bytes],
             async with sem:
                 for attempt in range(attempts):
                     try:
+                        if use_pet_lora:  # 펫 LoRA 고정포즈 생성(편집 아님)
+                            data = await provider.lora_fourcut_cut(
+                                lora_url=p_lora, trigger=p_trig, pose_key=pose_key, seed=seed,
+                            )
+                            if data:
+                                return data
+                            raise RuntimeError("LoRA 컷 생성 실패")
                         out = await provider.generate(
                             product=product, size=job.size, pet=pet, pet_image=cut_input,
                             style=job.style, composition=pose_key, seed=seed, worn=worn_flag,
@@ -272,16 +286,18 @@ async def _process_fourcut(job_id: str, images: list[bytes],
                         await asyncio.sleep(6 if "429" in str(exc) else 2)
             return None
 
-        # 1차: 동시 생성(재시도 3회). 컷마다 seed 를 다르게(base_seed + i) → 구도·배경 변화.
+        # 1차: 동시 생성(재시도 3회). 편집 모드는 컷마다 seed 를 다르게(base_seed + i) →
+        # 구도·배경 변화. 펫 LoRA 모드는 반대로 4컷 같은 seed → 배경·조명이 묶여 스트립 통일.
         cells: list[Optional[bytes]] = list(await asyncio.gather(
-            *[_gen_cut(pk, 3, base_seed + i) for i, (pk, _) in enumerate(FOURCUT_POSES)]
+            *[_gen_cut(pk, 3, base_seed if use_pet_lora else base_seed + i)
+              for i, (pk, _) in enumerate(FOURCUT_POSES)]
         ))
 
         # 2차: 아직 빈 셀만 순차 재생성(레이트리밋 회피). 여기서도 실패하면 플레이스홀더.
         if provider.name != "mock":
             for i, (pk, _) in enumerate(FOURCUT_POSES):
                 if cells[i] is None:
-                    cells[i] = await _gen_cut(pk, 2, base_seed + i)
+                    cells[i] = await _gen_cut(pk, 2, base_seed if use_pet_lora else base_seed + i)
 
         labels = [ko for _, ko in FOURCUT_POSES]
         png = await asyncio.to_thread(compose_2x2, cells, labels)

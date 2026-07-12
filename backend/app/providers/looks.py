@@ -139,6 +139,58 @@ FOURCUT_POSES = [
     ("fc_closeup", "얼빡"),
 ]
 
+# ── 펫 전용 LoRA(프리미엄) 인생네컷 — 고정포즈 txt2img ─────────────────────────
+# 편집(사진→4컷 파생)과 달리 LoRA 가 정체성을 들고 있으므로 포즈를 자유롭게 고정
+# 지시해도 4컷이 같은 아이로 나온다(검증 2026-07-11). 4컷 모두 같은 seed + 같은
+# 배경 지시(FOURCUT_BOOTH)로 묶어 포토부스 스트립 통일감을 만든다.
+FOURCUT_BOOTH = (
+    "in front of a plain soft warm cream photo-booth backdrop, consistent soft studio "
+    "lighting, photo-booth strip photo, high quality"
+)
+LORA_FOURCUT_POSES = {
+    "fc_front": (
+        "front-facing head-and-shoulders portrait, looking straight at the camera, "
+        "alert and cute"
+    ),
+    "fc_tilt": (
+        "head tilted strongly sideways at a clear 30-degree angle, one ear flopping over, "
+        "curious puzzled expression, head-and-shoulders portrait"
+    ),
+    "fc_smile": "happy open-mouth smile with tongue slightly out, joyful, portrait framing",
+    "fc_closeup": (
+        "extreme macro close-up, the face fills the ENTIRE frame edge to edge, nose almost "
+        "touching the camera lens, big sparkling eyes, funny fisheye selfie feel"
+    ),
+}
+
+
+def pet_lora(pet_id: int | None) -> str | None:
+    """펫 전용 LoRA 가중치 URL(PETFIT_PET_LORAS JSON, 키=펫 id 문자열). 없으면 None."""
+    if pet_id is None:
+        return None
+    raw = settings.pet_loras_json
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        return data.get(str(pet_id)) if isinstance(data, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def pet_trigger(pet_id: int | None) -> str | None:
+    """펫 LoRA 트리거 주어구(PETFIT_PET_TRIGGERS JSON). 예: 'MONGZADOG, a brown toy poodle'."""
+    if pet_id is None:
+        return None
+    raw = settings.pet_triggers_json
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        return data.get(str(pet_id)) if isinstance(data, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
 BACKGROUND_PRESETS = {
     "studio": "Replace the background with a soft, clean studio backdrop.",
     "keep": "Preserve the original background and setting of the first image.",

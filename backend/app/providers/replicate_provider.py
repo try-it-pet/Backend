@@ -8,10 +8,12 @@ from .base import ProviderOutput, TryOnProvider
 from .looks import (
     BACKGROUND_PRESETS,
     COMPOSITION_PRESETS,
+    FOURCUT_BOOTH,
     IDENTITY_LIGHT,
     IDENTITY_LOCK,
     ILLUSTRATION_LOOKS,
     LOOK_PROMPTS,
+    LORA_FOURCUT_POSES,
     QUALITY_BOOST,
     SCENE_LOOKS,
     is_illustration,
@@ -285,6 +287,42 @@ class ReplicateProvider(TryOnProvider):
             analysis=analysis,
             image_url=url,
         )
+
+    async def lora_fourcut_cut(
+        self, *, lora_url: str, trigger: str, pose_key: str, seed: Optional[int] = None,
+    ) -> Optional[bytes]:
+        """펫 전용 LoRA txt2img 로 인생네컷 고정포즈 한 컷을 '생성'(사진 편집 아님).
+
+        LoRA 가 정체성을 들고 있어 포즈를 자유롭게 고정 지시해도 같은 아이로 나온다.
+        4컷을 같은 seed 로 부르면 배경·조명이 묶여 포토부스 스트립 통일감이 생긴다.
+        실패 시 None(호출부에서 재시도/플레이스홀더 처리).
+        """
+        pose = LORA_FOURCUT_POSES.get(pose_key)
+        if not (pose and settings.replicate_token):
+            return None
+        prompt = f"photo of {trigger}, {pose}, {FOURCUT_BOOTH}"
+
+        def _run() -> bytes:
+            pay = {
+                "prompt": prompt,
+                "lora_weights": lora_url,
+                "lora_scale": settings.lora_strength,
+                "aspect_ratio": "1:1",
+                "num_inference_steps": 28,   # fal 실험과 동일값(검증 2026-07-11)
+                "guidance": 3.5,
+                "output_format": "png",
+                # go_fast(fp8 양자화, 기본 True)는 LoRA 디테일을 뭉갠다(A/B 2026-07-11:
+                # 털 질감·눈 캐치라이트 손실). 품질 크리티컬이라 bf16 고정.
+                "go_fast": False,
+            }
+            if seed is not None:
+                pay["seed"] = seed
+            return _fetch_bytes(_predict(settings.flux_lora_model, pay))
+
+        try:
+            return await anyio.to_thread.run_sync(_run)
+        except Exception:  # noqa: BLE001 — 셀 단위 복원력(호출부가 재시도)
+            return None
 
     async def wear_garment(self, *, pet_image: bytes, product: Product) -> Optional[bytes]:
         """멀티이미지 kontext 로 펫에 '실제 상품 옷'을 입힌 이미지 바이트를 반환.

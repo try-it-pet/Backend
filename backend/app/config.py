@@ -36,6 +36,15 @@ class Settings:
     # 룩 → LoRA 가중치 URL 매핑(JSON). flux-kontext-dev-lora 추론에 얹음.
     #   예: {"winter":"https://replicate.delivery/.../trained_model.tar"}
     look_loras_json: str = os.getenv("PETFIT_LOOK_LORAS", "")
+    # 펫 전용 LoRA(프리미엄) — 펫 id → LoRA 가중치 URL 매핑(JSON). 있으면 인생네컷을
+    # 사진 편집이 아니라 '고정포즈 txt2img'로 생성(4컷 동일성 보장).
+    #   예: {"1": "https://pub-xxx.r2.dev/loras/pawdy-mongza.safetensors"}
+    pet_loras_json: str = os.getenv("PETFIT_PET_LORAS", "")
+    # 펫 id → LoRA 트리거 주어구(학습 트리거 단어 + 견종 설명) 매핑(JSON).
+    #   예: {"1": "MONGZADOG, a fluffy brown toy poodle"}
+    pet_triggers_json: str = os.getenv("PETFIT_PET_TRIGGERS", "")
+    # 펫 LoRA txt2img 추론 모델(편집 아님) — 외부 lora_weights URL 지원 필수.
+    flux_lora_model: str = os.getenv("PETFIT_FLUX_LORA_MODEL", "black-forest-labs/flux-dev-lora")
     # 린 프롬프트(과지시 제거) 기준 튜닝값 1.0 — 학습된 시그니처 룩을 충분히 표현하면서도
     # 입력 펫 정체성이 잘 보존되는 지점(A/B: 0.8=정체성↑무드↓, 1.0=둘 다 균형).
     lora_strength: float = float(os.getenv("PETFIT_LORA_STRENGTH", "1.0"))
