@@ -208,8 +208,12 @@ async def google_login(req: GoogleLoginRequest, request: Request) -> AuthResult:
                 image = payload.get("picture")
         except HTTPException:
             raise
-        except Exception as e:  # noqa: BLE001
+        except ValueError as e:  # 우리가 던진 검증 실패 사유(안전) — 그대로 전달
             raise HTTPException(status_code=400, detail=f"Google 인증 실패: {str(e)}")
+        except Exception as e:  # noqa: BLE001 — 네트워크 등 내부 예외는 원문 숨김
+            import logging
+            logging.getLogger("pawdy.auth").warning("Google 토큰 검증 오류: %r", e)
+            raise HTTPException(status_code=400, detail="Google 인증에 실패했어요. 다시 시도해주세요.")
     elif settings.allow_dev_login:
         # ── 개발: client_id 미설정 + dev-login 허용 시에만 무검증 폴백(로컬 테스트용) ──
         # ⚠️ 위조 idToken 이 실제 검증된 구글 계정(google_id=구글 sub)을 가로채지 못하도록

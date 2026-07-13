@@ -132,7 +132,7 @@ async def _process_job(job_id: str, pet_image: Optional[bytes],
             add_fitting(user_id, job.product_id, image_url, kind="tryon", style=job.style)
     except Exception as exc:  # noqa: BLE001
         job.status = JobStatus.failed
-        job.error = str(exc)
+        job.error = _safe_job_error(exc)  # 내부 예외 원문 숨김(서버 로그로만)
     finally:
         # 생성 성공이면 소모 확정, 실패면 차감 환불
         (settle if job.status == JobStatus.done else refund)(job_id)
@@ -146,6 +146,13 @@ async def _fetch_bytes(url: str) -> Optional[bytes]:
             return r.content if r.status_code == 200 else None
     except Exception:  # noqa: BLE001
         return None
+
+
+def _safe_job_error(exc: Exception) -> str:
+    """생성 실패 사유 — 내부 예외 원문(스택·URL·키 등) 대신 일반 메시지. 원문은 서버 로그로."""
+    import logging
+    logging.getLogger("pawdy.tryon").warning("생성 실패: %r", exc)
+    return "이미지 생성 중 문제가 발생했어요. 잠시 후 다시 시도해주세요."
 
 
 def _not_pet_error(subj: Optional[str]) -> str:
@@ -325,7 +332,7 @@ async def _process_fourcut(job_id: str, images: list[bytes],
             add_fitting(user_id, job.product_id, result_url, kind="fourcut", style=job.style)
     except Exception as exc:  # noqa: BLE001
         job.status = JobStatus.failed
-        job.error = str(exc)
+        job.error = _safe_job_error(exc)
     finally:
         (settle if job.status == JobStatus.done else refund)(job_id)
 

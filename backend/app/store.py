@@ -357,7 +357,10 @@ def confirm_payment(user_id: int, order_id: int, payment_key: str, amount: int) 
                     raise ValueError(f"토스페이먼츠 승인 실패: {err_msg}")
             except Exception as e:
                 if not isinstance(e, ValueError):
-                    raise ValueError(f"토스페이먼츠 통신 오류: {e}")
+                    # 원문(내부 URL·스택 등) 노출 금지 — 서버 로그로만 남기고 사용자엔 일반 메시지.
+                    import logging
+                    logging.getLogger("pawdy.payment").warning("토스 통신 오류: %r", e)
+                    raise ValueError("결제 처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.")
                 raise
         else:
             print("[Warning] PETFIT_TOSS_SECRET_KEY가 설정되지 않아 로컬 테스트용 모의 승인(Mock Confirm) 처리합니다.")

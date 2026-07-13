@@ -41,17 +41,23 @@ app.mount("/static", StaticFiles(directory=Path(__file__).resolve().parent / "st
 
 @app.get("/health", tags=["meta"])
 def health() -> dict:
+    """공개 헬스체크(Railway 등) — 구성/키 상태는 노출하지 않는다.
+
+    상세 진단(provider·db·storage 구성)은 배포 콘솔의 env·로그에서 확인.
+    """
+    from sqlalchemy import text
+
     from .db import engine
 
-    return {
-        "status": "ok",
-        "default_provider": settings.provider,
-        "providers": settings.configured_providers(),  # 키 설정 여부
-        "db": engine.dialect.name,          # postgresql = 영구화 OK, sqlite = 폴백(위험)
-        "storage": "r2" if settings.r2_configured() else "db",
-    }
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception:  # noqa: BLE001
+        db_ok = False
+    return {"status": "ok" if db_ok else "degraded"}
 
 
 @app.get("/", tags=["meta"])
 def root() -> dict:
-    return {"name": "Pawdy API", "docs": "/docs", "provider": settings.provider}
+    return {"name": "Pawdy API", "docs": "/docs"}
