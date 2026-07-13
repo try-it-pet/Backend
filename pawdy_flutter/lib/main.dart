@@ -51,6 +51,7 @@ class _RootShellState extends State<RootShell> {
   void initState() {
     super.initState();
     appState.load(); // 상품 카탈로그 1회 로드
+    appState.restoreSession(); // 저장된 토큰으로 로그인 복원(재시작 시 로그인 유지)
     appState.initDeepLinks(); // 카카오 로그인 딥링크(pawdy://login?token=) 수신
   }
 

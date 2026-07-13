@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../models/product.dart';
 import '../models/tryon.dart';
@@ -22,8 +23,29 @@ const String appRedirect = 'pawdy://login';
 
 class Api {
   static String? _token;
+  static const _storage = FlutterSecureStorage();
+  static const _tokenKey = 'auth_token';
+
   static bool get isLoggedIn => _token != null;
-  static void setToken(String? t) => _token = t;
+
+  /// 토큰 설정 + 기기 보안 저장소에 영속화(앱 재시작 시 로그인 유지). null 이면 삭제(로그아웃).
+  static void setToken(String? t) {
+    _token = t;
+    if (t == null) {
+      _storage.delete(key: _tokenKey).catchError((_) {});
+    } else {
+      _storage.write(key: _tokenKey, value: t).catchError((_) {});
+    }
+  }
+
+  /// 앱 부팅 시 저장된 토큰 복원. (만료/무효 토큰은 이후 fetchMe 가 걸러낸다)
+  static Future<void> restoreToken() async {
+    try {
+      _token = await _storage.read(key: _tokenKey);
+    } catch (_) {
+      _token = null;
+    }
+  }
 
   static Map<String, String> _authHeaders() =>
       _token != null ? {'Authorization': 'Bearer $_token'} : {};
@@ -40,7 +62,7 @@ class Api {
     );
     if (r.statusCode != 200) throw _apiError(r, 'dev-login 실패');
     final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
-    _token = j['token'] as String;
+    setToken(j['token'] as String);
     return User.fromJson(j['user'] as Map<String, dynamic>);
   }
 
@@ -182,7 +204,7 @@ class Api {
     );
     if (r.statusCode != 200) throw _apiError(r, '회원가입 실패');
     final data = jsonDecode(utf8.decode(r.bodyBytes));
-    _token = data['token'] as String;
+    setToken(data['token'] as String);
     return User.fromJson(data['user'] as Map<String, dynamic>);
   }
 
@@ -202,7 +224,7 @@ class Api {
     );
     if (r.statusCode != 200) throw _apiError(r, '로그인 실패');
     final data = jsonDecode(utf8.decode(r.bodyBytes));
-    _token = data['token'] as String;
+    setToken(data['token'] as String);
     return User.fromJson(data['user'] as Map<String, dynamic>);
   }
 
@@ -222,7 +244,7 @@ class Api {
     );
     if (r.statusCode != 200) throw _apiError(r, '구글 로그인 실패');
     final data = jsonDecode(utf8.decode(r.bodyBytes));
-    _token = data['token'] as String;
+    setToken(data['token'] as String);
     return User.fromJson(data['user'] as Map<String, dynamic>);
   }
 

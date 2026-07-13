@@ -80,6 +80,15 @@ class AppState extends ChangeNotifier {
 
   
   
+  /// 앱 부팅 시 보안 저장소의 토큰으로 로그인 세션 복원(재시작해도 로그인 유지).
+  Future<void> restoreSession() async {
+    await Api.restoreToken();
+    if (Api.isLoggedIn) {
+      await _afterLogin(); // 만료/무효 토큰이면 fetchMe 가 null → 비로그인 상태 유지
+      if (user == null) Api.setToken(null); // 죽은 토큰은 저장소에서도 제거
+    }
+  }
+
   /// 앱 시작 시 딥링크 리스너 등록(카카오 로그인 후 pawdy://login?token= 수신).
   Future<void> initDeepLinks() async {
     _linkSub = _appLinks.uriLinkStream.listen(_onLink, onError: (_) {});
