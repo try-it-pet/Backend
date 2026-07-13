@@ -18,7 +18,8 @@ class FitScreen extends StatefulWidget {
 }
 
 class _FitScreenState extends State<FitScreen> {
-  static const petName = '초코';
+  // 등록된 펫(활성 펫) 이름 — 미등록이면 기본 호칭
+  String get _petName => appState.activePet?.name ?? '우리 아이';
 
   // 실제 생성 = replicate(winter LoRA 등). 사용자에겐 모델 선택을 노출하지 않는다.
   // (개발 중 A/B 가 필요하면 아래 _providers + 'AI 모델' 칩을 임시로 되살려 쓸 것.)
@@ -47,6 +48,26 @@ class _FitScreenState extends State<FitScreen> {
     ['cartoon', '카툰'],
     ['pixel', '픽셀'],
   ];
+
+  // 사진풍 타일 틴트 — 새 사진풍이 추가되면 여기 없어도 키 해시 기반 파스텔이 자동 배정된다.
+  static const Map<String, List<Color>> _styleTints = {
+    'winter': [Color(0xFFDDEAF6), Color(0xFF9FC0DD)],
+    'sakura': [Color(0xFFFBE3EA), Color(0xFFF0B3C9)],
+    'plush': [Color(0xFFF6E7D8), Color(0xFFDDBB99)],
+    'clay': [Color(0xFFEDE0D4), Color(0xFFC4A78D)],
+    'cartoon': [Color(0xFFFDEBD2), Color(0xFFF3BC5D)],
+    'pixel': [Color(0xFFE4E0F5), Color(0xFFAA9EDF)],
+  };
+
+  List<Color> _tintFor(String key) {
+    final hit = _styleTints[key];
+    if (hit != null) return hit;
+    final hue = (key.hashCode % 360).toDouble().abs();
+    return [
+      HSLColor.fromAHSL(1, hue, 0.45, 0.90).toColor(),
+      HSLColor.fromAHSL(1, hue, 0.42, 0.72).toColor(),
+    ];
+  }
   static const _comps = [
     ['front_full', '정면 전신'],
     ['side', '측면'],
@@ -242,10 +263,8 @@ class _FitScreenState extends State<FitScreen> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 24),
                 children: [
-                  _labeledChips('감성 룩', _styles, _style,
-                      (v) => setState(() => _style = v)),
-                  _labeledChips('구도', _comps, _composition,
-                      (v) => setState(() => _composition = v)),
+                  _styleSection(),
+                  _compSection(),
                   _preview(),
                   _scoreCards(product),
                   _garmentPicker(),
@@ -261,59 +280,140 @@ class _FitScreenState extends State<FitScreen> {
     );
   }
 
-  Widget _chipRow(String label, List<String> keys, String Function(String) text,
-      String current, ValueChanged<String> onTap,
-      {bool dark = false}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 8, 22, 2),
-      child: Row(
+  Widget _sectionTitle(String title) => Padding(
+        padding: const EdgeInsets.fromLTRB(22, 6, 22, 0),
+        child: Text(title,
+            style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+                color: T.ink)),
+      );
+
+  /// 사진풍 선택 — 가로 스크롤 타일. 사진풍이 계속 늘어나도 그대로 확장된다.
+  Widget _styleSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('사진풍'),
+        SizedBox(
+          height: 98,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(22, 10, 22, 0),
+            itemCount: _styles.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) => _styleTile(_styles[i][0], _styles[i][1]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _styleTile(String key, String label) {
+    final on = _style == key;
+    final tint = _tintFor(key);
+    return GestureDetector(
+      onTap: () => setState(() => _style = key),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-              width: 44,
-              child: Text(label,
-                  style: const TextStyle(
-                      fontSize: 11,
-                      color: T.muted,
-                      fontWeight: FontWeight.w600))),
-          Expanded(
-            child: Wrap(
-              spacing: 6,
-              children: keys.map((k) {
-                final on = current == k;
-                return GestureDetector(
-                  onTap: () => onTap(k),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: on ? (dark ? T.ink : T.accent) : T.surface,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: on ? Colors.transparent : T.line),
-                    ),
-                    child: Text(text(k),
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: on ? Colors.white : T.sub)),
-                  ),
-                );
-              }).toList(),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 62,
+            height: 62,
+            padding: const EdgeInsets.all(2.5),
+            decoration: BoxDecoration(
+              color: T.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                  color: on ? T.accent : T.line, width: on ? 2 : 1),
+              boxShadow: on
+                  ? [
+                      BoxShadow(
+                          color: T.accent.withValues(alpha: 0.28),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3)),
+                    ]
+                  : null,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13.5),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: tint,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight),
+                ),
+                child: on
+                    ? Center(
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: const BoxDecoration(
+                              color: Colors.white, shape: BoxShape.circle),
+                          child: const Icon(Icons.check_rounded,
+                              size: 15, color: T.accent),
+                        ),
+                      )
+                    : null,
+              ),
             ),
           ),
+          const SizedBox(height: 6),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                  color: on ? T.accent : T.sub)),
         ],
       ),
     );
   }
 
-  Widget _labeledChips(String label, List<List<String>> opts, String current,
-          ValueChanged<String> onTap) =>
-      _chipRow(
-        label,
-        opts.map((e) => e[0]).toList(),
-        (k) => opts.firstWhere((e) => e[0] == k)[1],
-        current,
-        onTap,
-      );
+  /// 구도 선택 — 가로 스크롤 칩
+  Widget _compSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        _sectionTitle('구도'),
+        SizedBox(
+          height: 44,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(22, 10, 22, 0),
+            itemCount: _comps.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) {
+              final k = _comps[i][0];
+              final on = _composition == k;
+              return GestureDetector(
+                onTap: () => setState(() => _composition = k),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: on ? T.ink : T.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border:
+                        Border.all(color: on ? Colors.transparent : T.line),
+                  ),
+                  child: Text(_comps[i][1],
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: on ? Colors.white : T.sub)),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
 
   Widget _preview() {
     final hasPhoto = _photo != null;
@@ -367,14 +467,15 @@ class _FitScreenState extends State<FitScreen> {
 
   Widget _previewContent() {
     return _loading
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: T.accent, strokeWidth: 3),
-                      SizedBox(height: 16),
-                      Text('AI가 $petName에게 입히는 중…',
-                          style: TextStyle(
+                      const CircularProgressIndicator(
+                          color: T.accent, strokeWidth: 3),
+                      const SizedBox(height: 16),
+                      Text('AI가 $_petName에게 입히는 중…',
+                          style: const TextStyle(
                               fontSize: 13,
                               color: T.sub,
                               fontWeight: FontWeight.w600)),
@@ -407,7 +508,7 @@ class _FitScreenState extends State<FitScreen> {
                     color: T.accent, size: 24),
               ),
               const SizedBox(height: 10),
-              Text('$petName 사진 추가',
+              Text('$_petName 사진 추가',
                   style: const TextStyle(
                       fontSize: 13, color: T.sub, fontWeight: FontWeight.w600)),
               if (_msg.isNotEmpty) ...[
@@ -478,35 +579,43 @@ class _FitScreenState extends State<FitScreen> {
                   color: T.ink)),
         ),
         SizedBox(
-          height: 74,
+          height: 80,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(22, 14, 22, 4),
+            padding: const EdgeInsets.fromLTRB(22, 12, 22, 4),
             itemCount: _fittable.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (_, i) {
               final p = _fittable[i];
               final on = p.id == _fitId;
               final img = Api.imageUrl(p);
+              // 보더(바깥)와 이미지 클립(안쪽)을 분리 — 이미지가 보더를 덮어
+              // 주황 테두리가 깨져 보이던 문제 방지.
               return GestureDetector(
                 onTap: () => setState(() {
                   _fitId = p.id;
                   _result = null;
                 }),
-                child: Container(
-                  width: 60,
-                  height: 60,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 64,
+                  height: 64,
+                  padding: const EdgeInsets.all(2.5),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
+                    color: T.surface,
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                        color: on ? T.accent : Colors.transparent, width: 2),
+                        color: on ? T.accent : T.line, width: on ? 2 : 1),
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Container(
-                    color: T.soft,
-                    child: img == null
-                        ? const Icon(Icons.checkroom, color: T.muted2, size: 22)
-                        : Image.network(img, fit: BoxFit.cover),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11.5),
+                    child: Container(
+                      color: T.soft,
+                      child: img == null
+                          ? const Icon(Icons.checkroom,
+                              color: T.muted2, size: 22)
+                          : Image.network(img, fit: BoxFit.cover),
+                    ),
                   ),
                 ),
               );
@@ -630,7 +739,7 @@ class _FitScreenState extends State<FitScreen> {
         ? _result!.analysis
         : _loading
             ? 'AI가 체형을 분석하고 있어요…'
-            : '$petName의 체형에는 ${_result?.recommendedSize ?? _size} 사이즈가 가장 잘 맞아요.';
+            : '$_petName의 체형에는 ${_result?.recommendedSize ?? _size} 사이즈가 가장 잘 맞아요.';
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
       child: Container(
