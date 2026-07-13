@@ -90,6 +90,33 @@ class _FitScreenState extends State<FitScreen> {
       });
     }).catchError((_) {});
     _loadGen();
+    _resumePending();
+  }
+
+  /// 앱을 나갔다 돌아왔거나 재시작한 경우, 서버에서 계속 돌던 생성 잡을 이어받는다.
+  Future<void> _resumePending() async {
+    final id = await Api.pendingJob();
+    if (id == null || !mounted || _loading) return;
+    setState(() {
+      _loading = true;
+      _msg = '';
+    });
+    try {
+      final job = await Api.pollTryOnById(id);
+      if (!mounted) return;
+      if (job.isDone && job.result != null) {
+        setState(() => _result = job.result);
+        _loadGen();
+      } else if (job.isFinished) {
+        final e = job.error ?? '생성에 실패했어요. 잠시 후 다시 시도해주세요.';
+        setState(() => _msg = e);
+        _snack(e);
+      }
+    } catch (_) {
+      Api.savePendingJob(null); // 조회 불가(만료·삭제된 잡) → 추적 해제
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _loadGen() {

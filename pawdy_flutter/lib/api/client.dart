@@ -582,6 +582,40 @@ class Api {
     return job;
   }
 
+  // ── 진행 중 잡 이어받기 ──
+  // 생성은 서버에서 비동기 잡으로 계속 돌아간다. 앱이 백그라운드로 가거나 종료돼
+  // 폴링이 끊겨도, 잡 id 를 기기에 저장해뒀다가 복귀/재시작 시 이어받는다.
+  static const _pendingJobKey = 'pending_tryon_job';
+
+  static void savePendingJob(String? jobId) {
+    if (jobId == null) {
+      _storage.delete(key: _pendingJobKey).catchError((_) {});
+    } else {
+      _storage.write(key: _pendingJobKey, value: jobId).catchError((_) {});
+    }
+  }
+
+  static Future<String?> pendingJob() async {
+    try {
+      return await _storage.read(key: _pendingJobKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 폴링 추적: 시작 시 잡 id 저장, 끝나면(성공/실패) 해제. 타임아웃으로 아직
+  /// 도는 잡은 저장을 유지해 다음 진입 때 다시 이어받는다.
+  static Future<TryOnJob> _pollTracked(TryOnJob job) async {
+    savePendingJob(job.id);
+    final out = await _poll(job);
+    if (out.isFinished) savePendingJob(null);
+    return out;
+  }
+
+  /// 저장된(또는 임의의) 잡 id 로 폴링 재개 — 백그라운드 복귀·앱 재시작 후 사용.
+  static Future<TryOnJob> pollTryOnById(String jobId) async =>
+      _pollTracked(await getTryOn(jobId));
+
   static Future<TryOnJob> runTryOn({
     required int productId,
     required String size,
@@ -601,7 +635,7 @@ class Api {
               composition: composition,
               background: background,
               petImageBytes: petImageBytes)
-          .then(_poll);
+          .then(_pollTracked);
 
   static Future<TryOnJob> runFourcut({
     required int productId,
@@ -620,7 +654,7 @@ class Api {
               style: style,
               petImageBytes: petImageBytes,
               petImagesBytes: petImagesBytes)
-          .then(_poll);
+          .then(_pollTracked);
 
   static ApiException _apiError(http.Response r, String fallback) {
     String detail = fallback;
