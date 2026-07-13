@@ -107,16 +107,18 @@ def is_illustration(style: str | None) -> bool:
 
 
 def two_stage_garment(style: str | None, has_ref_image: bool) -> bool:
-    """이 룩/상품이 2단계 피팅(멀티이미지 실제 옷 착용 → LoRA 룩)으로 처리되는지.
+    """이 룩/상품이 2단계 피팅(멀티이미지 실제 옷 착용 → 룩 연출)으로 처리되는지.
 
     provider·router 가 공유(비용 산정과 실제 실행 판단이 어긋나지 않게). 실제 상품 옷(ref_image)
-    이 있고, 학습된 LoRA 룩이며(무지옷 방지 효과가 큼), 일러스트가 아닐 때만.
+    이 있고 일러스트가 아니며, 룩이 LoRA 학습됐거나 장면 재연출(SCENE) 룩일 때.
+    (SCENE 룩은 LoRA 없이 단일 호출로 가면 모델이 옷 레퍼런스를 못 봐 무지옷을 지어냄 —
+    sakura 폴백에서 실상품 니트가 민무늬 조끼로 바뀌던 문제. 2단계로 실제 옷을 먼저 입힌다.)
     """
     return (
         settings.two_stage_fitting
         and has_ref_image
-        and bool(look_lora(style))
         and not is_illustration(style)
+        and (bool(look_lora(style)) or style in SCENE_LOOKS)
     )
 
 COMPOSITION_PRESETS = {

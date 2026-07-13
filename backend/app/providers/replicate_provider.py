@@ -236,8 +236,10 @@ class ReplicateProvider(TryOnProvider):
 
             if two_stage:
                 # 1단계에서 옷을 이미 입혔으므로 2단계는 펫+옷을 보존하며 룩만 연출.
+                # LoRA 룩=트리거 우선(짧게, 희석 방지) / LoRA 없는 SCENE 룩=프롬프트로 장면 연출.
                 stage2_prompt = (
                     f"{trigger}. Keep the exact same pet and the exact same outfit it is wearing."
+                    if trigger else _build_worn_prompt(style, composition, None)
                 )
             else:
                 stage2_prompt = _build_prompt(
@@ -282,7 +284,7 @@ class ReplicateProvider(TryOnProvider):
                 pay = {"prompt": stage2_prompt, "input_image": input_uri}
                 if seed is not None:
                     pay["seed"] = seed
-                t = f"model:{style}" if trained_model else "prompt"
+                t = ("2stage+" if two_stage else "") + (f"model:{style}" if trained_model else "prompt")
             return _predict(m, pay), m, t
 
         url, model, tag = await anyio.to_thread.run_sync(_run)

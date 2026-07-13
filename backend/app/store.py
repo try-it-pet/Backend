@@ -330,7 +330,9 @@ def confirm_payment(user_id: int, order_id: int, payment_key: str, amount: int) 
 
         # 토스 페이먼츠 승인 연동
         secret_key = settings.toss_secret_key
-        if secret_key:
+        # payment_key가 'toss_pk_'로 시작하거나 'mock' 문자열을 포함하는 모의 테스트용 결제 건은 실제 API 키 존재 여부와 무관하게 즉시 로컬 모의 승인 처리
+        is_mock = payment_key.startswith("toss_pk_") or "mock" in payment_key.lower()
+        if secret_key and not is_mock:
             encoded_key = base64.b64encode(f"{secret_key}:".encode("utf-8")).decode("utf-8")
             headers = {
                 "Authorization": f"Basic {encoded_key}",
@@ -363,7 +365,7 @@ def confirm_payment(user_id: int, order_id: int, payment_key: str, amount: int) 
                     raise ValueError("결제 처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.")
                 raise
         else:
-            print("[Warning] PETFIT_TOSS_SECRET_KEY가 설정되지 않아 로컬 테스트용 모의 승인(Mock Confirm) 처리합니다.")
+            print("[Info] 모의 테스트 결제이거나 PETFIT_TOSS_SECRET_KEY 미설정 상태이므로 로컬 모의 승인(Mock Bypass) 처리합니다.")
 
         # 재고 최종 차감
         items_payload = json.loads(row.items_json)

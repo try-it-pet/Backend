@@ -139,13 +139,14 @@ def init_db() -> None:
                 s.add(row)
             s.commit()
 
-    # PostgreSQL의 경우, 시딩 시 수동으로 ID를 주입하였으므로 기본키 시퀀스 값을 테이블 최댓값으로 조정해야 함
+    # PostgreSQL의 경우, 시딩 또는 데이터 수동 주입 시 시퀀스 값이 최댓값과 불일치하여 발생할 수 있는 중복 키 오류(UniqueViolation) 방지
     if engine.dialect.name == "postgresql":
-        try:
-            with engine.begin() as conn:
-                conn.execute(text("SELECT setval(pg_get_serial_sequence('products', 'id'), COALESCE((SELECT MAX(id) FROM products), 1))"))
-        except Exception:
-            pass
+        for table in ["products", "users", "pets", "orders", "cart", "likes", "reviews", "fittings"]:
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), COALESCE((SELECT MAX(id) FROM {table}), 1))"))
+            except Exception:
+                pass
 
 
 
