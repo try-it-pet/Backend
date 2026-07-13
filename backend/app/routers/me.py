@@ -7,9 +7,9 @@ from ..auth import get_current_user
 from ..models import (
     CartItem, CartItemCreate, Fitting, Order, Pet, PetCreate, Review, Stats, User, Notification,
 )
-from ..quota import grant_purchase, status as quota_status
+from ..quota import status as quota_status
 from ..store import (
-    add_cart, add_pet, add_review, count_likes, count_orders, create_order, get_cart, get_fittings,
+    add_cart, add_pet, add_review, count_likes, count_orders, get_cart, get_fittings,
     list_fittings, list_likes, list_my_reviews, list_orders, list_pets, remove_cart, toggle_like,
     get_product, list_notifications, mark_notification_as_read, mark_all_notifications_as_read,
     delete_notification, delete_all_notifications, delete_pet, create_pending_order, confirm_payment,
@@ -55,15 +55,8 @@ def cart_remove(item_id: int, user: User = Depends(get_current_user)) -> list[Ca
 
 
 # ── 주문 ──
-@router.post("/orders", response_model=Order)
-def checkout(user: User = Depends(get_current_user)) -> Order:
-    order = create_order(user.id)
-    if order is None:
-        raise HTTPException(status_code=400, detail="장바구니가 비어 있습니다")
-    grant_purchase(user.id)  # 구매 보상: AI 생성 횟수 추가 충전
-    return order
-
-
+# 결제 흐름은 pending(주문 생성) → 토스 결제 → payments/confirm(승인·재고차감·보너스) 단일 경로다.
+# (구) POST /me/orders 즉시 결제완료 라우트는 결제 없이 주문·보너스를 만들 수 있어 제거함.
 @router.post("/orders/pending", response_model=Order)
 def checkout_pending(user: User = Depends(get_current_user)) -> Order:
     try:

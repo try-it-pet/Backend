@@ -141,13 +141,6 @@ class Api {
     return _cartFrom(r);
   }
 
-  /// 체크아웃(장바구니 → 주문 생성). 구매 시 AI 생성 횟수도 충전됨.
-  static Future<Order> checkout() async {
-    final r = await http.post(Uri.parse('$apiBase/me/orders'), headers: _authHeaders());
-    if (r.statusCode != 200) throw _apiError(r, '결제 실패');
-    return Order.fromJson(jsonDecode(utf8.decode(r.bodyBytes)));
-  }
-
   /// 임시 결제대기 주문 생성
   static Future<Order> createPendingOrder() async {
     final r = await http.post(Uri.parse('$apiBase/me/orders/pending'), headers: _authHeaders());

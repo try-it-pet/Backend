@@ -286,51 +286,8 @@ def remove_cart(user_id: int, item_id: int) -> List[CartItem]:
 
 
 # ── 주문 ──
-def create_order(user_id: int) -> Optional[Order]:
-    with get_session() as s:
-        items = _cart_items(s, user_id)
-        if not items:
-            return None
-        
-        # 재고 검증 및 차감
-        for it in items:
-            p_row = s.get(ProductRow, it.product_id)
-            if not p_row:
-                raise ValueError(f"상품 정보를 찾을 수 없습니다: {it.product.name}")
-            if p_row.stock < it.qty:
-                raise ValueError(f"재고가 부족합니다: {it.product.name} (남은 재고: {p_row.stock}개)")
-            p_row.stock -= it.qty
-            s.add(p_row)
-
-        total = sum(it.product.price * it.qty for it in items)
-        payload = json.dumps([{"product_id": it.product_id, "size": it.size, "qty": it.qty} for it in items])
-        row = OrderRow(user_id=user_id, items_json=payload, total=total)
-        # 알림 생성 (소비자)
-        create_notification_in_session(s, user_id, "주문 완료", f"총 {len(items)}개 상품 결제가 정상 완료되었습니다.")
-
-        # 알림 생성 (각 상점 판매자)
-        notified_sellers = set()
-        for it in items:
-            p_row = s.get(ProductRow, it.product_id)
-            if p_row and p_row.shop_id:
-                shop_row = s.get(ShopRow, p_row.shop_id)
-                if shop_row and shop_row.owner_id and shop_row.owner_id not in notified_sellers:
-                    create_notification_in_session(
-                        s,
-                        shop_row.owner_id,
-                        "신규 주문 접수",
-                        f"내 상점 '{shop_row.name}'에 신규 주문(주문번호 #{row.id})이 접수되었습니다."
-                    )
-                    notified_sellers.add(shop_row.owner_id)
-
-        s.add(row)
-        for cr in s.exec(select(CartRow).where(CartRow.user_id == user_id)).all():
-            s.delete(cr)  # 주문 후 장바구니 비움
-
-        s.commit(); s.refresh(row)
-        return _order(s, row)
-
-
+# 결제 흐름은 create_pending_order → (토스 결제) → confirm_payment 단일 경로.
+# (구) create_order(결제 없이 즉시 결제완료·재고차감·보너스)는 우회 결제 문제로 제거함.
 def create_pending_order(user_id: int) -> Optional[Order]:
     with get_session() as s:
         items = _cart_items(s, user_id)
@@ -448,9 +405,8 @@ def confirm_payment(user_id: int, order_id: int, payment_key: str, amount: int) 
                     )
                     notified_sellers.add(shop_row.owner_id)
 
-        # AI 생성 횟수 추가 충전
-        from .quota import grant_purchase
-        grant_purchase(user_id)
+        # AI 생성 보너스 충전 — 같은 세션 내에서 처리(중첩 세션 시 SQLite 락/부분커밋 위험).
+        _counter(s, user_id).gen_bonus += settings.purchase_bonus
 
         s.commit(); s.refresh(row)
         return _order(s, row)

@@ -267,18 +267,6 @@ class AppState extends ChangeNotifier {
   int get cartTotal =>
       cart.fold(0, (sum, it) => sum + it.product.price * it.qty);
 
-  Future<Order> checkout() async {
-    final order = await Api.checkout();
-    cart = [];
-    notifyListeners();
-    try {
-      stats = await Api.fetchStats(); // 주문 수 갱신
-      await fetchUnreadNotificationsCount(); // 알림 배지 개수 갱신
-    } catch (_) {}
-    notifyListeners();
-    return order;
-  }
-
   Future<Order> confirmPayment({
     required String paymentKey,
     required int orderId,
