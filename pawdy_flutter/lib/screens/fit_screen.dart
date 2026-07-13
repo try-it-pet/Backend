@@ -126,8 +126,12 @@ class _FitScreenState extends State<FitScreen> {
     final fourPhotos = _four.whereType<Uint8List>().toList();
     if (_provider != 'mock') {
       if (fourcut && fourPhotos.length < 4) {
-        setState(() => _msg = '인생네컷은 사진 4장을 모두 올려주세요');
-        _snack('인생네컷은 사진 4장을 모두 올려주세요');
+        final missing = 4 - fourPhotos.length;
+        final m = fourPhotos.isEmpty
+            ? '인생네컷 사진 4장을 올리지 않았어요. 아래 인생네컷 칸에 사진을 넣어주세요'
+            : '인생네컷 사진이 $missing장 부족해요 (4장 필요)';
+        setState(() => _msg = m);
+        _snack(m);
         return;
       }
       if (!fourcut && _photo == null) {

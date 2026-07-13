@@ -128,8 +128,16 @@ def _predict(model: str, inp: dict, loops: int = 120) -> str:
 
     tok, headers = _rp_headers()
     version = _version_of(model, tok)
-    r = hx.post("https://api.replicate.com/v1/predictions", headers=headers,
-                json={"version": version, "input": inp}, timeout=60)
+    # 429 재시도: 크레딧 $5 미만이면 Replicate가 분당 6회·burst 1로 던지는데,
+    # 2단계 피팅·인생네컷은 연속 호출이라 즉사한다 → Retry-After 만큼 기다렸다 재시도.
+    r = None
+    for _ in range(4):
+        r = hx.post("https://api.replicate.com/v1/predictions", headers=headers,
+                    json={"version": version, "input": inp}, timeout=60)
+        if r.status_code != 429:
+            break
+        wait = int(r.headers.get("retry-after") or 10)
+        time.sleep(min(wait + 1, 30))
     r.raise_for_status()
     pid = r.json()["id"]
     for _ in range(loops):  # 최대 ~6분 (콜드스타트 포함)
